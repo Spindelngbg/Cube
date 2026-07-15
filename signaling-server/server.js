@@ -13,7 +13,7 @@ const MAX_LOBBIES = 1024;
 const PORT = Number(process.env.PORT) || 9080;
 const ALFNUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
-const NO_LOBBY_TIMEOUT = 1000;
+const NO_LOBBY_TIMEOUT = 15000;
 const SEAL_CLOSE_TIMEOUT = 10000;
 const PING_INTERVAL = 10000;
 
@@ -241,9 +241,11 @@ function joinLobby(peer, pLobby, mesh) {
 		lobbies.set(lobbyName, new Lobby(lobbyName, peer.id, mesh));
 		console.log(`Peer ${peer.id} created lobby ${lobbyName}`);
 	}
-	const lobby = lobbies.get(lobbyName);
+	let lobby = lobbies.get(lobbyName);
 	if (!lobby) {
-		throw new ProtoError(4000, STR_LOBBY_DOES_NOT_EXISTS);
+		lobbies.set(lobbyName, new Lobby(lobbyName, peer.id, mesh));
+		lobby = lobbies.get(lobbyName);
+		console.log(`Peer ${peer.id} created public lobby ${lobbyName}`);
 	}
 	if (lobby.sealed) {
 		throw new ProtoError(4000, STR_LOBBY_IS_SEALED);
@@ -311,13 +313,14 @@ wss.on('connection', (ws) => {
 	peersCount += 1;
 	const id = randomId();
 	const peer = new Peer(id, ws);
-	ws.on('message', (message) => {
-		if (typeof message !== 'string') {
+	ws.on('message', (message, isBinary) => {
+		if (isBinary) {
 			ws.close(4000, STR_INVALID_TRANSFER_MODE);
 			return;
 		}
+		const text = typeof message === 'string' ? message : message.toString('utf8');
 		try {
-			parseMsg(peer, message);
+			parseMsg(peer, text);
 		} catch (e) {
 			const code = e.code || 4000;
 			console.log(`Error parsing message from ${id}: ${message}`);

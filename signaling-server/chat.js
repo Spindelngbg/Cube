@@ -304,11 +304,12 @@ function attachChatServer() {
 			text: 'Ansluten till global chatt',
 		});
 
-		ws.on('message', (message) => {
-			if (typeof message !== 'string') {
+		ws.on('message', (message, isBinary) => {
+			if (isBinary) {
 				return;
 			}
-			parseClientMessage(client, message);
+			const text = typeof message === 'string' ? message : message.toString('utf8');
+			parseClientMessage(client, text);
 		});
 
 		ws.on('close', () => {
