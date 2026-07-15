@@ -24,6 +24,8 @@ var _http := HTTPRequest.new()
 var _pending_action := ""
 var _busy := false
 var _list_synced := false
+var _request_generation := 0
+var _active_generation := 0
 
 
 func _ready() -> void:
@@ -58,6 +60,7 @@ func cancel_request() -> void:
 	if _busy:
 		_http.cancel_request()
 	_busy = false
+	_request_generation += 1
 
 
 func characters_list_ready() -> bool:
@@ -66,8 +69,7 @@ func characters_list_ready() -> bool:
 
 func load_characters() -> void:
 	if _busy:
-		operation_failed.emit("Vänta på förra serveranropet...")
-		return
+		cancel_request()
 	_post("/characters/list", {}, "list")
 
 
@@ -186,9 +188,8 @@ func is_busy() -> bool:
 
 
 func _post(path: String, body: Dictionary, action: String) -> void:
-	if _busy:
-		operation_failed.emit("Vänta på förra serveranropet...")
-		return
+	_request_generation += 1
+	_active_generation = _request_generation
 	_pending_action = action
 	body["token"] = Auth.session_token
 	var json_body := JSON.stringify(body)
@@ -198,10 +199,18 @@ func _post(path: String, body: Dictionary, action: String) -> void:
 		"User-Agent: CubeGodot/1.0",
 	])
 	_busy = true
+	call_deferred("_send_request", path, json_body, headers)
+
+
+func _send_request(path: String, json_body: String, headers: PackedStringArray) -> void:
+	if not _busy or _active_generation != _request_generation:
+		return
 	var err := _http.request(Auth.api_url + path, headers, HTTPClient.METHOD_POST, json_body)
 	if err == ERR_BUSY:
-		_busy = false
-		operation_failed.emit("Servern upptagen – försök igen")
+		get_tree().create_timer(0.2).timeout.connect(
+			func() -> void: _send_request(path, json_body, headers),
+			CONNECT_ONE_SHOT
+		)
 		return
 	if err != OK:
 		_busy = false
@@ -214,6 +223,9 @@ func _on_request_completed(
 	_headers: PackedStringArray,
 	body: PackedByteArray
 ) -> void:
+	if _active_generation != _request_generation:
+		return
+
 	_busy = false
 
 	if result == HTTPRequest.RESULT_TIMEOUT:

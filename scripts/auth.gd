@@ -3,7 +3,7 @@ extends Node
 const PRODUCTION_API_URL := "https://cube-production-3d68.up.railway.app"
 const LOCAL_API_URL := "http://localhost:9080"
 const DEFAULT_API_URL := PRODUCTION_API_URL
-const REQUEST_TIMEOUT_SEC := 25.0
+const REQUEST_TIMEOUT_SEC := 18.0
 const MAX_RETRIES := 2
 
 var username: String = ""
@@ -22,6 +22,8 @@ var _pending_path := ""
 var _pending_body := {}
 var _retry_count := 0
 var _request_in_flight := false
+var _request_generation := 0
+var _active_generation := 0
 
 
 func _ready() -> void:
@@ -79,14 +81,19 @@ func login_as_guest() -> void:
 
 func _post(path: String, body: Dictionary, action: String) -> void:
 	cancel_request()
+	_request_generation += 1
+	_active_generation = _request_generation
 	_pending_action = action
 	_pending_path = path
 	_pending_body = body
 	_retry_count = 0
-	_send_request()
+	call_deferred("_send_request")
 
 
 func _send_request() -> void:
+	if _active_generation != _request_generation:
+		return
+
 	var json_body := JSON.stringify(_pending_body)
 	var headers := PackedStringArray([
 		"Content-Type: application/json",
@@ -96,7 +103,7 @@ func _send_request() -> void:
 	var err := _http.request(api_url + _pending_path, headers, HTTPClient.METHOD_POST, json_body)
 	if err == ERR_BUSY and _retry_count < MAX_RETRIES:
 		_retry_count += 1
-		get_tree().create_timer(0.15).timeout.connect(_send_request, CONNECT_ONE_SHOT)
+		get_tree().create_timer(0.2).timeout.connect(_send_request, CONNECT_ONE_SHOT)
 		return
 	if err != OK:
 		_request_in_flight = false
@@ -105,27 +112,31 @@ func _send_request() -> void:
 	_request_in_flight = true
 
 
+func _retry_or_fail(message: String) -> void:
+	if _retry_count < MAX_RETRIES:
+		_retry_count += 1
+		cancel_request()
+		call_deferred("_send_request")
+		return
+	login_failed.emit(message)
+
+
 func _on_request_completed(
 	result: int,
 	response_code: int,
 	_headers: PackedByteArray,
 	body: PackedByteArray
 ) -> void:
+	if _active_generation != _request_generation:
+		return
+
 	_request_in_flight = false
 
 	if result == HTTPRequest.RESULT_TIMEOUT:
-		if _retry_count < MAX_RETRIES:
-			_retry_count += 1
-			_send_request()
-			return
-		login_failed.emit("Servern svarade inte i tid – vänta och försök igen")
+		_retry_or_fail("Servern svarade inte i tid – vänta och försök igen")
 		return
 	if result != HTTPRequest.RESULT_SUCCESS:
-		if _retry_count < MAX_RETRIES:
-			_retry_count += 1
-			_send_request()
-			return
-		login_failed.emit("Nätverksfel – kunde inte nå servern (kod %d)" % result)
+		_retry_or_fail("Nätverksfel – kunde inte nå servern (kod %d)" % result)
 		return
 	if response_code < 200 or response_code >= 300:
 		login_failed.emit("Serverfel (%d)" % response_code)
