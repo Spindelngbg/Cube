@@ -1,6 +1,7 @@
 [build]
-builder = "RAILPACK"
-watchPatterns = ["signaling-server/**", "package.json"]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+watchPatterns = ["signaling-server/**", "package.json", "Dockerfile"]
 
 [deploy]
 startCommand = "npm start"
