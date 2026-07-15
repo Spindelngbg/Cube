@@ -223,10 +223,8 @@ func _on_login_failed(message: String) -> void:
 func _begin_auth(status_text: String) -> void:
 	_apply_server_url()
 	_account_flow_running = false
-	Auth.cancel_request()
-	Profile.cancel_request()
 	_set_status(status_text)
-	_set_buttons_enabled(false)
+	_set_action_buttons_enabled(false)
 	_start_auth_watchdog()
 
 
@@ -254,17 +252,18 @@ func _on_auth_watchdog_timeout() -> void:
 
 func _reset_auth_ui(message: String) -> void:
 	_set_status(message)
-	_set_buttons_enabled(true)
+	_set_action_buttons_enabled(true)
 
 
 func _set_status(text: String) -> void:
 	status_label.text = text
 
 
-func _set_buttons_enabled(enabled: bool) -> void:
-	tab_login.disabled = not enabled
-	tab_register.disabled = not enabled
-	tab_guest.disabled = not enabled
+func _set_action_buttons_enabled(enabled: bool) -> void:
 	%LoginButton.disabled = not enabled
 	%RegisterButton.disabled = not enabled
 	%GuestButton.disabled = not enabled
+
+
+func _set_buttons_enabled(enabled: bool) -> void:
+	_set_action_buttons_enabled(enabled)

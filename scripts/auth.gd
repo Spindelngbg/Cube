@@ -29,7 +29,6 @@ var _inflight_send_id := 0
 func _ready() -> void:
 	add_child(_http)
 	_http.timeout = REQUEST_TIMEOUT_SEC
-	_http.use_threads = true
 	_http.request_completed.connect(_on_request_completed)
 
 
@@ -85,18 +84,19 @@ func login_as_guest() -> void:
 func _post(path: String, body: Dictionary, action: String) -> void:
 	cancel_request()
 	_send_id += 1
+	var send_id := _send_id
 	_pending_action = action
 	_pending_path = path
 	_pending_body = body
 	_retry_count = 0
-	_dispatch_request(_send_id)
+	call_deferred("_dispatch_request", send_id)
 
 
 func _dispatch_request(send_id: int) -> void:
 	if send_id != _send_id:
 		return
 	if not is_inside_tree():
-		login_failed.emit("Klienten är inte redo – starta om spelet")
+		_emit_failed("Klienten är inte redo – starta om spelet")
 		return
 
 	var json_body := JSON.stringify(_pending_body)
@@ -115,7 +115,7 @@ func _dispatch_request(send_id: int) -> void:
 		return
 	if err != OK:
 		if send_id == _send_id:
-			login_failed.emit("Kunde inte nå servern (fel %d)" % err)
+			_emit_failed("Kunde inte nå servern (fel %d)" % err)
 		return
 
 	_request_in_flight = true
@@ -134,7 +134,7 @@ func _retry_or_fail(send_id: int, message: String) -> void:
 			CONNECT_ONE_SHOT
 		)
 		return
-	login_failed.emit(message)
+	_emit_failed(message)
 
 
 func _on_request_completed(
@@ -143,12 +143,12 @@ func _on_request_completed(
 	_headers: PackedByteArray,
 	body: PackedByteArray
 ) -> void:
-	if _inflight_send_id == 0 or _inflight_send_id != _send_id:
+	var send_id := _inflight_send_id
+	if send_id == 0 or send_id != _send_id:
 		return
 
 	_request_in_flight = false
 	_inflight_send_id = 0
-	var send_id := _send_id
 
 	if result == HTTPRequest.RESULT_TIMEOUT:
 		_retry_or_fail(send_id, "Servern svarade inte i tid – vänta och försök igen")
@@ -157,21 +157,33 @@ func _on_request_completed(
 		_retry_or_fail(send_id, "Nätverksfel – kunde inte nå servern (kod %d)" % result)
 		return
 	if response_code < 200 or response_code >= 300:
-		login_failed.emit("Serverfel (%d)" % response_code)
+		_emit_failed("Serverfel (%d)" % response_code)
 		return
 
 	var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())
 	if typeof(parsed) != TYPE_DICTIONARY:
-		login_failed.emit("Ogiltigt svar från servern")
+		_emit_failed("Ogiltigt svar från servern")
 		return
 
 	var data := parsed as Dictionary
 	if not data.get("ok", false):
-		login_failed.emit(str(data.get("error", "Inloggning misslyckades")))
+		_emit_failed(str(data.get("error", "Inloggning misslyckades")))
 		return
 
+	call_deferred("_emit_success", data)
+
+
+func _emit_success(data: Dictionary) -> void:
 	username = str(data.get("username", ""))
 	is_guest = bool(data.get("isGuest", false))
 	session_token = str(data.get("sessionToken", ""))
 	is_logged_in = true
 	login_succeeded.emit(username, is_guest)
+
+
+func _emit_failed(message: String) -> void:
+	call_deferred("_emit_failed_deferred", message)
+
+
+func _emit_failed_deferred(message: String) -> void:
+	login_failed.emit(message)

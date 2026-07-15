@@ -31,7 +31,6 @@ var _inflight_send_id := 0
 func _ready() -> void:
 	add_child(_http)
 	_http.timeout = REQUEST_TIMEOUT_SEC
-	_http.use_threads = true
 	_http.request_completed.connect(_on_request_completed)
 
 
