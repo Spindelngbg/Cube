@@ -1,32 +1,15 @@
-const fs = require('fs');
 const path = require('path');
 const { loadAccounts, validateUsername } = require('./auth');
+const { DATA_DIR, writeJsonAtomic, readJsonFile } = require('./data-path');
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const FRIENDS_FILE = path.join(DATA_DIR, 'friends.json');
 
-function ensureDataDir() {
-	if (!fs.existsSync(DATA_DIR)) {
-		fs.mkdirSync(DATA_DIR, { recursive: true });
-	}
-}
-
 function loadFriendsData() {
-	ensureDataDir();
-	if (!fs.existsSync(FRIENDS_FILE)) {
-		return {};
-	}
-	try {
-		return JSON.parse(fs.readFileSync(FRIENDS_FILE, 'utf8'));
-	} catch (e) {
-		console.error('Failed to read friends file:', e);
-		return {};
-	}
+	return readJsonFile(FRIENDS_FILE, {});
 }
 
 function saveFriendsData(data) {
-	ensureDataDir();
-	fs.writeFileSync(FRIENDS_FILE, JSON.stringify(data, null, 2));
+	writeJsonAtomic(FRIENDS_FILE, data);
 }
 
 function userKey(username) {

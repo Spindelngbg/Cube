@@ -1,9 +1,14 @@
 const crypto = require('crypto');
-const fs = require('fs');
 const path = require('path');
+const {
+	DATA_DIR,
+	ensureDataDir,
+	writeJsonAtomic,
+	readJsonFile,
+} = require('./data-path');
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json');
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const MIN_PASSWORD_LEN = 4;
@@ -11,28 +16,31 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const sessions = new Map();
 
-function ensureDataDir() {
-	if (!fs.existsSync(DATA_DIR)) {
-		fs.mkdirSync(DATA_DIR, { recursive: true });
+function loadSessions() {
+	const stored = readJsonFile(SESSIONS_FILE, {});
+	for (const [token, session] of Object.entries(stored)) {
+		if (session && session.expires > Date.now()) {
+			sessions.set(token, session);
+		}
 	}
+}
+
+function saveSessions() {
+	const stored = {};
+	for (const [token, session] of sessions.entries()) {
+		if (session.expires > Date.now()) {
+			stored[token] = session;
+		}
+	}
+	writeJsonAtomic(SESSIONS_FILE, stored);
 }
 
 function loadAccounts() {
-	ensureDataDir();
-	if (!fs.existsSync(ACCOUNTS_FILE)) {
-		return {};
-	}
-	try {
-		return JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'));
-	} catch (e) {
-		console.error('Failed to read accounts file:', e);
-		return {};
-	}
+	return readJsonFile(ACCOUNTS_FILE, {});
 }
 
 function saveAccounts(accounts) {
-	ensureDataDir();
-	fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
+	writeJsonAtomic(ACCOUNTS_FILE, accounts);
 }
 
 function hashPassword(password) {
@@ -64,6 +72,7 @@ function createSession(username, isGuest) {
 		isGuest: Boolean(isGuest),
 		expires: Date.now() + SESSION_TTL_MS,
 	});
+	saveSessions();
 	return token;
 }
 
@@ -77,6 +86,7 @@ function verifySession(token) {
 	}
 	if (session.expires < Date.now()) {
 		sessions.delete(token);
+		saveSessions();
 		return null;
 	}
 	return session;
@@ -111,6 +121,7 @@ function register(username, password) {
 		createdAt: new Date().toISOString(),
 	};
 	saveAccounts(accounts);
+	console.log(`Registered account: ${username} (total: ${Object.keys(accounts).length})`);
 
 	const sessionToken = createSession(username, false);
 	return {
@@ -256,6 +267,14 @@ function deleteAccount(username) {
 	return { ok: true };
 }
 
+function initPersistence() {
+	ensureDataDir();
+	loadSessions();
+	const accountCount = Object.keys(loadAccounts()).length;
+	console.log(`Persistent data dir: ${DATA_DIR}`);
+	console.log(`Loaded ${accountCount} account(s), ${sessions.size} session(s)`);
+}
+
 module.exports = {
 	handleAuthRequest,
 	register,
@@ -269,4 +288,5 @@ module.exports = {
 	createSession,
 	readJsonBody,
 	sendJson,
+	initPersistence,
 };

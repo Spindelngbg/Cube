@@ -1,7 +1,7 @@
 const http = require('http');
 const WebSocket = require('ws');
 const crypto = require('crypto');
-const { handleAuthRequest } = require('./auth');
+const { handleAuthRequest, initPersistence } = require('./auth');
 const { handleAvatarRequest } = require('./avatars');
 const { handleAdminRequest } = require('./admin');
 const { renderLandingPage } = require('./landing');
@@ -340,6 +340,8 @@ setInterval(() => {
 		ws.ping();
 	});
 }, PING_INTERVAL);
+
+initPersistence();
 
 server.listen(PORT, '0.0.0.0', () => {
 	const { ADMIN_USER } = require('./admin');

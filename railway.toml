@@ -6,3 +6,10 @@ startCommand = "npm start"
 healthcheckPath = "/"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
+
+[env]
+DATA_DIR = "/data"
+
+[[deploy.volumes]]
+name = "cube-data"
+mountPath = "/data"

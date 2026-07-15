@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const fs = require('fs');
 const path = require('path');
 const {
 	verifySession,
@@ -7,8 +6,8 @@ const {
 	readJsonBody,
 	sendJson,
 } = require('./auth');
+const { DATA_DIR, writeJsonAtomic, readJsonFile } = require('./data-path');
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const AVATARS_FILE = path.join(DATA_DIR, 'avatars.json');
 
 const MAX_CHARACTERS_DEFAULT = 6;
@@ -16,28 +15,12 @@ const UNLIMITED_USER = 'testare1';
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const CHARACTER_NAME_RE = /^[\p{L}\p{N} _-]{1,16}$/u;
 
-function ensureDataDir() {
-	if (!fs.existsSync(DATA_DIR)) {
-		fs.mkdirSync(DATA_DIR, { recursive: true });
-	}
-}
-
 function loadStore() {
-	ensureDataDir();
-	if (!fs.existsSync(AVATARS_FILE)) {
-		return {};
-	}
-	try {
-		return JSON.parse(fs.readFileSync(AVATARS_FILE, 'utf8'));
-	} catch (e) {
-		console.error('Failed to read avatars file:', e);
-		return {};
-	}
+	return readJsonFile(AVATARS_FILE, {});
 }
 
 function saveStore(data) {
-	ensureDataDir();
-	fs.writeFileSync(AVATARS_FILE, JSON.stringify(data, null, 2));
+	writeJsonAtomic(AVATARS_FILE, data);
 }
 
 function getCharacterLimit(username) {
