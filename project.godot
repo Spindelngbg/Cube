@@ -22,6 +22,8 @@ config/features=PackedStringArray("4.7")
 [autoload]
 
 Auth="*res://scripts/auth.gd"
+CubeGovernance="*res://scripts/cube/cube_governance.gd"
+CubeRegistry="*res://scripts/cube/cube_registry.gd"
 Network="*res://scripts/network.gd"
 Profile="*res://scripts/profile.gd"
 GlobalChat="*res://scenes/ui/global_chat.tscn"

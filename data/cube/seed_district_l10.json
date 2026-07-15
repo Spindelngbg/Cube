@@ -1,0 +1,66 @@
+{
+	"version": 1,
+	"district_id": "L10-CORE",
+	"prototype_bounds": {
+		"layer": 10,
+		"block_origin": [13, 13],
+		"block_count": 5,
+		"meters_per_block": 40,
+		"meters_per_zone": 10
+	},
+	"zones": [
+		{
+			"zone_id": "L10-B1515-Z11",
+			"layer": 10,
+			"block": [15, 15],
+			"zone": [1, 1],
+			"district": "core",
+			"name": "Centralplaza Syd",
+			"ownership": "public",
+			"nft_ready": true,
+			"governed_by_block": "L10-B1515",
+			"governed_by_layer": "L10",
+			"structures": []
+		},
+		{
+			"zone_id": "L10-B1515-Z22",
+			"layer": 10,
+			"block": [15, 15],
+			"zone": [2, 2],
+			"district": "core",
+			"name": "Rådhuskvarteret",
+			"ownership": "foundation",
+			"nft_ready": false,
+			"governed_by_block": "L10-B1515",
+			"governed_by_layer": "L10",
+			"structures": []
+		},
+		{
+			"zone_id": "L10-B1414-Z00",
+			"layer": 10,
+			"block": [14, 14],
+			"zone": [0, 0],
+			"district": "core",
+			"name": "Hamnporten",
+			"ownership": "reserved",
+			"nft_ready": true,
+			"governed_by_block": "L10-B1414",
+			"governed_by_layer": "L10",
+			"structures": []
+		},
+		{
+			"zone_id": "L10-B1616-Z33",
+			"layer": 10,
+			"block": [16, 16],
+			"zone": [3, 3],
+			"district": "core",
+			"name": "Industrikaj",
+			"ownership": "public",
+			"nft_ready": false,
+			"governed_by_block": "L10-B1616",
+			"governed_by_layer": "L10",
+			"governance_locked": true,
+			"structures": []
+		}
+	]
+}

@@ -1,0 +1,75 @@
+{
+	"cube_id": "THE_CUBE_ALPHA",
+	"name": "The Cube",
+	"logical_extent_m": 30000000,
+	"extent_note": "30 mil meter per axel (30 000 000 m). Kuben är en megastruktur.",
+	"layer_count": 20,
+	"blocks_per_axis": 30,
+	"zones_per_block_axis": 10,
+	"derived": {
+		"layer_height_m": 1500000,
+		"block_size_m": 1000000,
+		"zone_size_m": 100000,
+		"total_zones": 1800000
+	},
+	"coordinate_system": {
+		"layer": "1-20 (botten till topp)",
+		"block": "bx 0-29, bz 0-29 per lager",
+		"zone": "zx 0-9, zz 0-9 per block"
+	},
+	"zone_id_format": "L{layer:02d}-B{bx:02d}{bz:02d}-Z{zx}{zz}",
+	"examples": [
+		"L01-B0000-Z00",
+		"L10-B1515-Z55",
+		"L20-B2929-Z99"
+	],
+	"ownership_statuses": [
+		"foundation",
+		"public",
+		"reserved",
+		"owned"
+	],
+	"nft": {
+		"enabled": false,
+		"metadata_uri_template": "https://cube-production-3d68.up.railway.app/api/zones/{zone_id}",
+		"notes": "Zoner märkta reserved är avsedda för framtida NFT-försäljning utanför spelet."
+	},
+	"governance": {
+		"enabled": true,
+		"territory_levels": ["layer", "block", "zone"],
+		"layer_id_format": "L{layer:02d}",
+		"block_id_format": "L{layer:02d}-B{bx:02d}{bz:02d}",
+		"governance_statuses": ["foundation", "open", "interim", "elected", "locked"],
+		"verification_levels": ["zone_citizen", "block_governor", "layer_sovereign", "cube_council"],
+		"powers": {
+			"layer": [
+				"appoint_block_governor",
+				"set_building_codes",
+				"set_zone_zoning",
+				"collect_tax",
+				"declare_ordinance",
+				"delegate_block"
+			],
+			"block": [
+				"set_building_codes",
+				"issue_build_permit",
+				"set_zone_zoning",
+				"collect_tax",
+				"declare_ordinance"
+			]
+		},
+		"hierarchy": "Lagervärd → blockvärd → zon (NFT-ägare för äganderätt)",
+		"seed_file": "res://data/cube/governance_seed.json",
+		"api_template": "https://cube-production-3d68.up.railway.app/api/political/{territory_id}"
+	},
+	"prototype": {
+		"layer": 10,
+		"block_origin": [13, 13],
+		"block_count": 5,
+		"meters_per_block": 40,
+		"meters_per_zone": 10,
+		"zones_per_block": 4,
+		"district_id": "L10-CORE",
+		"description": "Spelbar prototyp av centrala stadsdelen i lagret 10."
+	}
+}

@@ -1,0 +1,119 @@
+{
+	"version": 1,
+	"hierarchy_rules": {
+		"description": "Lagervärd styr block om block saknar vald guvernör. Blockvärd styr zoner via bygglov och detaljplan. NFT-ägda zoner behåller äganderätt men lyder under lokala ordningsregler.",
+		"resolution_order": [
+			"zone_nft_owner",
+			"block_governor",
+			"layer_sovereign",
+			"foundation"
+		],
+		"layer_controls_blocks": true,
+		"block_can_override_delegation": true,
+		"zone_nft_overrides_permits": false
+	},
+	"political_verification_levels": [
+		{
+			"level": "zone_citizen",
+			"description": "Grundläggande medborgarskap i en zon."
+		},
+		{
+			"level": "block_governor",
+			"description": "Verifierad styrelse över ett block. Krävs för bygglov och lokala ordningsregler."
+		},
+		{
+			"level": "layer_sovereign",
+			"description": "Verifierad styrelse över ett helt lager. Kan delegera eller avsätta blockguvernörer."
+		},
+		{
+			"level": "cube_council",
+			"description": "Överordnad kubstyrelse. Kan åsidosätta lagerbeslut i nödfall."
+		}
+	],
+	"layers": [
+		{
+			"layer_id": "L10",
+			"layer": 10,
+			"name": "Kärnlager",
+			"governance_status": "interim",
+			"governor_account": "foundation",
+			"political_verification_id": "pv_l10_interim_foundation",
+			"required_verification_level": "layer_sovereign",
+			"powers": [
+				"appoint_block_governor",
+				"set_building_codes",
+				"set_zone_zoning",
+				"collect_tax",
+				"declare_ordinance",
+				"delegate_block"
+			],
+			"notes": "Prototypens spelbara lager. Interim-styre tills val hålls."
+		}
+	],
+	"blocks": [
+		{
+			"block_id": "L10-B1515",
+			"layer": 10,
+			"block": [15, 15],
+			"name": "Centralplaza",
+			"parent_layer_id": "L10",
+			"governance_status": "open",
+			"governor_account": null,
+			"political_verification_id": null,
+			"delegated_by_layer": true,
+			"required_verification_level": "block_governor",
+			"powers": [
+				"set_building_codes",
+				"issue_build_permit",
+				"set_zone_zoning",
+				"collect_tax",
+				"declare_ordinance"
+			],
+			"notes": "Centralt block i prototypen. Öppet för vald blockguvernör."
+		},
+		{
+			"block_id": "L10-B1414",
+			"layer": 10,
+			"block": [14, 14],
+			"name": "Hamnkvarteret",
+			"parent_layer_id": "L10",
+			"governance_status": "open",
+			"governor_account": null,
+			"political_verification_id": null,
+			"delegated_by_layer": true,
+			"required_verification_level": "block_governor",
+			"powers": [
+				"issue_build_permit",
+				"set_zone_zoning"
+			]
+		},
+		{
+			"block_id": "L10-B1616",
+			"layer": 10,
+			"block": [16, 16],
+			"name": "Industribryggan",
+			"parent_layer_id": "L10",
+			"governance_status": "locked",
+			"governor_account": null,
+			"political_verification_id": null,
+			"delegated_by_layer": false,
+			"required_verification_level": "block_governor",
+			"powers": [],
+			"notes": "Låst tills politiskt val aktiveras."
+		}
+	],
+	"verifications": [
+		{
+			"verification_id": "pv_l10_interim_foundation",
+			"level": "layer_sovereign",
+			"status": "verified",
+			"account": "foundation",
+			"territory_id": "L10",
+			"territory_type": "layer",
+			"issued_at": "2026-07-15T00:00:00",
+			"expires_at": null,
+			"issuer": "foundation",
+			"proof_uri": "https://cube-production-3d68.up.railway.app/api/political/verify/pv_l10_interim_foundation"
+		}
+	]
+}
