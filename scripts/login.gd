@@ -27,7 +27,9 @@ func _ready() -> void:
 	SpiderTheme.style_subtitle($Center/MainPanel/VBox/Subtitle)
 	SpiderTheme.style_status(status_label)
 
+	GlobalChat.set_login_screen_active(true)
 	_apply_server_url()
+	_reset_auth_ui("Välkommen till The Cube.")
 	_set_password_visible(login_password, login_toggle, false)
 	_set_password_visible(register_password, register_toggle, false)
 	_show_tab(Tab.LOGIN)
@@ -43,6 +45,12 @@ func _ready() -> void:
 	%GuestButton.pressed.connect(_on_guest_pressed)
 	login_toggle.pressed.connect(_on_login_toggle_pressed)
 	register_toggle.pressed.connect(_on_register_toggle_pressed)
+	login_password.text_submitted.connect(func(_t: String) -> void: _on_login_pressed())
+	register_password.text_submitted.connect(func(_t: String) -> void: _on_register_pressed())
+
+
+func _exit_tree() -> void:
+	GlobalChat.set_login_screen_active(false)
 
 
 func _show_tab(tab: Tab) -> void:
@@ -76,6 +84,12 @@ func _on_register_pressed() -> void:
 		return
 	if password.is_empty():
 		_set_status("Ange ett lösenord.")
+		return
+	if name.length() < 3:
+		_set_status("Användarnamn måste vara minst 3 tecken.")
+		return
+	if password.length() < 4:
+		_set_status("Lösenord måste vara minst 4 tecken.")
 		return
 	_begin_auth("Skapar konto...")
 	Auth.register(name, password)
@@ -113,7 +127,7 @@ func _on_login_succeeded(p_username: String, is_guest: bool) -> void:
 	_set_status("Välkommen, %s!" % p_username)
 	if is_guest:
 		Profile.clear_characters()
-		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
+		_go_to_scene("res://scenes/avatar_builder.tscn")
 	else:
 		_enter_account_flow()
 
@@ -124,42 +138,50 @@ func _enter_account_flow() -> void:
 	_account_flow_running = true
 	_set_status("Laddar karaktärer...")
 	_set_buttons_enabled(false)
+	_start_auth_watchdog()
 	Profile.clear_characters()
 
 	if not await _profile_list_characters():
 		_account_flow_running = false
-		_set_buttons_enabled(true)
+		_stop_auth_watchdog()
+		_reset_auth_ui("Servern svarade inte – försök igen")
 		return
 
 	if Profile.characters.is_empty():
 		_set_status("Skapar karaktär...")
 		if not await _profile_create_character("Karaktär 1"):
 			_account_flow_running = false
-			_set_buttons_enabled(true)
+			_stop_auth_watchdog()
+			_reset_auth_ui("Kunde inte skapa karaktär – försök igen")
 			return
 		if Profile.active_character_id == "":
-			_set_status("Kunde inte skapa karaktär – försök igen")
 			_account_flow_running = false
-			_set_buttons_enabled(true)
+			_stop_auth_watchdog()
+			_reset_auth_ui("Kunde inte skapa karaktär – försök igen")
 			return
 		_account_flow_running = false
-		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
+		_stop_auth_watchdog()
+		_go_to_scene("res://scenes/avatar_builder.tscn")
 	elif Profile.characters.size() == 1:
 		_account_flow_running = false
-		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
+		_stop_auth_watchdog()
+		_go_to_scene("res://scenes/avatar_builder.tscn")
 	else:
 		_account_flow_running = false
-		get_tree().change_scene_to_file("res://scenes/character_select.tscn")
+		_stop_auth_watchdog()
+		_go_to_scene("res://scenes/character_select.tscn")
+
+
+func _go_to_scene(path: String) -> void:
+	var err := get_tree().change_scene_to_file(path)
+	if err != OK:
+		_reset_auth_ui("Kunde inte ladda nästa skärm (fel %d)" % err)
 
 
 func _profile_list_characters() -> bool:
-	var result := await _wait_for_profile_action(25.0, func() -> void:
+	return await _wait_for_profile_action(25.0, func() -> void:
 		Profile.load_characters()
 	)
-	if not result:
-		if status_label.text == "Laddar karaktärer...":
-			_set_status("Servern svarade inte – försök igen")
-	return result
 
 
 func _profile_create_character(name: String) -> bool:
@@ -184,6 +206,7 @@ func _wait_for_profile_action(max_sec: float, start_action: Callable) -> bool:
 	var deadline := Time.get_ticks_msec() + int(max_sec * 1000.0)
 	while not state.done:
 		if Time.get_ticks_msec() > deadline:
+			Profile.cancel_request()
 			return false
 		await get_tree().process_frame
 	if not state.ok and state.error != "":
@@ -194,12 +217,14 @@ func _wait_for_profile_action(max_sec: float, start_action: Callable) -> bool:
 func _on_login_failed(message: String) -> void:
 	_stop_auth_watchdog()
 	_account_flow_running = false
-	_set_status(message)
-	_set_buttons_enabled(true)
+	_reset_auth_ui(message)
 
 
 func _begin_auth(status_text: String) -> void:
 	_apply_server_url()
+	_account_flow_running = false
+	Auth.cancel_request()
+	Profile.cancel_request()
 	_set_status(status_text)
 	_set_buttons_enabled(false)
 	_start_auth_watchdog()
@@ -207,7 +232,7 @@ func _begin_auth(status_text: String) -> void:
 
 func _start_auth_watchdog() -> void:
 	_stop_auth_watchdog()
-	_auth_watchdog = get_tree().create_timer(Auth.REQUEST_TIMEOUT_SEC + 4.0)
+	_auth_watchdog = get_tree().create_timer(Auth.REQUEST_TIMEOUT_SEC + 6.0)
 	_auth_watchdog.timeout.connect(_on_auth_watchdog_timeout, CONNECT_ONE_SHOT)
 
 
@@ -220,10 +245,16 @@ func _stop_auth_watchdog() -> void:
 
 func _on_auth_watchdog_timeout() -> void:
 	var pending := status_label.text
-	if pending in ["Loggar in...", "Skapar konto...", "Loggar in som gäst..."]:
+	if pending.begins_with("Loggar in") or pending.begins_with("Skapar konto") or pending.begins_with("Laddar karaktärer") or pending.begins_with("Skapar karaktär"):
 		Auth.cancel_request()
-		_set_status("Servern svarade inte – kontrollera nätet och försök igen")
-		_set_buttons_enabled(true)
+		Profile.cancel_request()
+		_account_flow_running = false
+		_reset_auth_ui("Servern svarade inte – kontrollera nätet och försök igen")
+
+
+func _reset_auth_ui(message: String) -> void:
+	_set_status(message)
+	_set_buttons_enabled(true)
 
 
 func _set_status(text: String) -> void:
@@ -231,6 +262,9 @@ func _set_status(text: String) -> void:
 
 
 func _set_buttons_enabled(enabled: bool) -> void:
+	tab_login.disabled = not enabled
+	tab_register.disabled = not enabled
+	tab_guest.disabled = not enabled
 	%LoginButton.disabled = not enabled
 	%RegisterButton.disabled = not enabled
 	%GuestButton.disabled = not enabled

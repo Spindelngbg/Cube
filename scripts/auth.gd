@@ -22,13 +22,14 @@ var _pending_path := ""
 var _pending_body := {}
 var _retry_count := 0
 var _request_in_flight := false
-var _request_generation := 0
-var _active_generation := 0
+var _send_id := 0
+var _inflight_send_id := 0
 
 
 func _ready() -> void:
 	add_child(_http)
 	_http.timeout = REQUEST_TIMEOUT_SEC
+	_http.use_threads = true
 	_http.request_completed.connect(_on_request_completed)
 
 
@@ -59,6 +60,8 @@ func cancel_request() -> void:
 	if _request_in_flight:
 		_http.cancel_request()
 	_request_in_flight = false
+	_inflight_send_id = 0
+	_send_id += 1
 
 
 func register(p_username: String, password: String) -> void:
@@ -81,17 +84,19 @@ func login_as_guest() -> void:
 
 func _post(path: String, body: Dictionary, action: String) -> void:
 	cancel_request()
-	_request_generation += 1
-	_active_generation = _request_generation
+	_send_id += 1
 	_pending_action = action
 	_pending_path = path
 	_pending_body = body
 	_retry_count = 0
-	call_deferred("_send_request")
+	_dispatch_request(_send_id)
 
 
-func _send_request() -> void:
-	if _active_generation != _request_generation:
+func _dispatch_request(send_id: int) -> void:
+	if send_id != _send_id:
+		return
+	if not is_inside_tree():
+		login_failed.emit("Klienten är inte redo – starta om spelet")
 		return
 
 	var json_body := JSON.stringify(_pending_body)
@@ -103,20 +108,31 @@ func _send_request() -> void:
 	var err := _http.request(api_url + _pending_path, headers, HTTPClient.METHOD_POST, json_body)
 	if err == ERR_BUSY and _retry_count < MAX_RETRIES:
 		_retry_count += 1
-		get_tree().create_timer(0.2).timeout.connect(_send_request, CONNECT_ONE_SHOT)
+		get_tree().create_timer(0.2).timeout.connect(
+			func() -> void: _dispatch_request(send_id),
+			CONNECT_ONE_SHOT
+		)
 		return
 	if err != OK:
-		_request_in_flight = false
-		login_failed.emit("Kunde inte nå servern (fel %d)" % err)
+		if send_id == _send_id:
+			login_failed.emit("Kunde inte nå servern (fel %d)" % err)
 		return
+
 	_request_in_flight = true
+	_inflight_send_id = send_id
 
 
-func _retry_or_fail(message: String) -> void:
+func _retry_or_fail(send_id: int, message: String) -> void:
+	if send_id != _send_id:
+		return
 	if _retry_count < MAX_RETRIES:
 		_retry_count += 1
-		cancel_request()
-		call_deferred("_send_request")
+		_request_in_flight = false
+		_inflight_send_id = 0
+		get_tree().create_timer(0.25).timeout.connect(
+			func() -> void: _dispatch_request(send_id),
+			CONNECT_ONE_SHOT
+		)
 		return
 	login_failed.emit(message)
 
@@ -127,16 +143,18 @@ func _on_request_completed(
 	_headers: PackedByteArray,
 	body: PackedByteArray
 ) -> void:
-	if _active_generation != _request_generation:
+	if _inflight_send_id == 0 or _inflight_send_id != _send_id:
 		return
 
 	_request_in_flight = false
+	_inflight_send_id = 0
+	var send_id := _send_id
 
 	if result == HTTPRequest.RESULT_TIMEOUT:
-		_retry_or_fail("Servern svarade inte i tid – vänta och försök igen")
+		_retry_or_fail(send_id, "Servern svarade inte i tid – vänta och försök igen")
 		return
 	if result != HTTPRequest.RESULT_SUCCESS:
-		_retry_or_fail("Nätverksfel – kunde inte nå servern (kod %d)" % result)
+		_retry_or_fail(send_id, "Nätverksfel – kunde inte nå servern (kod %d)" % result)
 		return
 	if response_code < 200 or response_code >= 300:
 		login_failed.emit("Serverfel (%d)" % response_code)

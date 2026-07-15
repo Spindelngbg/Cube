@@ -53,6 +53,16 @@ const LAYOUT_SIDEBAR_RIGHT := {
 }
 
 
+func set_login_screen_active(active: bool) -> void:
+	visible = not active
+	if active:
+		ws.close()
+		_connected = false
+		_identified = false
+		_identify_sent = false
+		_connecting = false
+
+
 func _ready() -> void:
 	SpiderTheme.apply_to(chat_panel)
 	SpiderTheme.style_section(%ChatTitle)

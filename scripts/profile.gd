@@ -24,13 +24,14 @@ var _http := HTTPRequest.new()
 var _pending_action := ""
 var _busy := false
 var _list_synced := false
-var _request_generation := 0
-var _active_generation := 0
+var _send_id := 0
+var _inflight_send_id := 0
 
 
 func _ready() -> void:
 	add_child(_http)
 	_http.timeout = REQUEST_TIMEOUT_SEC
+	_http.use_threads = true
 	_http.request_completed.connect(_on_request_completed)
 
 
@@ -60,7 +61,8 @@ func cancel_request() -> void:
 	if _busy:
 		_http.cancel_request()
 	_busy = false
-	_request_generation += 1
+	_inflight_send_id = 0
+	_send_id += 1
 
 
 func characters_list_ready() -> bool:
@@ -188,8 +190,8 @@ func is_busy() -> bool:
 
 
 func _post(path: String, body: Dictionary, action: String) -> void:
-	_request_generation += 1
-	_active_generation = _request_generation
+	_send_id += 1
+	var send_id := _send_id
 	_pending_action = action
 	body["token"] = Auth.session_token
 	var json_body := JSON.stringify(body)
@@ -199,22 +201,29 @@ func _post(path: String, body: Dictionary, action: String) -> void:
 		"User-Agent: CubeGodot/1.0",
 	])
 	_busy = true
-	call_deferred("_send_request", path, json_body, headers)
+	_dispatch_request(send_id, path, json_body, headers)
 
 
-func _send_request(path: String, json_body: String, headers: PackedStringArray) -> void:
-	if not _busy or _active_generation != _request_generation:
+func _dispatch_request(send_id: int, path: String, json_body: String, headers: PackedStringArray) -> void:
+	if send_id != _send_id or not _busy:
+		return
+	if not is_inside_tree():
+		_busy = false
+		operation_failed.emit("Klienten är inte redo – starta om spelet")
 		return
 	var err := _http.request(Auth.api_url + path, headers, HTTPClient.METHOD_POST, json_body)
 	if err == ERR_BUSY:
 		get_tree().create_timer(0.2).timeout.connect(
-			func() -> void: _send_request(path, json_body, headers),
+			func() -> void: _dispatch_request(send_id, path, json_body, headers),
 			CONNECT_ONE_SHOT
 		)
 		return
 	if err != OK:
-		_busy = false
-		operation_failed.emit("Kunde inte nå servern (fel %d)" % err)
+		if send_id == _send_id:
+			_busy = false
+			operation_failed.emit("Kunde inte nå servern (fel %d)" % err)
+		return
+	_inflight_send_id = send_id
 
 
 func _on_request_completed(
@@ -223,10 +232,11 @@ func _on_request_completed(
 	_headers: PackedStringArray,
 	body: PackedByteArray
 ) -> void:
-	if _active_generation != _request_generation:
+	if _inflight_send_id == 0 or _inflight_send_id != _send_id:
 		return
 
 	_busy = false
+	_inflight_send_id = 0
 
 	if result == HTTPRequest.RESULT_TIMEOUT:
 		operation_failed.emit("Servern svarade inte i tid – försök igen")
