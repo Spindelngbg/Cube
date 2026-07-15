@@ -22,7 +22,7 @@ static func make_material(texture_name: String, uv_scale: Vector2 = Vector2(4, 4
 	var tex := load_texture(texture_name)
 	if tex:
 		mat.albedo_texture = tex
-		mat.uv1_scale = uv_scale
+		mat.uv1_scale = Vector3(uv_scale.x, uv_scale.y, 1.0)
 		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		mat.roughness = 0.92
 	return mat

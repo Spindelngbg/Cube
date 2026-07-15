@@ -24,8 +24,10 @@ config/features=PackedStringArray("4.7")
 Auth="*res://scripts/auth.gd"
 CubeGovernance="*res://scripts/cube/cube_governance.gd"
 CubeRegistry="*res://scripts/cube/cube_registry.gd"
+FirstEntry="*res://scripts/first_entry.gd"
 Network="*res://scripts/network.gd"
 Profile="*res://scripts/profile.gd"
+SceneTransition="*res://scripts/ui/scene_transition.gd"
 GlobalChat="*res://scenes/ui/global_chat.tscn"
 
 [debug]

@@ -4,6 +4,17 @@ const SMALL_SPIDER_SCENE := preload("res://scenes/nest_small_spider.tscn")
 const MOVE_SPEED := 4.0
 const ROOM_SIZE := Vector3(14, 4.2, 12)
 
+const INTRO_LINES := [
+	"Du vaknar i mörker — varmt, vått, levande.",
+	"Något stort vakar över dig. Det andas långsamt.",
+	"Framför dig: ett sken. En dörr av ljus.",
+]
+const WHISPER_LINES := [
+	"Den vakar inte längre. Den släpper dig.",
+	"Gå mot ljuset, unge.",
+	"Kuben väntar på andra sidan.",
+]
+
 @onready var player: CharacterBody3D = $Player
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var door_zone: Area3D = $DoorZone
@@ -12,12 +23,19 @@ const ROOM_SIZE := Vector3(14, 4.2, 12)
 @onready var egg_pivot: Node3D = $EggPivot
 @onready var spiders_root: Node3D = $Spiders
 @onready var door_light: OmniLight3D = $DoorLight
+@onready var door_spot: SpotLight3D = $DoorSpot
+@onready var egg_flicker: OmniLight3D = $EggFlicker
+@onready var world_env: WorldEnvironment = $WorldEnvironment
 @onready var player_avatar: Node3D = $Player/AvatarPivot
 
 var _transitioning := false
 var _spawn_timer := 0.0
 var _egg_pulse := 0.0
 var _mother_anim := 0.0
+var _intro_index := 0
+var _intro_timer := 0.0
+var _door_glow := 2.4
+var _fog_density := 0.045
 
 
 func _ready() -> void:
@@ -27,15 +45,25 @@ func _ready() -> void:
 	_build_egg()
 	_build_player_spider()
 	_style_ui()
+	_fog_density = world_env.environment.fog_density
 	door_zone.body_entered.connect(_on_door_entered)
-	hint_label.text = "WASD — gå ut mot ljuset i dörren..."
 	Profile.nest_intro_completed.connect(_on_nest_saved)
 	Profile.operation_failed.connect(_on_nest_failed)
+	_begin_intro()
+
+
+func _begin_intro() -> void:
+	hint_label.text = ""
+	_intro_index = 0
+	_intro_timer = 0.0
+	SceneTransition.fade_in(1.1)
 
 
 func _physics_process(delta: float) -> void:
 	if _transitioning:
 		return
+
+	_advance_intro(delta)
 
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var direction := (camera_pivot.global_transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
@@ -54,6 +82,30 @@ func _physics_process(delta: float) -> void:
 
 	_animate_nest(delta)
 	_spawn_spiders(delta)
+	_update_door_beckon()
+
+
+func _advance_intro(delta: float) -> void:
+	if _intro_index >= INTRO_LINES.size():
+		return
+	_intro_timer += delta
+	if _intro_timer < 2.2:
+		return
+	_intro_timer = 0.0
+	hint_label.text = INTRO_LINES[_intro_index]
+	_intro_index += 1
+
+
+func _update_door_beckon() -> void:
+	var door_pos := door_zone.global_position
+	var dist := player.global_position.distance_to(door_pos)
+	var nearness := clampf(1.0 - dist / 9.0, 0.0, 1.0)
+	_door_glow = lerpf(2.4, 6.5, nearness)
+	door_light.light_energy = _door_glow
+	door_spot.light_energy = lerpf(3.5, 8.0, nearness)
+
+	if nearness > 0.55 and _intro_index >= INTRO_LINES.size():
+		hint_label.text = "Ljuset kallar — gå igenom dörren."
 
 
 func _animate_nest(delta: float) -> void:
@@ -63,6 +115,7 @@ func _animate_nest(delta: float) -> void:
 	var pulse := 1.0 + sin(_egg_pulse) * 0.08
 	egg_pivot.scale = Vector3.ONE * pulse
 	egg_pivot.rotation.y += delta * 0.35
+	egg_flicker.light_energy = 0.45 + sin(_egg_pulse * 1.6) * 0.25
 
 	mother_pivot.rotation.y = sin(_mother_anim * 0.7) * 0.12
 	var head := mother_pivot.get_node_or_null("Pivot/Hips/HeadPivot")
@@ -266,15 +319,44 @@ func _add_box(parent: Node3D, size: Vector3, pos: Vector3, material: Material) -
 func _on_door_entered(body: Node3D) -> void:
 	if _transitioning or body != player:
 		return
+	_play_hatching_cinematic()
+
+
+func _play_hatching_cinematic() -> void:
 	_transitioning = true
+	player.velocity = Vector3.ZERO
+	hint_label.text = WHISPER_LINES[0]
+
+	for i in 10:
+		var spider := SMALL_SPIDER_SCENE.instantiate()
+		spiders_root.add_child(spider)
+		spider.setup(egg_pivot.global_position + Vector3(randf_range(-0.2, 0.2), 0.15, randf_range(-0.2, 0.2)), 7.0)
+
+	var env := world_env.environment
+	var tween := create_tween().set_parallel(true)
+	tween.tween_property(door_light, "light_energy", 14.0, 1.4).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tween.tween_property(door_spot, "light_energy", 18.0, 1.4).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tween.tween_property(env, "fog_density", 0.0, 1.6)
+	tween.tween_property(egg_pivot, "scale", Vector3(1.35, 1.55, 1.35), 0.5)
+	tween.chain().tween_property(egg_pivot, "scale", Vector3.ZERO, 0.35)
+
+	var cam_tween := create_tween()
+	cam_tween.tween_property(camera_pivot, "position:z", player.global_position.z + 2.5, 1.2)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+	SceneTransition.pulse_vignette(0.35, 1.5)
+
+	await get_tree().create_timer(1.0).timeout
+	hint_label.text = WHISPER_LINES[1]
+	await get_tree().create_timer(0.8).timeout
 	hint_label.text = "Ljuset slukar dig — välkommen till The Cube..."
-	door_light.light_energy = 4.0
+	await get_tree().create_timer(0.6).timeout
 	Profile.complete_nest_intro()
 
 
 func _on_nest_saved() -> void:
-	hint_label.text = "Ljuset bär dig vidare..."
-	get_tree().change_scene_to_file("res://scenes/emergence_room.tscn")
+	hint_label.text = WHISPER_LINES[2]
+	await SceneTransition.white_flash_then_scene("res://scenes/emergence_room.tscn")
 
 
 func _on_nest_failed(message: String) -> void:
