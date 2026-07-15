@@ -12,10 +12,16 @@ extends Resource
 @export_range(0.7, 1.5, 0.01) var leg_length := 1.0
 @export_range(0.6, 1.4, 0.01) var arm_length := 1.0
 
-@export_range(4, 8, 1) var spider_leg_count := 6
-@export_range(2, 8, 1) var eye_count := 6
-@export_range(0.4, 2.0, 0.01) var eye_size := 1.0
+@export_range(4, 12, 1) var spider_leg_count := 6
+@export_range(2, 12, 1) var eye_count := 6
+@export_range(0.4, 3.0, 0.01) var eye_size := 1.0
+@export_range(0.4, 2.0, 0.01) var eye_spread := 1.0
+@export_range(0.0, 1.5, 0.01) var eye_stalk_length := 0.35
 @export_range(0.0, 2.0, 0.01) var mandible_length := 1.0
+@export_range(0.0, 2.5, 0.01) var fang_length := 0.8
+@export_range(0.0, 2.0, 0.01) var claw_size := 0.6
+@export_range(0.0, 1.0, 0.01) var abdomen_segments := 0.5
+@export_range(0.0, 1.0, 0.01) var crest_size := 0.25
 @export_range(0.0, 1.0, 0.01) var chitin_roughness := 0.55
 @export_range(0.0, 1.0, 0.01) var chitin_metallic := 0.15
 @export_range(0.0, 2.0, 0.01) var glow_strength := 0.6
@@ -37,7 +43,13 @@ func duplicate_data() -> AvatarData:
 	copy.spider_leg_count = spider_leg_count
 	copy.eye_count = eye_count
 	copy.eye_size = eye_size
+	copy.eye_spread = eye_spread
+	copy.eye_stalk_length = eye_stalk_length
 	copy.mandible_length = mandible_length
+	copy.fang_length = fang_length
+	copy.claw_size = claw_size
+	copy.abdomen_segments = abdomen_segments
+	copy.crest_size = crest_size
 	copy.chitin_roughness = chitin_roughness
 	copy.chitin_metallic = chitin_metallic
 	copy.glow_strength = glow_strength
@@ -60,7 +72,13 @@ func to_dict() -> Dictionary:
 		"spider_leg_count": spider_leg_count,
 		"eye_count": eye_count,
 		"eye_size": eye_size,
+		"eye_spread": eye_spread,
+		"eye_stalk_length": eye_stalk_length,
 		"mandible_length": mandible_length,
+		"fang_length": fang_length,
+		"claw_size": claw_size,
+		"abdomen_segments": abdomen_segments,
+		"crest_size": crest_size,
 		"chitin_roughness": chitin_roughness,
 		"chitin_metallic": chitin_metallic,
 		"glow_strength": glow_strength,
@@ -85,7 +103,13 @@ static func from_dict(data: Dictionary) -> AvatarData:
 	avatar.spider_leg_count = int(data.get("spider_leg_count", 6))
 	avatar.eye_count = int(data.get("eye_count", 6))
 	avatar.eye_size = float(data.get("eye_size", 1.0))
+	avatar.eye_spread = float(data.get("eye_spread", 1.0))
+	avatar.eye_stalk_length = float(data.get("eye_stalk_length", 0.35))
 	avatar.mandible_length = float(data.get("mandible_length", 1.0))
+	avatar.fang_length = float(data.get("fang_length", 0.8))
+	avatar.claw_size = float(data.get("claw_size", 0.6))
+	avatar.abdomen_segments = float(data.get("abdomen_segments", 0.5))
+	avatar.crest_size = float(data.get("crest_size", 0.25))
 	avatar.chitin_roughness = float(data.get("chitin_roughness", 0.55))
 	avatar.chitin_metallic = float(data.get("chitin_metallic", 0.15))
 	avatar.glow_strength = float(data.get("glow_strength", 0.6))

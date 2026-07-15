@@ -27,6 +27,29 @@ var _pending_in: Array = []
 var _pending_out: Array = []
 var _reconnect_timer := 0.0
 var _connecting := false
+var _layout_mode := "corner"
+
+const LAYOUT_CORNER := {
+	"anchor_left": 1.0,
+	"anchor_top": 1.0,
+	"anchor_right": 1.0,
+	"anchor_bottom": 1.0,
+	"offset_left": -360.0,
+	"offset_top": -360.0,
+	"offset_right": -16.0,
+	"offset_bottom": -16.0,
+}
+
+const LAYOUT_SIDEBAR_RIGHT := {
+	"anchor_left": 1.0,
+	"anchor_top": 0.0,
+	"anchor_right": 1.0,
+	"anchor_bottom": 1.0,
+	"offset_left": -352.0,
+	"offset_top": 16.0,
+	"offset_right": -12.0,
+	"offset_bottom": -12.0,
+}
 
 
 func _ready() -> void:
@@ -324,3 +347,26 @@ func _make_request_row(from_name: String) -> HBoxContainer:
 func _clear_children(node: Node) -> void:
 	for child in node.get_children():
 		child.queue_free()
+
+
+func set_layout_mode(mode: String) -> void:
+	if mode == _layout_mode:
+		return
+	_layout_mode = mode
+	_apply_layout_mode()
+
+
+func reset_layout_mode() -> void:
+	set_layout_mode("corner")
+
+
+func _apply_layout_mode() -> void:
+	var layout: Dictionary = LAYOUT_SIDEBAR_RIGHT if _layout_mode == "sidebar_right" else LAYOUT_CORNER
+	chat_panel.anchor_left = layout["anchor_left"]
+	chat_panel.anchor_top = layout["anchor_top"]
+	chat_panel.anchor_right = layout["anchor_right"]
+	chat_panel.anchor_bottom = layout["anchor_bottom"]
+	chat_panel.offset_left = layout["offset_left"]
+	chat_panel.offset_top = layout["offset_top"]
+	chat_panel.offset_right = layout["offset_right"]
+	chat_panel.offset_bottom = layout["offset_bottom"]

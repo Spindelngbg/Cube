@@ -6,10 +6,23 @@
 
 [sub_resource type="Environment" id="Environment_preview"]
 background_mode = 1
-background_color = Color(0.04, 0.03, 0.06, 1)
+background_color = Color(0.06, 0.04, 0.08, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.35, 0.2, 0.25, 1)
-ambient_light_energy = 0.6
+ambient_light_color = Color(0.45, 0.32, 0.38, 1)
+ambient_light_energy = 1.15
+tonemap_mode = 3
+glow_enabled = true
+glow_intensity = 1.1
+glow_bloom = 0.35
+glow_blend_mode = 0
+
+[sub_resource type="StandardMaterial3D" id="FloorMaterial_preview"]
+albedo_color = Color(0.08, 0.05, 0.07, 1)
+roughness = 0.85
+metallic = 0.05
+
+[sub_resource type="PlaneMesh" id="FloorMesh_preview"]
+size = Vector2(6, 6)
 
 [node name="AvatarBuilder" type="Control"]
 layout_mode = 3
@@ -89,25 +102,51 @@ size_flags_vertical = 3
 stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="Layout/Left/PreviewPanel/PreviewViewport"]
+unique_name_in_owner = true
 handle_input_locally = false
-size = Vector2i(480, 420)
+size = Vector2i(560, 480)
 render_target_update_mode = 4
+msaa_3d = 2
 
 [node name="PreviewHolder" type="Node3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
 unique_name_in_owner = true
 
 [node name="Camera3D" type="Camera3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
-transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 1.6, 3.2)
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0.15, 1.35, 2.35)
+fov = 48.0
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+[node name="PreviewFloor" type="MeshInstance3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, 0)
+mesh = SubResource("FloorMesh_preview")
+surface_material_override/0 = SubResource("FloorMaterial_preview")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
 transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 2, 4, 2)
-light_energy = 1.2
+light_color = Color(1, 0.92, 0.86, 1)
+light_energy = 1.65
 shadow_enabled = true
 
 [node name="FillLight" type="DirectionalLight3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
 transform = Transform3D(0.866025, 0.353553, -0.353553, 0, 0.707107, 0.707107, 0.5, -0.612372, 0.612372, -2, 2, -1)
-light_color = Color(0.6, 0.35, 0.45, 1)
-light_energy = 0.4
+light_color = Color(0.55, 0.7, 0.55, 1)
+light_energy = 0.85
+
+[node name="RimLight" type="DirectionalLight3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+transform = Transform3D(-1, 0, 0, 0, 0.707107, 0.707107, 0, 0.707107, -0.707107, 0, 3, -3)
+light_color = Color(0.85, 0.35, 0.45, 1)
+light_energy = 1.1
+
+[node name="FaceLight" type="OmniLight3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, 1.55, 1.4)
+light_color = Color(1, 0.75, 0.7, 1)
+light_energy = 2.4
+omni_range = 4.0
+
+[node name="EyeGlowLight" type="OmniLight3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0.6)
+light_color = Color(1, 0.2, 0.15, 1)
+light_energy = 1.2
+omni_range = 2.5
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
 environment = SubResource("Environment_preview")
@@ -284,7 +323,7 @@ text = "Antal ben"
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 4.0
-max_value = 8.0
+max_value = 12.0
 value = 6.0
 
 [node name="FaceSection" type="Label" parent="Layout/Right/Scroll/Controls"]
@@ -304,9 +343,42 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 0.4
+max_value = 3.0
+step = 0.01
+value = 1.0
+
+[node name="EyeSpreadRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="EyeSpreadLabel" type="Label" parent="Layout/Right/Scroll/Controls/EyeSpreadRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Ögonspridning"
+
+[node name="EyeSpreadSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/EyeSpreadRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.4
 max_value = 2.0
 step = 0.01
 value = 1.0
+
+[node name="EyeStalkRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="EyeStalkLabel" type="Label" parent="Layout/Right/Scroll/Controls/EyeStalkRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Ögonstjälkar"
+
+[node name="EyeStalkSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/EyeStalkRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.5
+step = 0.01
+value = 0.35
 
 [node name="EyeCountRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
 layout_mode = 2
@@ -320,7 +392,7 @@ text = "Antal ögon"
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 2.0
-max_value = 8.0
+max_value = 12.0
 value = 6.0
 
 [node name="MandibleRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
@@ -338,6 +410,74 @@ size_flags_horizontal = 3
 max_value = 2.0
 step = 0.01
 value = 1.0
+
+[node name="FangRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="FangLabel" type="Label" parent="Layout/Right/Scroll/Controls/FangRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Huggtänder"
+
+[node name="FangSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/FangRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 2.5
+step = 0.01
+value = 0.8
+
+[node name="ClawRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="ClawLabel" type="Label" parent="Layout/Right/Scroll/Controls/ClawRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Klor"
+
+[node name="ClawSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/ClawRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 2.0
+step = 0.01
+value = 0.6
+
+[node name="DetailSection" type="Label" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+text = "DETALJER"
+
+[node name="SegmentRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="SegmentLabel" type="Label" parent="Layout/Right/Scroll/Controls/SegmentRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Bakkroppsringar"
+
+[node name="SegmentSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/SegmentRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 0.5
+
+[node name="CrestRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="CrestLabel" type="Label" parent="Layout/Right/Scroll/Controls/CrestRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Prydnadshorn"
+
+[node name="CrestSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/CrestRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 0.25
 
 [node name="StyleSection" type="Label" parent="Layout/Right/Scroll/Controls"]
 layout_mode = 2
