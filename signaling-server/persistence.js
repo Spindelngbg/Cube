@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const {
-	DATA_DIR,
+	getDataDir,
+	setDataDir,
+	fallbackDataDir,
 	ensureDataDir,
 	writeJsonAtomic,
 	readJsonFile,
@@ -39,13 +41,13 @@ function fileNameFor(storeKey) {
 }
 
 function filePathFor(storeKey) {
-	return path.join(DATA_DIR, fileNameFor(storeKey));
+	return path.join(getDataDir(), fileNameFor(storeKey));
 }
 
 async function verifyDataDirWritable() {
 	try {
 		ensureDataDir();
-		const testPath = path.join(DATA_DIR, '.write_test');
+		const testPath = path.join(getDataDir(), '.write_test');
 		return await withTimeout(
 			new Promise((resolve) => {
 				fs.writeFile(testPath, new Date().toISOString(), 'utf8', (writeError) => {
@@ -60,7 +62,7 @@ async function verifyDataDirWritable() {
 			'DATA_DIR write test'
 		);
 	} catch (error) {
-		console.error(`DATA_DIR not writable (${DATA_DIR}):`, error.message || error);
+		console.error(`DATA_DIR not writable (${getDataDir()}):`, error.message || error);
 		return false;
 	}
 }
@@ -125,7 +127,6 @@ async function initPostgres() {
 	pool = new Pool({
 		connectionString: databaseUrl,
 		connectionTimeoutMillis: POSTGRES_INIT_TIMEOUT_MS,
-		query_timeout: POSTGRES_QUERY_TIMEOUT_MS,
 		ssl: databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')
 			? false
 			: { rejectUnauthorized: false },
@@ -185,7 +186,7 @@ async function preloadStores() {
 
 function updatePersistenceWarning() {
 	if (!dataDirWritable) {
-		persistenceWarning = `DATA_DIR ${DATA_DIR} is not writable – accounts will not survive restarts`;
+		persistenceWarning = `DATA_DIR ${getDataDir()} is not writable – accounts will not survive restarts`;
 		return;
 	}
 	if (!process.env.DATABASE_URL && !process.env.RAILWAY_VOLUME_MOUNT_PATH) {
@@ -202,6 +203,13 @@ async function initStorage() {
 
 	ensureDataDir();
 	dataDirWritable = await verifyDataDirWritable();
+	if (!dataDirWritable) {
+		const fallback = fallbackDataDir();
+		console.warn(`DATA_DIR ${getDataDir()} unusable – falling back to ${fallback}`);
+		setDataDir(fallback);
+		ensureDataDir();
+		dataDirWritable = await verifyDataDirWritable();
+	}
 
 	try {
 		const postgresReady = await initPostgres();
@@ -209,7 +217,7 @@ async function initStorage() {
 			await migrateFilesToPostgres();
 			console.log('PostgreSQL storage ready');
 		} else {
-			console.log(`No DATABASE_URL – using JSON files in ${DATA_DIR}`);
+			console.log(`No DATABASE_URL – using JSON files in ${getDataDir()}`);
 		}
 	} catch (error) {
 		console.error('PostgreSQL init failed, falling back to JSON files:', error);
@@ -283,7 +291,7 @@ function getStorageStatus() {
 	return {
 		ready,
 		backend,
-		dataDir: DATA_DIR,
+		dataDir: getDataDir(),
 		dataDirWritable,
 		volumeMount: process.env.RAILWAY_VOLUME_MOUNT_PATH || null,
 		databaseConfigured: Boolean(process.env.DATABASE_URL),

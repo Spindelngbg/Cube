@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 function resolveDataDir() {
@@ -14,7 +15,19 @@ function resolveDataDir() {
 	return path.join(__dirname, 'data');
 }
 
-const DATA_DIR = resolveDataDir();
+let DATA_DIR = resolveDataDir();
+
+function getDataDir() {
+	return DATA_DIR;
+}
+
+function setDataDir(nextDir) {
+	DATA_DIR = nextDir;
+}
+
+function fallbackDataDir() {
+	return path.join(os.tmpdir(), 'cube-data');
+}
 
 function ensureDataDir() {
 	if (!fs.existsSync(DATA_DIR)) {
@@ -43,7 +56,12 @@ function readJsonFile(filePath, fallback) {
 }
 
 module.exports = {
-	DATA_DIR,
+	get DATA_DIR() {
+		return DATA_DIR;
+	},
+	getDataDir,
+	setDataDir,
+	fallbackDataDir,
 	ensureDataDir,
 	writeJsonAtomic,
 	readJsonFile,

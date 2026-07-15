@@ -144,13 +144,14 @@ func _enter_account_flow() -> void:
 
 
 func _wait_for_profile_action(max_sec: float) -> bool:
-	var state := {"done": false, "ok": false}
+	var state := {"done": false, "ok": false, "error": ""}
 	var on_loaded := func() -> void:
 		state.done = true
 		state.ok = true
-	var on_failed := func(_message: String) -> void:
+	var on_failed := func(message: String) -> void:
 		state.done = true
 		state.ok = false
+		state.error = message
 	Profile.characters_loaded.connect(on_loaded, CONNECT_ONE_SHOT)
 	Profile.operation_failed.connect(on_failed, CONNECT_ONE_SHOT)
 
@@ -159,6 +160,8 @@ func _wait_for_profile_action(max_sec: float) -> bool:
 		if Time.get_ticks_msec() > deadline:
 			return false
 		await get_tree().process_frame
+	if not state.ok and state.error != "":
+		_set_status(state.error)
 	return state.ok
 
 
