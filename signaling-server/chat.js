@@ -105,6 +105,9 @@ function identifyClient(client, body) {
 		return;
 	}
 
+	const wasIdentified = client.identified;
+	const previousUsername = client.username;
+
 	let isGuest = false;
 	if (isGuestName(username)) {
 		isGuest = true;
@@ -134,6 +137,10 @@ function identifyClient(client, body) {
 	});
 	send(client.ws, { type: 'history', messages: chatHistory });
 	sendFriendsState(client);
+
+	if (wasIdentified && previousUsername.toLowerCase() === username.toLowerCase()) {
+		return;
+	}
 
 	const joinText = isGuest
 		? `${username} tittar förbi`

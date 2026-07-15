@@ -27,6 +27,7 @@ var _pending_in: Array = []
 var _pending_out: Array = []
 var _reconnect_timer := 0.0
 var _connecting := false
+var _identify_sent := false
 var _layout_mode := "corner"
 
 const LAYOUT_CORNER := {
@@ -84,11 +85,10 @@ func _process(delta: float) -> void:
 
 	if state == WebSocketPeer.STATE_OPEN:
 		_reconnect_timer = 0.0
-		if _connected and not _identified:
-			_identify()
 	elif state == WebSocketPeer.STATE_CLOSED:
 		_connected = false
 		_identified = false
+		_identify_sent = false
 		_connecting = false
 		if status_label.text != "Frånkopplad – försöker igen...":
 			status_label.text = "Frånkopplad – försöker igen..."
@@ -104,6 +104,7 @@ func _connect_chat() -> void:
 	if _connecting:
 		return
 	_connecting = true
+	_identify_sent = false
 	var base_url := Network.signaling_url
 	if base_url == "":
 		base_url = Network.PRODUCTION_SIGNAL_URL
@@ -126,6 +127,9 @@ func _chat_url_from_signaling(signaling_url: String) -> String:
 
 
 func _identify() -> void:
+	if _identify_sent:
+		return
+	_identify_sent = true
 	var payload := {
 		"type": "identify",
 		"username": _current_username(),
@@ -142,6 +146,7 @@ func _current_username() -> String:
 
 func _on_auth_changed(_username: String, _is_guest: bool) -> void:
 	_identified = false
+	_identify_sent = false
 	if ws.get_ready_state() == WebSocketPeer.STATE_OPEN and _connected:
 		_identify()
 
@@ -149,6 +154,7 @@ func _on_auth_changed(_username: String, _is_guest: bool) -> void:
 func _on_auth_logged_out() -> void:
 	_visitor_name = "%s%d" % [VISITOR_PREFIX, randi_range(1000, 9999)]
 	_identified = false
+	_identify_sent = false
 	_can_friends = false
 	_friends.clear()
 	_pending_in.clear()
@@ -183,8 +189,13 @@ func _handle_packet(raw: String) -> void:
 			messages.clear()
 			var history: Array = data.get("messages", [])
 			for entry in history:
-				if typeof(entry) == TYPE_DICTIONARY:
-					_append_entry(entry as Dictionary)
+				if typeof(entry) != TYPE_DICTIONARY:
+					continue
+				var history_entry := entry as Dictionary
+				if str(history_entry.get("type", "")) == "system":
+					_append_system(str(history_entry.get("text", "")))
+				else:
+					_append_entry(history_entry)
 		"message":
 			_append_entry(data)
 		"system":

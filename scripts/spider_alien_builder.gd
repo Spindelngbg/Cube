@@ -82,7 +82,7 @@ static func _build_eyes(head: Node3D, data: AvatarData, glow_mat: StandardMateri
 
 	for i in count:
 		var row := i % rows
-		var col := i // rows
+		var col := int(i / rows)
 		var cols_in_row := int(ceil(float(count) / float(rows)))
 		var t := float(col) / maxf(float(cols_in_row - 1), 1.0)
 		var angle := lerpf(-0.85, 0.85, t) * data.eye_spread

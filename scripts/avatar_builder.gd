@@ -161,7 +161,7 @@ func _setup_preview_stage() -> void:
 		env.environment.glow_enabled = true
 		env.environment.glow_intensity = 1.1
 		env.environment.glow_bloom = 0.35
-		env.environment.tonemap_mode = Environment.TONEMAP_ACES
+		env.environment.tonemap_mode = Environment.TONE_MAPPER_ACES
 
 	var camera := viewport.get_node_or_null("Camera3D") as Camera3D
 	if camera:
