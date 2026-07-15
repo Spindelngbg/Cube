@@ -1,15 +1,12 @@
-const path = require('path');
 const { loadAccounts, validateUsername } = require('./auth');
-const { DATA_DIR, writeJsonAtomic, readJsonFile } = require('./data-path');
-
-const FRIENDS_FILE = path.join(DATA_DIR, 'friends.json');
+const { getStore, setStore } = require('./persistence');
 
 function loadFriendsData() {
-	return readJsonFile(FRIENDS_FILE, {});
+	return getStore('friends', {});
 }
 
 function saveFriendsData(data) {
-	writeJsonAtomic(FRIENDS_FILE, data);
+	setStore('friends', data);
 }
 
 function userKey(username) {

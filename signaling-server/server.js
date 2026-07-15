@@ -2,6 +2,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const crypto = require('crypto');
 const { handleAuthRequest, initPersistence } = require('./auth');
+const { initStorage, getStorageStatus } = require('./persistence');
 const { handleAvatarRequest } = require('./avatars');
 const { handleAdminRequest } = require('./admin');
 const { renderLandingPage } = require('./landing');
@@ -91,6 +92,12 @@ const server = http.createServer(async (req, res) => {
 		console.error('HTTP request failed:', e);
 		res.writeHead(500, { 'Content-Type': 'application/json' });
 		res.end(JSON.stringify({ ok: false, error: 'Server error' }));
+		return;
+	}
+
+	if (req.method === 'GET' && req.url === '/health/storage') {
+		res.writeHead(200, { 'Content-Type': 'application/json' });
+		res.end(JSON.stringify({ ok: true, ...getStorageStatus() }));
 		return;
 	}
 
@@ -341,11 +348,21 @@ setInterval(() => {
 	});
 }, PING_INTERVAL);
 
-initPersistence();
+async function startServer() {
+	const storageStatus = await initStorage();
+	console.log(`Storage backend: ${storageStatus.backend}`);
+	console.log(`Accounts in storage: ${storageStatus.accountCount}`);
+	initPersistence();
 
-server.listen(PORT, '0.0.0.0', () => {
-	const { ADMIN_USER } = require('./admin');
-	console.log(`Cube signaling server listening on port ${PORT}`);
-	console.log(`Admin panel: http://localhost:${PORT}/spindeln`);
-	console.log(`Admin user: ${ADMIN_USER} (set ADMIN_USER and ADMIN_PASSWORD in production)`);
+	server.listen(PORT, '0.0.0.0', () => {
+		const { ADMIN_USER } = require('./admin');
+		console.log(`Cube signaling server listening on port ${PORT}`);
+		console.log(`Admin panel: http://localhost:${PORT}/spindeln`);
+		console.log(`Admin user: ${ADMIN_USER} (set ADMIN_USER and ADMIN_PASSWORD in production)`);
+	});
+}
+
+startServer().catch((error) => {
+	console.error('Failed to start server:', error);
+	process.exit(1);
 });

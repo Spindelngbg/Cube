@@ -1,14 +1,6 @@
 const crypto = require('crypto');
-const path = require('path');
-const {
-	DATA_DIR,
-	ensureDataDir,
-	writeJsonAtomic,
-	readJsonFile,
-} = require('./data-path');
-
-const ACCOUNTS_FILE = path.join(DATA_DIR, 'accounts.json');
-const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+const { DATA_DIR } = require('./data-path');
+const { getStore, setStore } = require('./persistence');
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const MIN_PASSWORD_LEN = 4;
@@ -17,7 +9,7 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const sessions = new Map();
 
 function loadSessions() {
-	const stored = readJsonFile(SESSIONS_FILE, {});
+	const stored = getStore('sessions', {});
 	for (const [token, session] of Object.entries(stored)) {
 		if (session && session.expires > Date.now()) {
 			sessions.set(token, session);
@@ -32,15 +24,15 @@ function saveSessions() {
 			stored[token] = session;
 		}
 	}
-	writeJsonAtomic(SESSIONS_FILE, stored);
+	setStore('sessions', stored);
 }
 
 function loadAccounts() {
-	return readJsonFile(ACCOUNTS_FILE, {});
+	return getStore('accounts', {});
 }
 
 function saveAccounts(accounts) {
-	writeJsonAtomic(ACCOUNTS_FILE, accounts);
+	setStore('accounts', accounts);
 }
 
 function hashPassword(password) {
@@ -268,10 +260,8 @@ function deleteAccount(username) {
 }
 
 function initPersistence() {
-	ensureDataDir();
 	loadSessions();
 	const accountCount = Object.keys(loadAccounts()).length;
-	console.log(`Persistent data dir: ${DATA_DIR}`);
 	console.log(`Loaded ${accountCount} account(s), ${sessions.size} session(s)`);
 }
 
@@ -289,4 +279,5 @@ module.exports = {
 	readJsonBody,
 	sendJson,
 	initPersistence,
+	DATA_DIR,
 };

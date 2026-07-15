@@ -1,14 +1,11 @@
 const crypto = require('crypto');
-const path = require('path');
 const {
 	verifySession,
 	validateUsername,
 	readJsonBody,
 	sendJson,
 } = require('./auth');
-const { DATA_DIR, writeJsonAtomic, readJsonFile } = require('./data-path');
-
-const AVATARS_FILE = path.join(DATA_DIR, 'avatars.json');
+const { getStore, setStore } = require('./persistence');
 
 const MAX_CHARACTERS_DEFAULT = 6;
 const UNLIMITED_USER = 'testare1';
@@ -16,11 +13,11 @@ const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const CHARACTER_NAME_RE = /^[\p{L}\p{N} _-]{1,16}$/u;
 
 function loadStore() {
-	return readJsonFile(AVATARS_FILE, {});
+	return getStore('avatars', {});
 }
 
 function saveStore(data) {
-	writeJsonAtomic(AVATARS_FILE, data);
+	setStore('avatars', data);
 }
 
 function getCharacterLimit(username) {
