@@ -26,6 +26,7 @@ func _ready() -> void:
 	_build_mother()
 	_build_egg()
 	_build_player_spider()
+	_style_ui()
 	door_zone.body_entered.connect(_on_door_entered)
 	hint_label.text = "WASD — gå ut mot ljuset i dörren..."
 	Profile.nest_intro_completed.connect(_on_nest_saved)
@@ -85,6 +86,11 @@ func _spawn_spiders(delta: float) -> void:
 	var offset := Vector3(randf_range(-0.35, 0.35), 0.2, randf_range(-0.2, 0.35))
 	spiders_root.add_child(spider)
 	spider.setup(egg_pivot.global_position + offset, 5.8)
+
+
+func _style_ui() -> void:
+	SpiderTheme.style_status(hint_label)
+	SpiderTheme.wrap_label_in_panel(hint_label)
 
 
 func _build_player_spider() -> void:

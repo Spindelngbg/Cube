@@ -15,13 +15,13 @@ const INPUT_BG := Color(0.06, 0.05, 0.08, 0.96)
 
 static func apply_to(root: Control) -> void:
 	var theme := Theme.new()
-	theme.set_stylebox("panel", "PanelContainer", _panel_style())
-	theme.set_stylebox("normal", "Button", _button_style(false))
-	theme.set_stylebox("hover", "Button", _button_style(true))
-	theme.set_stylebox("pressed", "Button", _button_pressed_style())
+	theme.set_stylebox("panel", "PanelContainer", FantasyBorderLibrary.panel_style())
+	theme.set_stylebox("normal", "Button", FantasyBorderLibrary.button_style(false))
+	theme.set_stylebox("hover", "Button", FantasyBorderLibrary.button_style(true))
+	theme.set_stylebox("pressed", "Button", FantasyBorderLibrary.button_style(false, true))
 	theme.set_stylebox("disabled", "Button", _button_disabled_style())
-	theme.set_stylebox("normal", "LineEdit", _input_style(false))
-	theme.set_stylebox("focus", "LineEdit", _input_style(true))
+	theme.set_stylebox("normal", "LineEdit", FantasyBorderLibrary.input_style(false))
+	theme.set_stylebox("focus", "LineEdit", FantasyBorderLibrary.input_style(true))
 	theme.set_stylebox("normal", "HSlider", _slider_style())
 	theme.set_stylebox("grabber_area", "HSlider", _slider_area_style())
 	theme.set_stylebox("grabber_area_highlight", "HSlider", _slider_area_style())
@@ -61,65 +61,41 @@ static func style_section(label: Label) -> void:
 static func style_tab_button(button: Button, active: bool) -> void:
 	if active:
 		button.add_theme_color_override("font_color", BLOOD_BRIGHT)
-		button.add_theme_stylebox_override("normal", _tab_active_style())
+		button.add_theme_stylebox_override("normal", FantasyBorderLibrary.tab_style(true))
 	else:
 		button.add_theme_color_override("font_color", MUTED)
-		button.add_theme_stylebox_override("normal", _tab_inactive_style())
-	button.add_theme_stylebox_override("hover", _tab_hover_style())
-	button.add_theme_stylebox_override("pressed", _tab_active_style())
+		button.add_theme_stylebox_override("normal", FantasyBorderLibrary.tab_style(false))
+	button.add_theme_stylebox_override("hover", FantasyBorderLibrary.tab_style(true))
+	button.add_theme_stylebox_override("pressed", FantasyBorderLibrary.tab_style(true))
 	button.flat = false
 
 
-static func _panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = CHITIN
-	style.border_color = Color(BLOOD.r, BLOOD.g, BLOOD.b, 0.45)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(16)
-	style.shadow_color = Color(0, 0, 0, 0.55)
-	style.shadow_size = 28
-	style.shadow_offset = Vector2(0, 10)
-	style.content_margin_left = 28
-	style.content_margin_right = 28
-	style.content_margin_top = 28
-	style.content_margin_bottom = 28
-	return style
+static func wrap_label_in_panel(label: Label, style: StyleBoxTexture = null) -> PanelContainer:
+	var parent := label.get_parent()
+	var pos := label.position
+	var size := label.size
+	var idx := label.get_index() if parent else -1
+
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", style if style else FantasyBorderLibrary.hud_style())
+	if parent:
+		parent.remove_child(label)
+	panel.add_child(label)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+	if parent:
+		parent.add_child(panel)
+		if idx >= 0:
+			parent.move_child(panel, idx)
+		panel.position = pos
+		panel.size = size
+	return panel
 
 
-static func _button_style(hover: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.14, 0.08, 0.11, 0.96) if not hover else Color(0.22, 0.09, 0.13, 0.98)
-	style.border_color = Color(BLOOD.r, BLOOD.g, BLOOD.b, 0.65 if hover else 0.28)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(10)
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
-	return style
-
-
-static func _button_pressed_style() -> StyleBoxFlat:
-	var style := _button_style(true)
-	style.bg_color = Color(0.28, 0.08, 0.12)
-	return style
-
-
-static func _button_disabled_style() -> StyleBoxFlat:
-	var style := _button_style(false)
-	style.bg_color = Color(0.08, 0.07, 0.09, 0.65)
-	style.border_color = Color(BLOOD.r, BLOOD.g, BLOOD.b, 0.1)
-	return style
-
-
-static func _input_style(focused: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = INPUT_BG
-	style.border_color = Color(BLOOD.r, BLOOD.g, BLOOD.b, 0.75 if focused else 0.2)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
+static func _button_disabled_style() -> StyleBoxTexture:
+	var style := FantasyBorderLibrary.button_style(false)
+	style.modulate_color = Color(0.2, 0.16, 0.18, 0.55)
 	return style
 
 
@@ -143,26 +119,4 @@ static func _slider_grabber_style() -> StyleBoxFlat:
 	style.set_corner_radius_all(6)
 	style.content_margin_top = 6
 	style.content_margin_bottom = 6
-	return style
-
-
-static func _tab_inactive_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0)
-	style.set_corner_radius_all(8)
-	return style
-
-
-static func _tab_active_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(BLOOD.r, BLOOD.g, BLOOD.b, 0.18)
-	style.border_color = Color(BLOOD.r, BLOOD.g, BLOOD.b, 0.5)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(8)
-	return style
-
-
-static func _tab_hover_style() -> StyleBoxFlat:
-	var style := _tab_active_style()
-	style.bg_color = Color(BLOOD.r, BLOOD.g, BLOOD.b, 0.1)
 	return style

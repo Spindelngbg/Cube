@@ -72,6 +72,7 @@ func _refresh_ui() -> void:
 
 func _make_character_row(character_id: String, character_name: String, is_active: bool) -> PanelContainer:
 	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", FantasyBorderLibrary.row_style(is_active))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	panel.add_child(row)

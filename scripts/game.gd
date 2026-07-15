@@ -17,6 +17,7 @@ var players: Dictionary = {}
 
 func _ready() -> void:
 	_style_world()
+	_style_hud()
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	_spawn_player(multiplayer.get_unique_id())
@@ -47,6 +48,14 @@ func _on_peer_disconnected(peer_id: int) -> void:
 func _style_world() -> void:
 	var floor_mesh := $Floor/MeshInstance3D as MeshInstance3D
 	RetroTextureLibrary.apply_to_mesh(floor_mesh, "floor_ground_grass", Vector2(8, 8))
+
+
+func _style_hud() -> void:
+	var hint := $UI/Hint as Label
+	if hint == null:
+		return
+	SpiderTheme.style_status(hint)
+	SpiderTheme.wrap_label_in_panel(hint)
 
 
 func _spawn_player(peer_id: int) -> void:
