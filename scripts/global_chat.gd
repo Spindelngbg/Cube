@@ -10,6 +10,9 @@ const RECONNECT_DELAY := 2.0
 @onready var send_button: Button = %ChatSendButton
 @onready var chat_tab_button: Button = %ChatTabButton
 @onready var friends_tab_button: Button = %FriendsTabButton
+@onready var minimize_button: Button = %MinimizeButton
+@onready var tab_bar: HBoxContainer = %TabBar
+@onready var body_panel: Control = %Body
 @onready var chat_view: Control = %ChatView
 @onready var friends_view: Control = %FriendsView
 @onready var requests_list: VBoxContainer = %RequestsList
@@ -29,6 +32,7 @@ var _reconnect_timer := 0.0
 var _connecting := false
 var _identify_sent := false
 var _layout_mode := "corner"
+var _minimized := false
 
 const LAYOUT_CORNER := {
 	"anchor_left": 1.0,
@@ -48,6 +52,28 @@ const LAYOUT_SIDEBAR_RIGHT := {
 	"anchor_bottom": 1.0,
 	"offset_left": -352.0,
 	"offset_top": 16.0,
+	"offset_right": -12.0,
+	"offset_bottom": -12.0,
+}
+
+const MINIMIZED_CORNER := {
+	"anchor_left": 1.0,
+	"anchor_top": 1.0,
+	"anchor_right": 1.0,
+	"anchor_bottom": 1.0,
+	"offset_left": -248.0,
+	"offset_top": -44.0,
+	"offset_right": -16.0,
+	"offset_bottom": -16.0,
+}
+
+const MINIMIZED_SIDEBAR_RIGHT := {
+	"anchor_left": 1.0,
+	"anchor_top": 1.0,
+	"anchor_right": 1.0,
+	"anchor_bottom": 1.0,
+	"offset_left": -248.0,
+	"offset_top": -44.0,
 	"offset_right": -12.0,
 	"offset_bottom": -12.0,
 }
@@ -76,6 +102,7 @@ func _ready() -> void:
 	send_button.pressed.connect(_send_chat_message)
 	chat_tab_button.pressed.connect(_show_tab.bind("chat"))
 	friends_tab_button.pressed.connect(_show_tab.bind("friends"))
+	minimize_button.pressed.connect(_toggle_minimize)
 
 	Auth.login_succeeded.connect(_on_auth_changed)
 	Auth.logged_out.connect(_on_auth_logged_out)
@@ -374,6 +401,8 @@ func set_layout_mode(mode: String) -> void:
 	if mode == _layout_mode:
 		return
 	_layout_mode = mode
+	if _minimized and mode != "sidebar_right":
+		_minimized = false
 	_apply_layout_mode()
 
 
@@ -381,8 +410,22 @@ func reset_layout_mode() -> void:
 	set_layout_mode("corner")
 
 
+func _toggle_minimize() -> void:
+	_minimized = not _minimized
+	_apply_layout_mode()
+
+
+func is_minimized() -> bool:
+	return _minimized
+
+
 func _apply_layout_mode() -> void:
-	var layout: Dictionary = LAYOUT_SIDEBAR_RIGHT if _layout_mode == "sidebar_right" else LAYOUT_CORNER
+	var layout: Dictionary
+	if _minimized:
+		layout = MINIMIZED_SIDEBAR_RIGHT if _layout_mode == "sidebar_right" else MINIMIZED_CORNER
+	else:
+		layout = LAYOUT_SIDEBAR_RIGHT if _layout_mode == "sidebar_right" else LAYOUT_CORNER
+
 	chat_panel.anchor_left = layout["anchor_left"]
 	chat_panel.anchor_top = layout["anchor_top"]
 	chat_panel.anchor_right = layout["anchor_right"]
@@ -391,3 +434,8 @@ func _apply_layout_mode() -> void:
 	chat_panel.offset_top = layout["offset_top"]
 	chat_panel.offset_right = layout["offset_right"]
 	chat_panel.offset_bottom = layout["offset_bottom"]
+
+	tab_bar.visible = not _minimized
+	body_panel.visible = not _minimized
+	minimize_button.text = "□" if _minimized else "—"
+	minimize_button.tooltip_text = "Visa chatt" if _minimized else "Minimera chatt"

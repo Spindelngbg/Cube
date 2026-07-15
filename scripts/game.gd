@@ -7,12 +7,15 @@ const CAMERA_LERP_SPEED := 4.0
 var players: Dictionary = {}
 var _active_spawn_id := ""
 
+@onready var _minimap: MinimapPanel = %Minimap
+
 
 func _ready() -> void:
 	_hide_legacy_floor()
 	_resolve_spawn_context()
 	_build_world()
 	_style_hud()
+	_setup_minimap()
 	_update_hud_text()
 
 	multiplayer.peer_connected.connect(_on_peer_connected)
@@ -26,6 +29,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_follow_local_player_camera(delta)
 	_update_hud_text()
+	_update_minimap()
 
 
 func _resolve_spawn_context() -> void:
@@ -100,6 +104,16 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if players.has(peer_id):
 		players[peer_id].queue_free()
 		players.erase(peer_id)
+
+
+func _setup_minimap() -> void:
+	if _minimap:
+		_minimap.setup(_active_spawn_id, SpawnPoints.PROTOTYPE_SIZE_M)
+
+
+func _update_minimap() -> void:
+	if _minimap:
+		_minimap.update_players(players, multiplayer.get_unique_id())
 
 
 func _style_hud() -> void:

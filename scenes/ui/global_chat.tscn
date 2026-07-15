@@ -33,6 +33,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Global chatt"
 
+[node name="MinimizeButton" type="Button" parent="ChatPanel/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "—"
+tooltip_text = "Minimera chatt"
+
 [node name="ChatStatusLabel" type="Label" parent="ChatPanel/VBox/Header"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -40,6 +46,7 @@ text = "Ansluter..."
 horizontal_alignment = 2
 
 [node name="TabBar" type="HBoxContainer" parent="ChatPanel/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 6
 
@@ -56,6 +63,7 @@ size_flags_horizontal = 3
 text = "Vänner"
 
 [node name="Body" type="Control" parent="ChatPanel/VBox"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 260)
 layout_mode = 2
 size_flags_vertical = 3
