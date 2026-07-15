@@ -1,8 +1,8 @@
 const crypto = require('crypto');
 const { listAccounts, deleteAccount } = require('./auth');
 
-const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'cube-admin';
+const ADMIN_USER = process.env.ADMIN_USER || 'Spindelngbg';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '44ZimpaZimpa44';
 const SESSION_COOKIE = 'cube_admin_session';
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 

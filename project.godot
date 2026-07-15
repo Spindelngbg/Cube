@@ -8,12 +8,16 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="Cube"
 config/description="Multiplayer cube game using WebRTC P2P with Railway signaling."
 run/main_scene="res://scenes/login.tscn"
-config/features=PackedStringArray("4.3", "4.7")
+config/features=PackedStringArray("4.7")
 
 [autoload]
 

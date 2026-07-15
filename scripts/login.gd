@@ -1,6 +1,5 @@
 extends Control
 
-@onready var server_input: LineEdit = %ServerInput
 @onready var login_username: LineEdit = %LoginUsername
 @onready var login_password: LineEdit = %LoginPassword
 @onready var login_toggle: Button = %LoginTogglePassword
@@ -11,8 +10,7 @@ extends Control
 
 
 func _ready() -> void:
-	server_input.text = Network.signaling_url
-	server_input.placeholder_text = Network.PRODUCTION_SIGNAL_URL
+	_apply_server_url()
 	_set_password_visible(login_password, login_toggle, false)
 	_set_password_visible(register_password, register_toggle, false)
 
@@ -73,10 +71,8 @@ func _set_password_visible(field: LineEdit, button: Button, currently_hidden: bo
 
 
 func _apply_server_url() -> void:
-	var signaling_url := server_input.text.strip_edges()
-	Auth.set_api_url(Auth.api_url_from_signaling(signaling_url))
-	if signaling_url.begins_with("ws"):
-		Network.signaling_url = signaling_url
+	Network.signaling_url = Network.PRODUCTION_SIGNAL_URL
+	Auth.set_api_url(Auth.PRODUCTION_API_URL)
 
 
 func _on_login_succeeded(p_username: String, _is_guest: bool) -> void:

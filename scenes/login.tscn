@@ -41,15 +41,6 @@ theme_override_font_sizes/font_size = 48
 text = "Cube"
 horizontal_alignment = 1
 
-[node name="ServerLabel" type="Label" parent="Panel"]
-layout_mode = 2
-text = "Server"
-
-[node name="ServerInput" type="LineEdit" parent="Panel"]
-unique_name_in_owner = true
-layout_mode = 2
-placeholder_text = "wss://cube-production-3d68.up.railway.app"
-
 [node name="Tabs" type="TabContainer" parent="Panel"]
 layout_mode = 2
 size_flags_vertical = 3

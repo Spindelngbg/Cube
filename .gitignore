@@ -3,3 +3,7 @@
 export/
 *.translation
 signaling-server/node_modules/
+gh_*.txt
+*.uid
+~*
+github-login.bat
