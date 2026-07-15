@@ -50,6 +50,10 @@ func _load_seed_district() -> void:
 		_register_zone(entry)
 
 
+func register_prototype_zone(entry: Dictionary) -> void:
+	_register_zone(entry)
+
+
 func _register_zone(entry: Dictionary) -> void:
 	var zone_id := str(entry.get("zone_id", ""))
 	if zone_id == "":
@@ -121,15 +125,42 @@ func can_player_build_in_zone(zone_id: String) -> bool:
 	if zone.is_empty():
 		return false
 
+	if bool(zone.get("governance_locked", false)):
+		return false
+
 	var ownership := str(zone.get("ownership", "public"))
 	if ownership == "foundation":
+		return false
+	if ownership == "reserved":
 		return false
 	if ownership == "owned":
 		var owner := str(zone.get("owner_account", ""))
 		return Auth.is_logged_in and Auth.username == owner
 
+	if bool(zone.get("open_build", false)):
+		return true
+
 	var block_id := CubeTerritoryId.zone_to_block_id(zone_id)
 	return CubeGovernance.can_current_player_exercise_power(block_id, CubeGovernance.POWER_ISSUE_BUILD_PERMIT)
+
+
+func build_permit_status(zone_id: String) -> String:
+	if can_player_build_in_zone(zone_id):
+		return "Bygglov: beviljat"
+	var zone := get_zone(zone_id)
+	if zone.is_empty():
+		return "Bygglov: okänd zon"
+	if bool(zone.get("governance_locked", false)):
+		return "Bygglov: block låst politiskt"
+	match str(zone.get("ownership", "")):
+		"foundation":
+			return "Bygglov: foundationszon"
+		"reserved":
+			return "Bygglov: reserverad för NFT"
+		"owned":
+			return "Bygglov: privat ägd zon"
+		_:
+			return "Bygglov: kräver guvernörs tillstånd"
 
 
 func get_zones_in_layer(layer: int) -> Array[Dictionary]:

@@ -18,9 +18,12 @@
 			"name": "Centralplaza Syd",
 			"ownership": "public",
 			"nft_ready": true,
+			"open_build": false,
 			"governed_by_block": "L10-B1515",
 			"governed_by_layer": "L10",
-			"structures": []
+			"structures": [
+				{"kit": "commercial", "model": "building-c", "offset": [4, 0, 4], "rotation_y": 0}
+			]
 		},
 		{
 			"zone_id": "L10-B1515-Z22",
@@ -60,7 +63,9 @@
 			"governed_by_block": "L10-B1616",
 			"governed_by_layer": "L10",
 			"governance_locked": true,
-			"structures": []
+			"structures": [
+				{"kit": "industrial", "model": "building-f", "offset": [3, 0, 3], "rotation_y": 1.57}
+			]
 		}
 	]
 }

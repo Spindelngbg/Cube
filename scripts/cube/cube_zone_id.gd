@@ -35,3 +35,38 @@ static func prototype_origin_m(block: Vector2i, zone: Vector2i) -> Vector3:
 		0.0,
 		local_block.y * CubeConstants.PROTOTYPE_METERS_PER_BLOCK + zone.y * CubeConstants.PROTOTYPE_METERS_PER_ZONE
 	)
+
+
+static func prototype_position_to_zone(world_pos: Vector3) -> String:
+	var local_block_x := clampi(
+		int(floor(world_pos.x / CubeConstants.PROTOTYPE_METERS_PER_BLOCK)),
+		0,
+		CubeConstants.PROTOTYPE_BLOCK_COUNT - 1
+	)
+	var local_block_z := clampi(
+		int(floor(world_pos.z / CubeConstants.PROTOTYPE_METERS_PER_BLOCK)),
+		0,
+		CubeConstants.PROTOTYPE_BLOCK_COUNT - 1
+	)
+	var block := CubeConstants.PROTOTYPE_BLOCK_ORIGIN + Vector2i(local_block_x, local_block_z)
+
+	var in_block_x := fposmod(world_pos.x, CubeConstants.PROTOTYPE_METERS_PER_BLOCK)
+	var in_block_z := fposmod(world_pos.z, CubeConstants.PROTOTYPE_METERS_PER_BLOCK)
+	var zone := Vector2i(
+		clampi(int(floor(in_block_x / CubeConstants.PROTOTYPE_METERS_PER_ZONE)), 0, CubeConstants.PROTOTYPE_ZONES_PER_BLOCK - 1),
+		clampi(int(floor(in_block_z / CubeConstants.PROTOTYPE_METERS_PER_ZONE)), 0, CubeConstants.PROTOTYPE_ZONES_PER_BLOCK - 1)
+	)
+	return make(CubeConstants.PROTOTYPE_LAYER, block, zone)
+
+
+static func prototype_spawn_position() -> Vector3:
+	var center_block := CubeConstants.PROTOTYPE_BLOCK_ORIGIN + Vector2i(
+		CubeConstants.PROTOTYPE_BLOCK_COUNT / 2,
+		CubeConstants.PROTOTYPE_BLOCK_COUNT / 2
+	)
+	var origin := prototype_origin_m(center_block, Vector2i(2, 2))
+	return origin + Vector3(
+		CubeConstants.PROTOTYPE_METERS_PER_ZONE * 0.5,
+		0.5,
+		CubeConstants.PROTOTYPE_METERS_PER_ZONE * 0.5
+	)
