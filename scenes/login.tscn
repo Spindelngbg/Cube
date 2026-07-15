@@ -1,0 +1,137 @@
+[gd_scene load_steps=2 format=3 uid="uid://cube_login"]
+
+[ext_resource type="Script" path="res://scripts/login.gd" id="1_login"]
+
+[node name="Login" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_login")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.12, 0.14, 0.18, 1)
+
+[node name="Panel" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -240.0
+offset_right = 260.0
+offset_bottom = 240.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Panel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "Cube"
+horizontal_alignment = 1
+
+[node name="ServerLabel" type="Label" parent="Panel"]
+layout_mode = 2
+text = "Server"
+
+[node name="ServerInput" type="LineEdit" parent="Panel"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "ws://localhost:9080"
+
+[node name="Tabs" type="TabContainer" parent="Panel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Logga in" type="VBoxContainer" parent="Panel/Tabs"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LoginUsername" type="LineEdit" parent="Panel/Tabs/Logga in"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Användarnamn"
+
+[node name="LoginPasswordRow" type="HBoxContainer" parent="Panel/Tabs/Logga in"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LoginPassword" type="LineEdit" parent="Panel/Tabs/Logga in/LoginPasswordRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Lösenord"
+secret = true
+
+[node name="LoginTogglePassword" type="Button" parent="Panel/Tabs/Logga in/LoginPasswordRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Visa"
+
+[node name="LoginButton" type="Button" parent="Panel/Tabs/Logga in"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Logga in"
+
+[node name="Skapa konto" type="VBoxContainer" parent="Panel/Tabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RegisterUsername" type="LineEdit" parent="Panel/Tabs/Skapa konto"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Användarnamn"
+
+[node name="RegisterPasswordRow" type="HBoxContainer" parent="Panel/Tabs/Skapa konto"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RegisterPassword" type="LineEdit" parent="Panel/Tabs/Skapa konto/RegisterPasswordRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Lösenord"
+secret = true
+
+[node name="RegisterTogglePassword" type="Button" parent="Panel/Tabs/Skapa konto/RegisterPasswordRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Visa"
+
+[node name="RegisterButton" type="Button" parent="Panel/Tabs/Skapa konto"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Skapa konto"
+
+[node name="Gäst" type="VBoxContainer" parent="Panel/Tabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="GuestInfo" type="Label" parent="Panel/Tabs/Gäst"]
+layout_mode = 2
+text = "Spela direkt utan konto. Du får ett tillfälligt gästnamn."
+autowrap_mode = 2
+
+[node name="GuestButton" type="Button" parent="Panel/Tabs/Gäst"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Spela som gäst"
+
+[node name="StatusLabel" type="Label" parent="Panel"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 2
