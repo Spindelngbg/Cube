@@ -140,7 +140,7 @@ func _retry_or_fail(send_id: int, message: String) -> void:
 func _on_request_completed(
 	result: int,
 	response_code: int,
-	_headers: PackedByteArray,
+	_headers: PackedStringArray,
 	body: PackedByteArray
 ) -> void:
 	var send_id := _inflight_send_id
