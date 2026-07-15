@@ -110,6 +110,7 @@ func _on_login_succeeded(p_username: String, is_guest: bool) -> void:
 		Profile.clear_characters()
 		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
 	else:
+		Profile.clear_characters()
 		_enter_account_flow()
 
 
@@ -127,7 +128,7 @@ func _enter_account_flow() -> void:
 	if Profile.characters.is_empty():
 		_set_status("Skapar karaktär...")
 		Profile.create_character("Karaktär 1")
-		if not await _wait_for_profile_action(9.0) or Profile.active_character_id == "":
+		if not await _wait_for_profile_action(20.0) or Profile.active_character_id == "":
 			_set_status("Kunde inte skapa karaktär – försök igen")
 			_set_buttons_enabled(true)
 			return

@@ -213,6 +213,14 @@ async function handleAuthRequest(req, res) {
 		return false;
 	}
 
+	const pathname = (req.url || '').split('?')[0];
+	const isAuthRoute = pathname === '/auth/register'
+		|| pathname === '/auth/login'
+		|| pathname === '/auth/guest';
+	if (!isAuthRoute) {
+		return false;
+	}
+
 	let body = {};
 	try {
 		body = await readJsonBody(req);
@@ -221,15 +229,15 @@ async function handleAuthRequest(req, res) {
 		return true;
 	}
 
-	if (req.url === '/auth/register') {
+	if (pathname === '/auth/register') {
 		sendJson(res, 200, await register(body.username, body.password));
 		return true;
 	}
-	if (req.url === '/auth/login') {
+	if (pathname === '/auth/login') {
 		sendJson(res, 200, login(body.username, body.password));
 		return true;
 	}
-	if (req.url === '/auth/guest') {
+	if (pathname === '/auth/guest') {
 		sendJson(res, 200, guest());
 		return true;
 	}

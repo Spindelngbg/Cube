@@ -170,8 +170,6 @@ function listCharacters(username) {
 
 	const data = loadStore();
 	const record = ensureUserRecord(data, username);
-	record.characters = record.characters.map((entry) => migrateCharacter(entry));
-	saveStore(data);
 	const limit = getCharacterLimit(username);
 
 	return {
