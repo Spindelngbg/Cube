@@ -1,5 +1,13 @@
 extends Control
 
+enum Tab { LOGIN, REGISTER, GUEST }
+
+@onready var login_panel: VBoxContainer = %LoginPanel
+@onready var register_panel: VBoxContainer = %RegisterPanel
+@onready var guest_panel: VBoxContainer = %GuestPanel
+@onready var tab_login: Button = %TabLoginButton
+@onready var tab_register: Button = %TabRegisterButton
+@onready var tab_guest: Button = %TabGuestButton
 @onready var login_username: LineEdit = %LoginUsername
 @onready var login_password: LineEdit = %LoginPassword
 @onready var login_toggle: Button = %LoginTogglePassword
@@ -8,20 +16,41 @@ extends Control
 @onready var register_toggle: Button = %RegisterTogglePassword
 @onready var status_label: Label = %StatusLabel
 
+var _active_tab := Tab.LOGIN
+
 
 func _ready() -> void:
+	LuxuryTheme.apply_to(self)
+	LuxuryTheme.style_title($Center/MainPanel/VBox/Title)
+	LuxuryTheme.style_subtitle($Center/MainPanel/VBox/Subtitle)
+	LuxuryTheme.style_status(status_label)
+
 	_apply_server_url()
 	_set_password_visible(login_password, login_toggle, false)
 	_set_password_visible(register_password, register_toggle, false)
+	_show_tab(Tab.LOGIN)
 
 	Auth.login_succeeded.connect(_on_login_succeeded)
 	Auth.login_failed.connect(_on_login_failed)
 
+	tab_login.pressed.connect(_show_tab.bind(Tab.LOGIN))
+	tab_register.pressed.connect(_show_tab.bind(Tab.REGISTER))
+	tab_guest.pressed.connect(_show_tab.bind(Tab.GUEST))
 	%LoginButton.pressed.connect(_on_login_pressed)
 	%RegisterButton.pressed.connect(_on_register_pressed)
 	%GuestButton.pressed.connect(_on_guest_pressed)
 	login_toggle.pressed.connect(_on_login_toggle_pressed)
 	register_toggle.pressed.connect(_on_register_toggle_pressed)
+
+
+func _show_tab(tab: Tab) -> void:
+	_active_tab = tab
+	login_panel.visible = tab == Tab.LOGIN
+	register_panel.visible = tab == Tab.REGISTER
+	guest_panel.visible = tab == Tab.GUEST
+	LuxuryTheme.style_tab_button(tab_login, tab == Tab.LOGIN)
+	LuxuryTheme.style_tab_button(tab_register, tab == Tab.REGISTER)
+	LuxuryTheme.style_tab_button(tab_guest, tab == Tab.GUEST)
 
 
 func _on_login_pressed() -> void:

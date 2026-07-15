@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://cube_login"]
+[gd_scene load_steps=5 format=3 uid="uid://cube_login"]
 
 [ext_resource type="Script" path="res://scripts/login.gd" id="1_login"]
+[ext_resource type="Script" path="res://scripts/ui/menu_background.gd" id="2_bg"]
+[ext_resource type="Script" path="res://scripts/ui/dangling_spider.gd" id="3_spider"]
 
 [node name="Login" type="Control"]
 layout_mode = 3
@@ -11,117 +13,178 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_login")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="MenuBackground" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.12, 0.14, 0.18, 1)
+mouse_filter = 2
+script = ExtResource("2_bg")
 
-[node name="Panel" type="VBoxContainer" parent="."]
+[node name="DanglingSpider" type="Control" parent="."]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -260.0
-offset_top = -240.0
-offset_right = 260.0
-offset_bottom = 240.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 10
+mouse_filter = 2
+script = ExtResource("3_spider")
 
-[node name="Title" type="Label" parent="Panel"]
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MainPanel" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(460, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 48
-text = "Cube"
+
+[node name="VBox" type="VBoxContainer" parent="Center/MainPanel"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="Center/MainPanel/VBox"]
+layout_mode = 2
+text = "CUBE"
 horizontal_alignment = 1
 
-[node name="Tabs" type="TabContainer" parent="Panel"]
+[node name="Subtitle" type="Label" parent="Center/MainPanel/VBox"]
+layout_mode = 2
+text = "Multiplayer"
+horizontal_alignment = 1
+
+[node name="TabBar" type="HBoxContainer" parent="Center/MainPanel/VBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 6
+
+[node name="TabLoginButton" type="Button" parent="Center/MainPanel/VBox/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Logga in"
+
+[node name="TabRegisterButton" type="Button" parent="Center/MainPanel/VBox/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Skapa konto"
+
+[node name="TabGuestButton" type="Button" parent="Center/MainPanel/VBox/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Gäst"
+
+[node name="Content" type="Control" parent="Center/MainPanel/VBox"]
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Logga in" type="VBoxContainer" parent="Panel/Tabs"]
-layout_mode = 2
-theme_override_constants/separation = 8
+[node name="LoginPanel" type="VBoxContainer" parent="Center/MainPanel/VBox/Content"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
 
-[node name="LoginUsername" type="LineEdit" parent="Panel/Tabs/Logga in"]
+[node name="LoginUsername" type="LineEdit" parent="Center/MainPanel/VBox/Content/LoginPanel"]
 unique_name_in_owner = true
 layout_mode = 2
 placeholder_text = "Användarnamn"
 
-[node name="LoginPasswordRow" type="HBoxContainer" parent="Panel/Tabs/Logga in"]
+[node name="LoginPasswordRow" type="HBoxContainer" parent="Center/MainPanel/VBox/Content/LoginPanel"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="LoginPassword" type="LineEdit" parent="Panel/Tabs/Logga in/LoginPasswordRow"]
+[node name="LoginPassword" type="LineEdit" parent="Center/MainPanel/VBox/Content/LoginPanel/LoginPasswordRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Lösenord"
 secret = true
 
-[node name="LoginTogglePassword" type="Button" parent="Panel/Tabs/Logga in/LoginPasswordRow"]
+[node name="LoginTogglePassword" type="Button" parent="Center/MainPanel/VBox/Content/LoginPanel/LoginPasswordRow"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 0)
 layout_mode = 2
 text = "Visa"
 
-[node name="LoginButton" type="Button" parent="Panel/Tabs/Logga in"]
+[node name="LoginButton" type="Button" parent="Center/MainPanel/VBox/Content/LoginPanel"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Logga in"
 
-[node name="Skapa konto" type="VBoxContainer" parent="Panel/Tabs"]
+[node name="RegisterPanel" type="VBoxContainer" parent="Center/MainPanel/VBox/Content"]
+unique_name_in_owner = true
 visible = false
-layout_mode = 2
-theme_override_constants/separation = 8
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
 
-[node name="RegisterUsername" type="LineEdit" parent="Panel/Tabs/Skapa konto"]
+[node name="RegisterUsername" type="LineEdit" parent="Center/MainPanel/VBox/Content/RegisterPanel"]
 unique_name_in_owner = true
 layout_mode = 2
 placeholder_text = "Användarnamn"
 
-[node name="RegisterPasswordRow" type="HBoxContainer" parent="Panel/Tabs/Skapa konto"]
+[node name="RegisterPasswordRow" type="HBoxContainer" parent="Center/MainPanel/VBox/Content/RegisterPanel"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="RegisterPassword" type="LineEdit" parent="Panel/Tabs/Skapa konto/RegisterPasswordRow"]
+[node name="RegisterPassword" type="LineEdit" parent="Center/MainPanel/VBox/Content/RegisterPanel/RegisterPasswordRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Lösenord"
 secret = true
 
-[node name="RegisterTogglePassword" type="Button" parent="Panel/Tabs/Skapa konto/RegisterPasswordRow"]
+[node name="RegisterTogglePassword" type="Button" parent="Center/MainPanel/VBox/Content/RegisterPanel/RegisterPasswordRow"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 0)
 layout_mode = 2
 text = "Visa"
 
-[node name="RegisterButton" type="Button" parent="Panel/Tabs/Skapa konto"]
+[node name="RegisterButton" type="Button" parent="Center/MainPanel/VBox/Content/RegisterPanel"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Skapa konto"
 
-[node name="Gäst" type="VBoxContainer" parent="Panel/Tabs"]
+[node name="GuestPanel" type="VBoxContainer" parent="Center/MainPanel/VBox/Content"]
+unique_name_in_owner = true
 visible = false
-layout_mode = 2
-theme_override_constants/separation = 12
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
 
-[node name="GuestInfo" type="Label" parent="Panel/Tabs/Gäst"]
+[node name="GuestInfo" type="Label" parent="Center/MainPanel/VBox/Content/GuestPanel"]
 layout_mode = 2
 text = "Spela direkt utan konto. Du får ett tillfälligt gästnamn."
+horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="GuestButton" type="Button" parent="Panel/Tabs/Gäst"]
+[node name="GuestButton" type="Button" parent="Center/MainPanel/VBox/Content/GuestPanel"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Spela som gäst"
 
-[node name="StatusLabel" type="Label" parent="Panel"]
+[node name="StatusLabel" type="Label" parent="Center/MainPanel/VBox"]
 unique_name_in_owner = true
 layout_mode = 2
 horizontal_alignment = 1
