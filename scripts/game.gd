@@ -16,6 +16,7 @@ var players: Dictionary = {}
 
 
 func _ready() -> void:
+	_style_world()
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	_spawn_player(multiplayer.get_unique_id())
@@ -41,6 +42,11 @@ func _on_peer_disconnected(peer_id: int) -> void:
 	if players.has(peer_id):
 		players[peer_id].queue_free()
 		players.erase(peer_id)
+
+
+func _style_world() -> void:
+	var floor_mesh := $Floor/MeshInstance3D as MeshInstance3D
+	RetroTextureLibrary.apply_to_mesh(floor_mesh, "floor_ground_grass", Vector2(8, 8))
 
 
 func _spawn_player(peer_id: int) -> void:

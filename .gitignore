@@ -2,6 +2,7 @@
 .import/
 export/
 build/
+assets/downloads/
 *.translation
 signaling-server/node_modules/
 gh_*.txt
