@@ -4,6 +4,13 @@ const MOVE_SPEED := 4.0
 const ROOM_SIZE := Vector3(40, 18, 40)
 const LEFT_TUNNEL_VISUAL_M := 28.0
 
+const MARKER_COLORS := {
+	"satellite_left": Color(0.2, 0.45, 0.95),
+	"satellite_top_a": Color(0.95, 0.75, 0.15),
+	"satellite_top_b": Color(0.95, 0.55, 0.1),
+	"satellite_right": Color(0.85, 0.25, 0.35),
+}
+
 @onready var player: CharacterBody3D = $Player
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var hint_label: Label = $UI/HintLabel
@@ -34,6 +41,7 @@ func _ready() -> void:
 	_build_room()
 	_build_main_cube_preview()
 	_build_elevators()
+	_build_wayfinding()
 	_build_player()
 	_style_ui()
 	_hide_confirm()
@@ -51,8 +59,9 @@ func _ready() -> void:
 		return
 
 	hint_label.text = (
-		"Ljusrummet i huvudkuben. Vänster: 10 km hiss. Ovanpå: 2 hissar. Höger: 1 hiss. "
-		+ "De leder till separata 30×30×30 km satellitkuber."
+		"Följ de färgade markörerna på golvet (WASD). "
+		+ "Blå=vänster tunnel, Gula=trappor norrut, Röd=höger korridor. "
+		+ "Stå i markören och tryck [E] för att åka hiss."
 	)
 
 
@@ -174,30 +183,50 @@ func _build_elevators() -> void:
 		_build_elevator_port(spec)
 
 
+func _build_wayfinding() -> void:
+	var hub := Vector3(0, 0.02, 0)
+	_add_floor_marker(hub, Color(0.92, 0.9, 0.85), 3.5, "START")
+
+	var guides := [
+		{"id": "satellite_left", "from": hub, "to": Vector3(-17, 0.02, -5), "label": "← VÄNSTER TUNNEL"},
+		{"id": "satellite_top_a", "from": hub, "to": Vector3(-7, 0.02, -17), "label": "↑ TRAPPOR A"},
+		{"id": "satellite_top_b", "from": hub, "to": Vector3(7, 0.02, -17), "label": "↑ TRAPPOR B"},
+		{"id": "satellite_right", "from": hub, "to": Vector3(17, 0.02, 5), "label": "HÖGER KORRIDOR →"},
+	]
+	for guide in guides:
+		var spawn_id := str(guide.id)
+		var color: Color = MARKER_COLORS.get(spawn_id, Color.WHITE)
+		_add_path_strip(guide.from, guide.to, color)
+		_add_floor_marker(guide.to, color, 5.0, str(guide.label))
+		_add_beacon(guide.to + Vector3(0, 0.1, 0), color)
+
+
 func _build_elevator_port(spec: Dictionary) -> void:
 	var spawn_id := str(spec.id)
 	var entry := SpawnPoints.get_entry(spawn_id)
+	var color: Color = MARKER_COLORS.get(spawn_id, Color.WHITE)
 	var root := Node3D.new()
 	root.name = "Elevator_%s" % spawn_id
 	root.position = spec.pos
 	$Elevators.add_child(root)
 
 	var mount := str(entry.get("elevator_mount", ""))
-	_build_shaft_for_mount(root, mount, entry)
+	_build_portal_frame(root, mount, color)
+	_build_shaft_for_mount(root, mount, entry, color)
 
 	var car := Node3D.new()
 	car.name = "Car"
 	root.add_child(car)
-	SpaceKitLibrary.spawn(car, "template-floor-detail", Vector3(0, 0.1, 0))
-	SpaceKitLibrary.spawn(car, "template-wall-half", Vector3(0, 1.1, -1.2))
-	SpaceKitLibrary.spawn(car, "template-wall-half", Vector3(0, 1.1, 1.2), PI)
+	_add_procedural_box(car, Vector3(2.4, 0.12, 2.4), Vector3(0, 0.06, 0), _marker_material(color, 0.35))
+	_add_procedural_box(car, Vector3(0.15, 2.2, 2.5), Vector3(0, 1.2, -1.25), _frame_material(color.darkened(0.25)))
+	_add_procedural_box(car, Vector3(0.15, 2.2, 2.5), Vector3(0, 1.2, 1.25), _frame_material(color.darkened(0.25)))
 
 	var lobby_zone := Area3D.new()
 	lobby_zone.name = "LobbyZone"
 	lobby_zone.position = spec.get("lobby_offset", Vector3.ZERO)
 	var lobby_shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(3.8, 3.2, 3.8)
+	box.size = Vector3(5.5, 3.5, 5.5)
 	lobby_shape.shape = box
 	lobby_zone.add_child(lobby_shape)
 	root.add_child(lobby_zone)
@@ -205,11 +234,12 @@ func _build_elevator_port(spec: Dictionary) -> void:
 	var label := Label3D.new()
 	var length_text := ""
 	if mount == "left":
-		length_text = "\n10 km hiss"
+		length_text = "\n10 km tunnel"
 	label.text = "%s%s\n[E] Till %s" % [spec.label, length_text, SpawnPoints.get_spawn_name(spawn_id)]
-	label.font_size = 38
-	label.modulate = Color(0.18, 0.16, 0.14)
-	label.position = Vector3(0, 2.4, 0)
+	label.font_size = 52
+	label.modulate = color.darkened(0.55)
+	label.outline_modulate = Color(1, 1, 1, 0.9)
+	label.position = Vector3(0, 3.2, 0)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	root.add_child(label)
 
@@ -220,33 +250,81 @@ func _build_elevator_port(spec: Dictionary) -> void:
 	}
 
 
-func _build_shaft_for_mount(root: Node3D, mount: String, entry: Dictionary) -> void:
+func _build_portal_frame(root: Node3D, mount: String, color: Color) -> void:
+	var frame_mat := _frame_material(color)
 	match mount:
 		"left":
-			for i in range(7):
-				SpaceKitLibrary.spawn(
-					root,
-					"corridor-wide",
-					Vector3(-4.0 - i * 4.0, 0, 0),
-					PI * 0.5
-				)
-			var tunnel_label := Label3D.new()
-			tunnel_label.text = "10 km tunnel"
-			tunnel_label.font_size = 28
-			tunnel_label.position = Vector3(-LEFT_TUNNEL_VISUAL_M * 0.5, 2.5, 0)
-			tunnel_label.rotation_degrees = Vector3(0, 90, 0)
-			root.add_child(tunnel_label)
+			_add_procedural_box(root, Vector3(0.35, 4.5, 4.0), Vector3(-0.2, 2.25, 0), frame_mat)
+			_add_procedural_box(root, Vector3(0.35, 4.5, 4.0), Vector3(0.2, 2.25, 0), frame_mat)
+			_add_procedural_box(root, Vector3(0.5, 0.5, 4.2), Vector3(0, 4.5, 0), frame_mat)
 		"top":
-			for i in range(4):
-				SpaceKitLibrary.spawn(root, "stairs", Vector3(0, i * 2.5, -3.0 - i * 2.0))
+			_add_procedural_box(root, Vector3(4.0, 0.35, 0.35), Vector3(0, 0.2, -0.2), frame_mat)
+			_add_procedural_box(root, Vector3(4.0, 0.35, 0.35), Vector3(0, 0.2, 0.2), frame_mat)
+			_add_procedural_box(root, Vector3(4.2, 0.5, 0.5), Vector3(0, 0.45, 0), frame_mat)
 		"right":
-			for i in range(5):
-				SpaceKitLibrary.spawn(
+			_add_procedural_box(root, Vector3(0.35, 4.5, 4.0), Vector3(0.2, 2.25, 0), frame_mat)
+			_add_procedural_box(root, Vector3(0.35, 4.5, 4.0), Vector3(-0.2, 2.25, 0), frame_mat)
+			_add_procedural_box(root, Vector3(0.5, 0.5, 4.2), Vector3(0, 4.5, 0), frame_mat)
+
+
+func _build_shaft_for_mount(root: Node3D, mount: String, _entry: Dictionary, color: Color) -> void:
+	var tunnel_mat := _tunnel_material(color)
+	var stripe_mat := _marker_material(color, 1.4)
+	match mount:
+		"left":
+			_add_procedural_box(
+				root,
+				Vector3(LEFT_TUNNEL_VISUAL_M, 3.2, 3.6),
+				Vector3(-LEFT_TUNNEL_VISUAL_M * 0.5 - 1.0, 1.6, 0),
+				tunnel_mat
+			)
+			for i in 6:
+				var z_off := -1.2 + i * 0.48
+				_add_procedural_box(
 					root,
-					"corridor",
-					Vector3(4.0 + i * 4.0, 0, 0),
-					-PI * 0.5
+					Vector3(LEFT_TUNNEL_VISUAL_M - 2.0, 0.12, 0.35),
+					Vector3(-LEFT_TUNNEL_VISUAL_M * 0.5, 0.3, z_off),
+					stripe_mat
 				)
+			_add_shaft_label(root, "10 km TUNNEL", Vector3(-LEFT_TUNNEL_VISUAL_M * 0.5, 3.8, 0), color)
+			for i in 4:
+				SpaceKitLibrary.spawn(root, "corridor-wide", Vector3(-3.0 - i * 4.0, 0, 0), PI * 0.5)
+		"top":
+			for step in 10:
+				var rise := float(step) * 0.55
+				var depth := -2.5 - float(step) * 1.4
+				_add_procedural_box(
+					root,
+					Vector3(3.2, 0.28, 1.6),
+					Vector3(0, rise + 0.14, depth),
+					tunnel_mat
+				)
+				_add_procedural_box(
+					root,
+					Vector3(3.0, 0.08, 0.25),
+					Vector3(0, rise + 0.32, depth - 0.5),
+					stripe_mat
+				)
+			_add_shaft_label(root, "TRAPPA UPP", Vector3(0, 5.5, -8), color)
+			for i in 5:
+				SpaceKitLibrary.spawn(root, "stairs", Vector3(0, i * 1.1, -2.0 - i * 1.6))
+		"right":
+			_add_procedural_box(
+				root,
+				Vector3(20.0, 3.0, 3.2),
+				Vector3(11.0, 1.5, 0),
+				tunnel_mat
+			)
+			for i in 5:
+				_add_procedural_box(
+					root,
+					Vector3(18.0, 0.1, 0.3),
+					Vector3(3.0 + i * 3.2, 0.25, 0),
+					stripe_mat
+				)
+			_add_shaft_label(root, "KORRIDOR", Vector3(10.0, 3.5, 0), color)
+			for i in 4:
+				SpaceKitLibrary.spawn(root, "corridor", Vector3(3.0 + i * 4.0, 0, 0), -PI * 0.5)
 
 
 func _update_elevator_proximity() -> void:
@@ -269,7 +347,8 @@ func _update_elevator_proximity() -> void:
 
 	if not confirm_panel.visible:
 		hint_label.text = (
-			"Vänster: 1 hiss (10 km). Topp: 2 hissar. Höger: 1 hiss. Satellitkuberna har ingen annan väg hit."
+			"Följ färgstråken på golvet. Blå vänster, gul norr (trappor), röd höger. "
+			+ "Stå på den stora färgade plattan och tryck [E]."
 		)
 
 
@@ -393,6 +472,111 @@ func _style_ui() -> void:
 	SpiderTheme.wrap_label_in_panel(hint_label)
 	hint_label.offset_right = 900.0
 	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+func _add_floor_marker(pos: Vector3, color: Color, radius: float, text: String) -> void:
+	var mat := _marker_material(color, 0.85)
+	_add_procedural_box($Room, Vector3(radius * 2.0, 0.06, radius * 2.0), pos, mat)
+
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 40
+	label.modulate = color.darkened(0.5)
+	label.outline_modulate = Color(1, 1, 1, 0.95)
+	label.position = pos + Vector3(0, 1.8, 0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	$Room.add_child(label)
+
+
+func _add_path_strip(from: Vector3, to: Vector3, color: Color) -> void:
+	var delta := to - from
+	var length := delta.length()
+	if length < 0.5:
+		return
+	var mid := from + delta * 0.5
+	var mat := _marker_material(color, 0.55)
+	var strip := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(maxf(absf(delta.x), 1.2), 0.05, maxf(absf(delta.z), 1.2))
+	if absf(delta.x) > absf(delta.z):
+		mesh.size = Vector3(length, 0.05, 1.4)
+	else:
+		mesh.size = Vector3(1.4, 0.05, length)
+	strip.mesh = mesh
+	strip.material_override = mat
+	strip.position = mid
+	$Room.add_child(strip)
+
+
+func _add_beacon(pos: Vector3, color: Color) -> void:
+	var pillar := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.18
+	mesh.bottom_radius = 0.22
+	mesh.height = 5.5
+	pillar.mesh = mesh
+	pillar.material_override = _marker_material(color, 1.1)
+	pillar.position = pos + Vector3(0, 2.75, 0)
+	$Room.add_child(pillar)
+
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = 2.2
+	light.omni_range = 9.0
+	light.position = pos + Vector3(0, 4.5, 0)
+	$Room.add_child(light)
+
+
+func _add_shaft_label(parent: Node3D, text: String, pos: Vector3, color: Color) -> void:
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 64
+	label.modulate = color
+	label.outline_modulate = Color(1, 1, 1)
+	label.position = pos
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	parent.add_child(label)
+
+
+func _add_procedural_box(parent: Node3D, size: Vector3, pos: Vector3, material: Material) -> MeshInstance3D:
+	var mesh_inst := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh_inst.mesh = mesh
+	mesh_inst.position = pos
+	mesh_inst.material_override = material
+	parent.add_child(mesh_inst)
+	return mesh_inst
+
+
+func _marker_material(color: Color, emission_strength: float) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = emission_strength
+	mat.roughness = 0.35
+	return mat
+
+
+func _frame_material(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color.darkened(0.15)
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 0.6
+	mat.metallic = 0.2
+	return mat
+
+
+func _tunnel_material(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color.darkened(0.55)
+	mat.emission_enabled = true
+	mat.emission = color.darkened(0.2)
+	mat.emission_energy_multiplier = 0.35
+	mat.roughness = 0.7
+	return mat
 
 
 func _add_box(parent: Node3D, size: Vector3, pos: Vector3, material: Material) -> void:
