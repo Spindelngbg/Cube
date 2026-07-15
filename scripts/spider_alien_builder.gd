@@ -287,7 +287,11 @@ static func _bioluminescent_markings(
 
 	var vein_count := int(lerp(5, 18, data.glow_strength / 2.0))
 	for i in vein_count:
-		var host := [hips, torso, abdomen][i % 3]
+		var host: Node3D = hips
+		match i % 3:
+			0: host = hips
+			1: host = torso
+			_: host = abdomen
 		var vein := _part("Vein%d" % i, host, Vector3.ZERO)
 		vein.rotation_degrees = Vector3(
 			randf_range(-40, 40),
