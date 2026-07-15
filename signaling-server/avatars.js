@@ -427,7 +427,9 @@ function requireSession(body) {
 }
 
 async function handleAvatarRequest(req, res) {
-	if (req.method === 'OPTIONS' && (req.url.startsWith('/avatar/') || req.url.startsWith('/characters/'))) {
+	const pathname = (req.url || '').split('?')[0];
+
+	if (req.method === 'OPTIONS' && (pathname.startsWith('/avatar/') || pathname.startsWith('/characters/'))) {
 		sendJson(res, 204, {});
 		return true;
 	}
@@ -436,8 +438,8 @@ async function handleAvatarRequest(req, res) {
 		return false;
 	}
 
-	const isCharacterRoute = req.url.startsWith('/characters/');
-	const isLegacyRoute = req.url.startsWith('/avatar/');
+	const isCharacterRoute = pathname.startsWith('/characters/');
+	const isLegacyRoute = pathname.startsWith('/avatar/');
 	if (!isCharacterRoute && !isLegacyRoute) {
 		return false;
 	}
@@ -450,7 +452,7 @@ async function handleAvatarRequest(req, res) {
 		return true;
 	}
 
-	if (req.url === '/characters/list' || req.url === '/avatar/load') {
+	if (pathname === '/characters/list' || pathname === '/avatar/load') {
 		const auth = requireSession(body);
 		if (!auth.ok) {
 			sendJson(res, auth.status, { ok: false, error: auth.error });
@@ -460,7 +462,7 @@ async function handleAvatarRequest(req, res) {
 		return true;
 	}
 
-	if (req.url === '/characters/create') {
+	if (pathname === '/characters/create') {
 		const auth = requireSession(body);
 		if (!auth.ok) {
 			sendJson(res, auth.status, { ok: false, error: auth.error });
@@ -470,7 +472,7 @@ async function handleAvatarRequest(req, res) {
 		return true;
 	}
 
-	if (req.url === '/characters/save' || req.url === '/avatar/save') {
+	if (pathname === '/characters/save' || pathname === '/avatar/save') {
 		const auth = requireSession(body);
 		if (!auth.ok) {
 			sendJson(res, auth.status, { ok: false, error: auth.error });
@@ -490,7 +492,7 @@ async function handleAvatarRequest(req, res) {
 		return true;
 	}
 
-	if (req.url === '/characters/delete') {
+	if (pathname === '/characters/delete') {
 		const auth = requireSession(body);
 		if (!auth.ok) {
 			sendJson(res, auth.status, { ok: false, error: auth.error });
@@ -500,7 +502,7 @@ async function handleAvatarRequest(req, res) {
 		return true;
 	}
 
-	if (req.url === '/characters/select') {
+	if (pathname === '/characters/select') {
 		const auth = requireSession(body);
 		if (!auth.ok) {
 			sendJson(res, auth.status, { ok: false, error: auth.error });
@@ -510,13 +512,13 @@ async function handleAvatarRequest(req, res) {
 		return true;
 	}
 
-	if (req.url === '/characters/get' || req.url === '/avatar/get') {
+	if (pathname === '/characters/get' || pathname === '/avatar/get') {
 		const username = typeof body.username === 'string' ? body.username.trim() : '';
 		sendJson(res, 200, getActiveCharacter(username));
 		return true;
 	}
 
-	if (req.url === '/characters/nest_complete') {
+	if (pathname === '/characters/nest_complete') {
 		const auth = requireSession(body);
 		if (!auth.ok) {
 			sendJson(res, auth.status, { ok: false, error: auth.error });
@@ -527,7 +529,7 @@ async function handleAvatarRequest(req, res) {
 		return true;
 	}
 
-	if (req.url === '/characters/set_home_spawn') {
+	if (pathname === '/characters/set_home_spawn') {
 		const auth = requireSession(body);
 		if (!auth.ok) {
 			sendJson(res, auth.status, { ok: false, error: auth.error });
@@ -543,7 +545,7 @@ async function handleAvatarRequest(req, res) {
 		return true;
 	}
 
-	if (req.url === '/characters/redeem_secret_code') {
+	if (pathname === '/characters/redeem_secret_code') {
 		const auth = requireSession(body);
 		if (!auth.ok) {
 			sendJson(res, auth.status, { ok: false, error: auth.error });

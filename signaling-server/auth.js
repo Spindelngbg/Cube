@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { DATA_DIR } = require('./data-path');
-const { getStore, setStore, flushStore } = require('./persistence');
+const { getStore, setStore } = require('./persistence');
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const MIN_PASSWORD_LEN = 4;
@@ -31,9 +31,8 @@ function loadAccounts() {
 	return getStore('accounts', {});
 }
 
-async function saveAccounts(accounts) {
+function saveAccounts(accounts) {
 	setStore('accounts', accounts);
-	await flushStore('accounts');
 }
 
 function hashPassword(password) {
@@ -115,7 +114,7 @@ async function register(username, password) {
 	};
 
 	try {
-		await saveAccounts(accounts);
+		saveAccounts(accounts);
 	} catch (error) {
 		console.error('Failed to persist account:', error);
 		return { ok: false, error: 'Kunde inte spara kontot – försök igen' };

@@ -16,6 +16,8 @@ const STORE_FILES = {
 };
 
 const POSTGRES_INIT_TIMEOUT_MS = 8000;
+const DATA_DIR_WRITE_TEST_TIMEOUT_MS = 3000;
+const POSTGRES_QUERY_TIMEOUT_MS = 5000;
 
 const cache = new Map();
 let pool = null;
@@ -40,21 +42,35 @@ function filePathFor(storeKey) {
 	return path.join(DATA_DIR, fileNameFor(storeKey));
 }
 
-function verifyDataDirWritable() {
+async function verifyDataDirWritable() {
 	try {
 		ensureDataDir();
 		const testPath = path.join(DATA_DIR, '.write_test');
-		fs.writeFileSync(testPath, new Date().toISOString(), 'utf8');
-		fs.unlinkSync(testPath);
-		return true;
+		return await withTimeout(
+			new Promise((resolve) => {
+				fs.writeFile(testPath, new Date().toISOString(), 'utf8', (writeError) => {
+					if (writeError) {
+						resolve(false);
+						return;
+					}
+					fs.unlink(testPath, () => resolve(true));
+				});
+			}),
+			DATA_DIR_WRITE_TEST_TIMEOUT_MS,
+			'DATA_DIR write test'
+		);
 	} catch (error) {
-		console.error(`DATA_DIR not writable (${DATA_DIR}):`, error);
+		console.error(`DATA_DIR not writable (${DATA_DIR}):`, error.message || error);
 		return false;
 	}
 }
 
 async function query(text, params) {
-	return pool.query(text, params);
+	return withTimeout(
+		pool.query(text, params),
+		POSTGRES_QUERY_TIMEOUT_MS,
+		'PostgreSQL query'
+	);
 }
 
 async function loadFromPostgres(storeKey) {
@@ -80,7 +96,14 @@ function loadFromFiles(storeKey, fallback) {
 }
 
 function saveToFiles(storeKey, data) {
-	writeJsonAtomic(filePathFor(storeKey), data);
+	const filePath = filePathFor(storeKey);
+	setImmediate(() => {
+		try {
+			writeJsonAtomic(filePath, data);
+		} catch (error) {
+			console.error(`Failed to write ${filePath}:`, error);
+		}
+	});
 }
 
 function withTimeout(promise, timeoutMs, label) {
@@ -102,6 +125,7 @@ async function initPostgres() {
 	pool = new Pool({
 		connectionString: databaseUrl,
 		connectionTimeoutMillis: POSTGRES_INIT_TIMEOUT_MS,
+		query_timeout: POSTGRES_QUERY_TIMEOUT_MS,
 		ssl: databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')
 			? false
 			: { rejectUnauthorized: false },
@@ -177,7 +201,7 @@ async function initStorage() {
 	}
 
 	ensureDataDir();
-	dataDirWritable = verifyDataDirWritable();
+	dataDirWritable = await verifyDataDirWritable();
 
 	try {
 		const postgresReady = await initPostgres();
@@ -240,9 +264,17 @@ async function flushStore(storeKey) {
 	if (!isObject(payload)) {
 		return;
 	}
-	saveToFiles(storeKey, payload);
+	try {
+		writeJsonAtomic(filePathFor(storeKey), payload);
+	} catch (error) {
+		console.error(`Failed to flush ${storeKey} to files:`, error);
+	}
 	if (backend === 'postgres' && pool) {
-		await saveToPostgres(storeKey, payload);
+		try {
+			await saveToPostgres(storeKey, payload);
+		} catch (error) {
+			console.error(`Failed to flush ${storeKey} to PostgreSQL:`, error);
+		}
 	}
 }
 

@@ -355,11 +355,6 @@ setInterval(() => {
 }, PING_INTERVAL);
 
 async function startServer() {
-	const storageStatus = await initStorage();
-	console.log(`Storage backend: ${storageStatus.backend}`);
-	console.log(`Accounts in storage: ${storageStatus.accountCount}`);
-	initPersistence();
-
 	await new Promise((resolve, reject) => {
 		server.once('error', reject);
 		server.listen(PORT, '0.0.0.0', () => {
@@ -372,7 +367,26 @@ async function startServer() {
 	console.log(`Cube signaling server listening on port ${PORT}`);
 	console.log(`Admin panel: http://localhost:${PORT}/spindeln`);
 	console.log(`Admin user: ${ADMIN_USER} (set ADMIN_USER and ADMIN_PASSWORD in production)`);
+
+	initStorage()
+		.then((storageStatus) => {
+			console.log(`Storage backend: ${storageStatus.backend}`);
+			console.log(`Accounts in storage: ${storageStatus.accountCount}`);
+			initPersistence();
+		})
+		.catch((error) => {
+			console.error('Storage init failed:', error);
+			initPersistence();
+		});
 }
+
+process.on('uncaughtException', (error) => {
+	console.error('Uncaught exception:', error);
+});
+
+process.on('unhandledRejection', (error) => {
+	console.error('Unhandled rejection:', error);
+});
 
 startServer().catch((error) => {
 	console.error('Failed to start server:', error);

@@ -128,7 +128,11 @@ func _enter_account_flow() -> void:
 	if Profile.characters.is_empty():
 		_set_status("Skapar karaktär...")
 		Profile.create_character("Karaktär 1")
-		if not await _wait_for_profile_action(20.0) or Profile.active_character_id == "":
+		if not await _wait_for_profile_action(20.0):
+			_set_status("Kunde inte skapa karaktär – servern svarade inte")
+			_set_buttons_enabled(true)
+			return
+		if Profile.active_character_id == "":
 			_set_status("Kunde inte skapa karaktär – försök igen")
 			_set_buttons_enabled(true)
 			return
