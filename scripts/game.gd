@@ -21,10 +21,20 @@ func _ready() -> void:
 	_spawn_player(multiplayer.get_unique_id())
 	for peer_id in multiplayer.get_peers():
 		_spawn_player(peer_id)
+		_request_avatars_from_peer.rpc_id(peer_id)
 
 
 func _on_peer_connected(peer_id: int) -> void:
 	_spawn_player(peer_id)
+	_request_avatars_from_peer.rpc_id(peer_id)
+
+
+@rpc("any_peer", "reliable")
+func _request_avatars_from_peer() -> void:
+	if not players.has(multiplayer.get_unique_id()):
+		return
+	var local_player: Node = players[multiplayer.get_unique_id()]
+	local_player.respond_with_active_character()
 
 
 func _on_peer_disconnected(peer_id: int) -> void:

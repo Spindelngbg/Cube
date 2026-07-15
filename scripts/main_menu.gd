@@ -10,14 +10,14 @@ extends Control
 
 
 func _ready() -> void:
-	LuxuryTheme.apply_to(self)
-	LuxuryTheme.style_title($Center/MainPanel/VBox/Title, 44)
-	LuxuryTheme.style_subtitle($Center/MainPanel/VBox/Subtitle)
-	LuxuryTheme.style_status(status_label)
+	SpiderTheme.apply_to(self)
+	SpiderTheme.style_title($Center/MainPanel/VBox/Title, 44)
+	SpiderTheme.style_subtitle($Center/MainPanel/VBox/Subtitle)
+	SpiderTheme.style_status(status_label)
 
 	if Auth.is_logged_in:
 		user_label.text = "Inloggad som %s" % Auth.username
-		user_label.add_theme_color_override("font_color", LuxuryTheme.GOLD)
+		user_label.add_theme_color_override("font_color", SpiderTheme.BLOOD_BRIGHT)
 	else:
 		user_label.text = ""
 
@@ -59,7 +59,7 @@ func _on_start_pressed() -> void:
 func _on_lobby_ready(lobby: String, is_host: bool) -> void:
 	lobby_label.text = "Lobby: %s" % lobby
 	lobby_label.visible = true
-	lobby_label.add_theme_color_override("font_color", LuxuryTheme.GOLD_BRIGHT)
+	lobby_label.add_theme_color_override("font_color", SpiderTheme.BLOOD_BRIGHT)
 	start_button.visible = is_host
 	start_button.disabled = false
 	if is_host:

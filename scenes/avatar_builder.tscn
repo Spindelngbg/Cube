@@ -1,0 +1,464 @@
+[gd_scene load_steps=5 format=3 uid="uid://cube_avatar_builder"]
+
+[ext_resource type="Script" path="res://scripts/avatar_builder.gd" id="1_builder"]
+[ext_resource type="Script" path="res://scripts/ui/menu_background.gd" id="2_bg"]
+[ext_resource type="Script" path="res://scripts/ui/dangling_spider.gd" id="3_spider"]
+
+[sub_resource type="Environment" id="Environment_preview"]
+background_mode = 1
+background_color = Color(0.04, 0.03, 0.06, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.35, 0.2, 0.25, 1)
+ambient_light_energy = 0.6
+
+[node name="AvatarBuilder" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_builder")
+
+[node name="MenuBackground" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_bg")
+
+[node name="DanglingSpider" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_spider")
+
+[node name="Layout" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="Left" type="VBoxContainer" parent="Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.1
+theme_override_constants/separation = 14
+
+[node name="TitleBox" type="VBoxContainer" parent="Layout/Left"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="Layout/Left/TitleBox"]
+layout_mode = 2
+text = "The Cube"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Layout/Left/TitleBox"]
+layout_mode = 2
+text = "Forma din spindel"
+horizontal_alignment = 1
+
+[node name="WelcomeLabel" type="Label" parent="Layout/Left"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Välkommen"
+horizontal_alignment = 1
+
+[node name="PreviewPanel" type="PanelContainer" parent="Layout/Left"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PreviewViewport" type="SubViewportContainer" parent="Layout/Left/PreviewPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="Layout/Left/PreviewPanel/PreviewViewport"]
+handle_input_locally = false
+size = Vector2i(480, 420)
+render_target_update_mode = 4
+
+[node name="PreviewHolder" type="Node3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+unique_name_in_owner = true
+
+[node name="Camera3D" type="Camera3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 1.6, 3.2)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 2, 4, 2)
+light_energy = 1.2
+shadow_enabled = true
+
+[node name="FillLight" type="DirectionalLight3D" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+transform = Transform3D(0.866025, 0.353553, -0.353553, 0, 0.707107, 0.707107, 0.5, -0.612372, 0.612372, -2, 2, -1)
+light_color = Color(0.6, 0.35, 0.45, 1)
+light_energy = 0.4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Layout/Left/PreviewPanel/PreviewViewport/SubViewport"]
+environment = SubResource("Environment_preview")
+
+[node name="ActionRow" type="HBoxContainer" parent="Layout/Left"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="RandomizeButton" type="Button" parent="Layout/Left/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Slumpa"
+
+[node name="ResetButton" type="Button" parent="Layout/Left/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Återställ"
+
+[node name="BackButton" type="Button" parent="Layout/Left/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Tillbaka"
+
+[node name="LogoutButton" type="Button" parent="Layout/Left/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Logga ut"
+
+[node name="EnterButton" type="Button" parent="Layout/Left"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Gå in i The Cube"
+
+[node name="StatusLabel" type="Label" parent="Layout/Left"]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="Right" type="PanelContainer" parent="Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.9
+
+[node name="Scroll" type="ScrollContainer" parent="Layout/Right"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Controls" type="VBoxContainer" parent="Layout/Right/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="BodySection" type="Label" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+text = "KROPP"
+
+[node name="BodyScaleRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="BodyScaleLabel" type="Label" parent="Layout/Right/Scroll/Controls/BodyScaleRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Kroppsstorlek"
+
+[node name="BodyScaleSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/BodyScaleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.75
+max_value = 1.5
+step = 0.01
+value = 1.0
+
+[node name="AbdomenScaleRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="AbdomenScaleLabel" type="Label" parent="Layout/Right/Scroll/Controls/AbdomenScaleRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Bakkropp"
+
+[node name="AbdomenScaleSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/AbdomenScaleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.6
+max_value = 1.6
+step = 0.01
+value = 1.0
+
+[node name="HeadScaleRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="HeadScaleLabel" type="Label" parent="Layout/Right/Scroll/Controls/HeadScaleRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Huvud"
+
+[node name="HeadScaleSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/HeadScaleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.8
+max_value = 1.4
+step = 0.01
+value = 1.0
+
+[node name="StanceRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="StanceLabel" type="Label" parent="Layout/Right/Scroll/Controls/StanceRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Ställning"
+
+[node name="StanceSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/StanceRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.5
+max_value = 1.5
+step = 0.01
+value = 1.0
+
+[node name="LimbsSection" type="Label" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+text = "LEMMAR"
+
+[node name="LegLengthRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="LegLengthLabel" type="Label" parent="Layout/Right/Scroll/Controls/LegLengthRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Benlängd"
+
+[node name="LegLengthSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/LegLengthRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.7
+max_value = 1.5
+step = 0.01
+value = 1.0
+
+[node name="ArmLengthRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="ArmLengthLabel" type="Label" parent="Layout/Right/Scroll/Controls/ArmLengthRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Spindelben"
+
+[node name="ArmLengthSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/ArmLengthRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.6
+max_value = 1.4
+step = 0.01
+value = 1.0
+
+[node name="SpiderLegsRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="SpiderLegsLabel" type="Label" parent="Layout/Right/Scroll/Controls/SpiderLegsRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Antal ben"
+
+[node name="SpiderLegsSpin" type="SpinBox" parent="Layout/Right/Scroll/Controls/SpiderLegsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 4.0
+max_value = 8.0
+value = 6.0
+
+[node name="FaceSection" type="Label" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+text = "ANSIKTE"
+
+[node name="EyeSizeRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="EyeSizeLabel" type="Label" parent="Layout/Right/Scroll/Controls/EyeSizeRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Ögonstorlek"
+
+[node name="EyeSizeSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/EyeSizeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.4
+max_value = 2.0
+step = 0.01
+value = 1.0
+
+[node name="EyeCountRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="EyeCountLabel" type="Label" parent="Layout/Right/Scroll/Controls/EyeCountRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Antal ögon"
+
+[node name="EyeCountSpin" type="SpinBox" parent="Layout/Right/Scroll/Controls/EyeCountRow"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 2.0
+max_value = 8.0
+value = 6.0
+
+[node name="MandibleRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="MandibleLabel" type="Label" parent="Layout/Right/Scroll/Controls/MandibleRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Mandiblar"
+
+[node name="MandibleSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/MandibleRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 2.0
+step = 0.01
+value = 1.0
+
+[node name="StyleSection" type="Label" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+text = "STIL"
+
+[node name="GlowRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="GlowLabel" type="Label" parent="Layout/Right/Scroll/Controls/GlowRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Glöd"
+
+[node name="GlowSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/GlowRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 2.0
+step = 0.01
+value = 0.6
+
+[node name="SpikeRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="SpikeLabel" type="Label" parent="Layout/Right/Scroll/Controls/SpikeRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Taggar"
+
+[node name="SpikeSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/SpikeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 0.35
+
+[node name="RoughnessRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="RoughnessLabel" type="Label" parent="Layout/Right/Scroll/Controls/RoughnessRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Roughness"
+
+[node name="RoughnessSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/RoughnessRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 0.55
+
+[node name="MetallicRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="MetallicLabel" type="Label" parent="Layout/Right/Scroll/Controls/MetallicRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Metallic"
+
+[node name="MetallicSlider" type="HSlider" parent="Layout/Right/Scroll/Controls/MetallicRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.01
+value = 0.15
+
+[node name="ColorsSection" type="Label" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+text = "FÄRGER"
+
+[node name="BodyColorRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="BodyColorLabel" type="Label" parent="Layout/Right/Scroll/Controls/BodyColorRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Kitin"
+
+[node name="BodyColorPicker" type="ColorPickerButton" parent="Layout/Right/Scroll/Controls/BodyColorRow"]
+unique_name_in_owner = true
+layout_mode = 2
+color = Color(0.12, 0.14, 0.1, 1)
+
+[node name="AccentColorRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="AccentColorLabel" type="Label" parent="Layout/Right/Scroll/Controls/AccentColorRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Accent"
+
+[node name="AccentColorPicker" type="ColorPickerButton" parent="Layout/Right/Scroll/Controls/AccentColorRow"]
+unique_name_in_owner = true
+layout_mode = 2
+color = Color(0.45, 0.08, 0.12, 1)
+
+[node name="EyeColorRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="EyeColorLabel" type="Label" parent="Layout/Right/Scroll/Controls/EyeColorRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Ögon"
+
+[node name="EyeColorPicker" type="ColorPickerButton" parent="Layout/Right/Scroll/Controls/EyeColorRow"]
+unique_name_in_owner = true
+layout_mode = 2
+color = Color(0.95, 0.2, 0.15, 1)
+
+[node name="GlowColorRow" type="HBoxContainer" parent="Layout/Right/Scroll/Controls"]
+layout_mode = 2
+
+[node name="GlowColorLabel" type="Label" parent="Layout/Right/Scroll/Controls/GlowColorRow"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+text = "Glöd"
+
+[node name="GlowColorPicker" type="ColorPickerButton" parent="Layout/Right/Scroll/Controls/GlowColorRow"]
+unique_name_in_owner = true
+layout_mode = 2
+color = Color(0.8, 0.15, 0.25, 1)

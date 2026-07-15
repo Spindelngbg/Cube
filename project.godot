@@ -14,7 +14,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="Cube"
+config/name="The Cube"
 config/description="Multiplayer cube game using WebRTC P2P with Railway signaling."
 run/main_scene="res://scenes/login.tscn"
 config/features=PackedStringArray("4.7")
@@ -23,6 +23,8 @@ config/features=PackedStringArray("4.7")
 
 Auth="*res://scripts/auth.gd"
 Network="*res://scripts/network.gd"
+Profile="*res://scripts/profile.gd"
+GlobalChat="*res://scenes/ui/global_chat.tscn"
 
 [debug]
 

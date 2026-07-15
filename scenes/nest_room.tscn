@@ -1,0 +1,99 @@
+[gd_scene load_steps=6 format=3 uid="uid://cube_nest_room"]
+
+[ext_resource type="Script" path="res://scripts/nest_room.gd" id="1_nest"]
+
+[sub_resource type="Environment" id="Environment_nest"]
+background_mode = 1
+background_color = Color(0.01, 0.015, 0.01, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.08, 0.1, 0.06, 1)
+ambient_light_energy = 0.15
+fog_enabled = true
+fog_light_color = Color(0.12, 0.18, 0.08, 1)
+fog_density = 0.045
+fog_sky_affect = 0.0
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.35
+height = 1.6
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+radius = 0.35
+height = 1.6
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_door"]
+size = Vector3(3.5, 3.2, 1.5)
+
+[node name="NestRoom" type="Node3D"]
+script = ExtResource("1_nest")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_nest")
+
+[node name="Room" type="Node3D" parent="."]
+
+[node name="MotherPivot" type="Node3D" parent="."]
+
+[node name="EggPivot" type="Node3D" parent="."]
+
+[node name="Spiders" type="Node3D" parent="."]
+
+[node name="DoorFrame" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 5.2)
+
+[node name="DoorLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 6.2)
+light_color = Color(0.95, 0.82, 0.55, 1)
+light_energy = 2.4
+omni_range = 9.0
+shadow_enabled = true
+
+[node name="DoorSpot" type="SpotLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 2.8, 7.5)
+light_color = Color(1, 0.9, 0.65, 1)
+light_energy = 3.5
+spot_range = 14.0
+spot_angle = 40.0
+shadow_enabled = true
+
+[node name="EggFlicker" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -2)
+light_color = Color(0.3, 0.65, 0.15, 1)
+light_energy = 0.5
+omni_range = 5.0
+
+[node name="Player" type="CharacterBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, -4.5)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="Body" type="MeshInstance3D" parent="Player"]
+mesh = SubResource("CapsuleMesh_player")
+
+[node name="AvatarPivot" type="Node3D" parent="Player"]
+
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, -4.5)
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 0.8, 2.6)
+current = true
+fov = 68.0
+
+[node name="DoorZone" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 5.0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="DoorZone"]
+shape = SubResource("BoxShape3D_door")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="HintLabel" type="Label" parent="UI"]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 500.0
+offset_bottom = 56.0
+theme_override_colors/font_color = Color(0.75, 0.7, 0.62, 0.9)
+theme_override_font_sizes/font_size = 15
+text = "WASD — gå mot ljuset i dörren..."

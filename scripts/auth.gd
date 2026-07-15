@@ -7,10 +7,12 @@ const DEFAULT_API_URL := PRODUCTION_API_URL
 var username: String = ""
 var is_guest: bool = false
 var is_logged_in: bool = false
+var session_token: String = ""
 var api_url: String = DEFAULT_API_URL
 
 signal login_succeeded(username: String, is_guest: bool)
 signal login_failed(message: String)
+signal logged_out()
 
 var _http := HTTPRequest.new()
 var _pending_action := ""
@@ -39,6 +41,8 @@ func logout() -> void:
 	username = ""
 	is_guest = false
 	is_logged_in = false
+	session_token = ""
+	logged_out.emit()
 
 
 func register(p_username: String, password: String) -> void:
@@ -90,5 +94,6 @@ func _on_request_completed(
 
 	username = str(data.get("username", ""))
 	is_guest = bool(data.get("isGuest", false))
+	session_token = str(data.get("sessionToken", ""))
 	is_logged_in = true
 	login_succeeded.emit(username, is_guest)

@@ -20,10 +20,10 @@ var _active_tab := Tab.LOGIN
 
 
 func _ready() -> void:
-	LuxuryTheme.apply_to(self)
-	LuxuryTheme.style_title($Center/MainPanel/VBox/Title)
-	LuxuryTheme.style_subtitle($Center/MainPanel/VBox/Subtitle)
-	LuxuryTheme.style_status(status_label)
+	SpiderTheme.apply_to(self)
+	SpiderTheme.style_title($Center/MainPanel/VBox/Title)
+	SpiderTheme.style_subtitle($Center/MainPanel/VBox/Subtitle)
+	SpiderTheme.style_status(status_label)
 
 	_apply_server_url()
 	_set_password_visible(login_password, login_toggle, false)
@@ -48,9 +48,9 @@ func _show_tab(tab: Tab) -> void:
 	login_panel.visible = tab == Tab.LOGIN
 	register_panel.visible = tab == Tab.REGISTER
 	guest_panel.visible = tab == Tab.GUEST
-	LuxuryTheme.style_tab_button(tab_login, tab == Tab.LOGIN)
-	LuxuryTheme.style_tab_button(tab_register, tab == Tab.REGISTER)
-	LuxuryTheme.style_tab_button(tab_guest, tab == Tab.GUEST)
+	SpiderTheme.style_tab_button(tab_login, tab == Tab.LOGIN)
+	SpiderTheme.style_tab_button(tab_register, tab == Tab.REGISTER)
+	SpiderTheme.style_tab_button(tab_guest, tab == Tab.GUEST)
 
 
 func _on_login_pressed() -> void:
@@ -104,9 +104,13 @@ func _apply_server_url() -> void:
 	Auth.set_api_url(Auth.PRODUCTION_API_URL)
 
 
-func _on_login_succeeded(p_username: String, _is_guest: bool) -> void:
+func _on_login_succeeded(p_username: String, is_guest: bool) -> void:
 	_set_status("Välkommen, %s!" % p_username)
-	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
+	if is_guest:
+		Profile.clear_characters()
+		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
+	else:
+		get_tree().change_scene_to_file("res://scenes/character_select.tscn")
 
 
 func _on_login_failed(message: String) -> void:

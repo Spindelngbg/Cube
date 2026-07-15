@@ -1,7 +1,7 @@
 extends Control
 
-@export var thread_length := 140.0
-@export var pivot_normalized := Vector2(0.78, 0.0)
+@export var thread_length := 160.0
+@export var pivot_normalized := Vector2(0.72, 0.0)
 
 var _time := 0.0
 
@@ -18,47 +18,50 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var pivot := Vector2(size.x * pivot_normalized.x, size.y * pivot_normalized.y)
-	var swing := sin(_time * 1.35) * 0.14 + sin(_time * 2.1 + 1.2) * 0.05
-	var wobble := sin(_time * 3.2) * 2.0
+	var swing := sin(_time * 1.2) * 0.16 + sin(_time * 2.0 + 0.8) * 0.06
+	var wobble := sin(_time * 3.0) * 3.0
 	var end := pivot + Vector2(sin(swing) * thread_length, cos(swing) * thread_length)
 	end.x += wobble
 
-	# Silk thread
-	draw_line(pivot, end, Color(0.85, 0.85, 0.9, 0.35), 1.0)
-	draw_line(pivot, end, Color(1, 1, 1, 0.08), 0.5)
-
+	draw_line(pivot, end, Color(0.75, 0.75, 0.82, 0.25), 1.0)
+	draw_line(pivot, end, Color(1, 1, 1, 0.06), 0.5)
 	_draw_spider(end, swing)
 
 
 func _draw_spider(pos: Vector2, angle: float) -> void:
-	var body_col := Color(0.12, 0.12, 0.14)
-	var highlight := Color(0.28, 0.26, 0.3)
-	var eye_col := Color(0.95, 0.82, 0.35)
-	var leg_col := Color(0.2, 0.2, 0.22, 0.9)
+	var body := Color(0.08, 0.07, 0.09)
+	var shine := Color(0.18, 0.14, 0.16)
+	var eye := SpiderTheme.BLOOD_BRIGHT
+	var leg := Color(0.14, 0.12, 0.14, 0.95)
+
+	draw_set_transform(pos, angle * 0.35, Vector2.ONE)
 
 	# Abdomen
-	draw_set_transform(pos, angle * 0.3, Vector2.ONE)
-	draw_circle(Vector2(0, 10), 9.0, body_col)
-	draw_circle(Vector2(0, 10), 9.0, Color(highlight.r, highlight.g, highlight.b, 0.25))
+	draw_circle(Vector2(0, 12), 11.0, body)
+	draw_circle(Vector2(0, 12), 11.0, Color(shine.r, shine.g, shine.b, 0.2))
 
-	# Cephalothorax
-	draw_circle(Vector2(0, -2), 7.0, highlight)
+	# Thorax
+	draw_circle(Vector2(0, -1), 8.0, shine)
 
-	# Eyes
-	draw_circle(Vector2(-2.5, -4), 1.8, eye_col)
-	draw_circle(Vector2(2.5, -4), 1.8, eye_col)
-	draw_circle(Vector2(-2.5, -4), 0.7, Color(0.05, 0.05, 0.05))
-	draw_circle(Vector2(2.5, -4), 0.7, Color(0.05, 0.05, 0.05))
+	# Eyes – many glowing red
+	for i in 6:
+		var a := TAU * float(i) / 6.0
+		var offset := Vector2(cos(a) * 5.5, -5 + sin(a) * 2.5)
+		draw_circle(offset, 2.2, eye)
+		draw_circle(offset, 0.8, Color(0.02, 0.02, 0.02))
+
+	# Fangs
+	for side in [-1, 1]:
+		draw_line(Vector2(3 * side, -2), Vector2(6 * side, 6), Color(SpiderTheme.BLOOD.r, SpiderTheme.BLOOD.g, SpiderTheme.BLOOD.b, 0.9), 2.0)
 
 	# Legs
 	for i in 8:
-		var side := -1.0 if i < 4 else 1.0
-		var leg_index := i if i < 4 else i - 4
-		var base_angle := side * (0.5 + leg_index * 0.22) + angle * 0.5
-		var leg_start := Vector2(side * 4, -1 + leg_index * 1.5)
-		var leg_mid := leg_start + Vector2(cos(base_angle), sin(base_angle)) * 14
-		var leg_end := leg_mid + Vector2(cos(base_angle + side * 0.5), sin(base_angle + side * 0.5)) * 16
-		draw_line(leg_start, leg_mid, leg_col, 1.2)
-		draw_line(leg_mid, leg_end, leg_col, 1.0)
+		var side := -1.0 if i % 2 == 0 else 1.0
+		var base_angle := side * (0.55 + (i >> 1) * 0.18) + angle * 0.4
+		var start := Vector2(5 * side, float(i >> 1) * 1.2 - 2)
+		var mid := start + Vector2(cos(base_angle), sin(base_angle)) * 18
+		var tip := mid + Vector2(cos(base_angle + side * 0.6), sin(base_angle + side * 0.6)) * 20
+		draw_line(start, mid, leg, 1.6)
+		draw_line(mid, tip, leg, 1.2)
 
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

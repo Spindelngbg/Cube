@@ -2,17 +2,23 @@
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_player"]
-size = Vector3(1, 1, 1)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_player"]
-size = Vector3(1, 1, 1)
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.45
+height = 2.0
 
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_player")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_player")
-
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-shape = SubResource("BoxShape3D_player")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="AvatarPivot" type="Node3D" parent="."]
+
+[node name="NameLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0)
+text = "Spindel"
+font_size = 48
+outline_size = 8
+modulate = Color(0.95, 0.22, 0.28, 1)
+billboard = 1

@@ -1,0 +1,140 @@
+[gd_scene load_steps=2 format=3 uid="uid://cube_global_chat"]
+
+[ext_resource type="Script" path="res://scripts/global_chat.gd" id="1_chat"]
+
+[node name="GlobalChat" type="CanvasLayer"]
+layer = 20
+script = ExtResource("1_chat")
+
+[node name="ChatPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = -1
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -360.0
+offset_top = -360.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="VBox" type="VBoxContainer" parent="ChatPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="HBoxContainer" parent="ChatPanel/VBox"]
+layout_mode = 2
+
+[node name="ChatTitle" type="Label" parent="ChatPanel/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Global chatt"
+
+[node name="ChatStatusLabel" type="Label" parent="ChatPanel/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ansluter..."
+horizontal_alignment = 2
+
+[node name="TabBar" type="HBoxContainer" parent="ChatPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ChatTabButton" type="Button" parent="ChatPanel/VBox/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Chatt"
+
+[node name="FriendsTabButton" type="Button" parent="ChatPanel/VBox/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Vänner"
+
+[node name="Body" type="Control" parent="ChatPanel/VBox"]
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ChatView" type="VBoxContainer" parent="ChatPanel/VBox/Body"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="ChatMessages" type="RichTextLabel" parent="ChatPanel/VBox/Body/ChatView"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+fit_content = false
+selection_enabled = true
+
+[node name="InputRow" type="HBoxContainer" parent="ChatPanel/VBox/Body/ChatView"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ChatInput" type="LineEdit" parent="ChatPanel/VBox/Body/ChatView/InputRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Skriv ett meddelande..."
+
+[node name="ChatSendButton" type="Button" parent="ChatPanel/VBox/Body/ChatView/InputRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Skicka"
+
+[node name="FriendsView" type="VBoxContainer" parent="ChatPanel/VBox/Body"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="FriendsHint" type="Label" parent="ChatPanel/VBox/Body/FriendsView"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 2
+
+[node name="RequestsTitle" type="Label" parent="ChatPanel/VBox/Body/FriendsView"]
+layout_mode = 2
+text = "Förfrågningar"
+
+[node name="RequestsScroll" type="ScrollContainer" parent="ChatPanel/VBox/Body/FriendsView"]
+custom_minimum_size = Vector2(0, 90)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RequestsList" type="VBoxContainer" parent="ChatPanel/VBox/Body/FriendsView/RequestsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="FriendsTitle" type="Label" parent="ChatPanel/VBox/Body/FriendsView"]
+layout_mode = 2
+text = "Mina vänner"
+
+[node name="FriendsScroll" type="ScrollContainer" parent="ChatPanel/VBox/Body/FriendsView"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="FriendsList" type="VBoxContainer" parent="ChatPanel/VBox/Body/FriendsView/FriendsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
