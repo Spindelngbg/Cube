@@ -18,13 +18,15 @@ const STORE_FILES = {
 };
 
 const POSTGRES_INIT_TIMEOUT_MS = 8000;
-const DATA_DIR_WRITE_TEST_TIMEOUT_MS = 3000;
+const DATA_DIR_WRITE_TEST_TIMEOUT_MS = 1500;
+const DATA_DIR_ENSURE_TIMEOUT_MS = 1500;
 const POSTGRES_QUERY_TIMEOUT_MS = 5000;
 
 const cache = new Map();
 let pool = null;
 let backend = 'files';
 let ready = false;
+let initializing = false;
 let dataDirWritable = false;
 let persistenceWarning = '';
 
@@ -44,9 +46,25 @@ function filePathFor(storeKey) {
 	return path.join(getDataDir(), fileNameFor(storeKey));
 }
 
+async function ensureDataDirAsync() {
+	return withTimeout(
+		new Promise((resolve, reject) => {
+			fs.mkdir(getDataDir(), { recursive: true }, (error) => {
+				if (error) {
+					reject(error);
+					return;
+				}
+				resolve();
+			});
+		}),
+		DATA_DIR_ENSURE_TIMEOUT_MS,
+		'DATA_DIR ensure'
+	);
+}
+
 async function verifyDataDirWritable() {
 	try {
-		ensureDataDir();
+		await ensureDataDirAsync();
 		const testPath = path.join(getDataDir(), '.write_test');
 		return await withTimeout(
 			new Promise((resolve) => {
@@ -201,48 +219,54 @@ async function initStorage() {
 		return getStorageStatus();
 	}
 
-	ensureDataDir();
-	dataDirWritable = await verifyDataDirWritable();
-	if (!dataDirWritable) {
-		const fallback = fallbackDataDir();
-		console.warn(`DATA_DIR ${getDataDir()} unusable – falling back to ${fallback}`);
-		setDataDir(fallback);
-		ensureDataDir();
-		dataDirWritable = await verifyDataDirWritable();
-	}
-
+	initializing = true;
 	try {
-		const postgresReady = await initPostgres();
-		if (postgresReady) {
-			await migrateFilesToPostgres();
-			console.log('PostgreSQL storage ready');
-		} else {
-			console.log(`No DATABASE_URL – using JSON files in ${getDataDir()}`);
+		dataDirWritable = await verifyDataDirWritable();
+		if (!dataDirWritable) {
+			const fallback = fallbackDataDir();
+			console.warn(`DATA_DIR ${getDataDir()} unusable – falling back to ${fallback}`);
+			setDataDir(fallback);
+			dataDirWritable = await verifyDataDirWritable();
 		}
-	} catch (error) {
-		console.error('PostgreSQL init failed, falling back to JSON files:', error);
-		backend = 'files';
-		if (pool) {
-			try {
-				await pool.end();
-			} catch (endError) {
-				console.error('Failed to close PostgreSQL pool:', endError);
+
+		try {
+			const postgresReady = await initPostgres();
+			if (postgresReady) {
+				await migrateFilesToPostgres();
+				console.log('PostgreSQL storage ready');
+			} else {
+				console.log(`No DATABASE_URL – using JSON files in ${getDataDir()}`);
 			}
+		} catch (error) {
+			console.error('PostgreSQL init failed, falling back to JSON files:', error);
+			backend = 'files';
+			if (pool) {
+				try {
+					await pool.end();
+				} catch (endError) {
+					console.error('Failed to close PostgreSQL pool:', endError);
+				}
+			}
+			pool = null;
 		}
-		pool = null;
+
+		await preloadStores();
+		updatePersistenceWarning();
+		ready = true;
+
+		const status = getStorageStatus();
+		console.log(`Persistence: backend=${status.backend}, accounts=${status.accountCount || 0}, dataDir=${status.dataDir}, warning=${status.persistenceWarning || 'none'}`);
+		return status;
+	} finally {
+		initializing = false;
 	}
-
-	await preloadStores();
-	updatePersistenceWarning();
-	ready = true;
-
-	const status = getStorageStatus();
-	console.log(`Persistence: backend=${status.backend}, accounts=${status.accountCount}, dataDir=${status.dataDir}, warning=${status.persistenceWarning || 'none'}`);
-	return status;
 }
 
 function getStore(storeKey, fallback = {}) {
 	if (!ready) {
+		if (initializing) {
+			return fallback;
+		}
 		return loadFromFiles(storeKey, fallback);
 	}
 	if (cache.has(storeKey)) {
@@ -287,17 +311,25 @@ async function flushStore(storeKey) {
 }
 
 function getStorageStatus() {
-	const accounts = getStore('accounts', {});
-	return {
+	const status = {
 		ready,
+		initializing,
 		backend,
 		dataDir: getDataDir(),
 		dataDirWritable,
 		volumeMount: process.env.RAILWAY_VOLUME_MOUNT_PATH || null,
 		databaseConfigured: Boolean(process.env.DATABASE_URL),
-		accountCount: Object.keys(accounts).length,
 		persistenceWarning,
 	};
+	if (ready) {
+		const accounts = cache.get('accounts') || {};
+		status.accountCount = Object.keys(accounts).length;
+	}
+	return status;
+}
+
+function isStorageReady() {
+	return ready;
 }
 
 module.exports = {
@@ -306,4 +338,5 @@ module.exports = {
 	setStore,
 	flushStore,
 	getStorageStatus,
+	isStorageReady,
 };

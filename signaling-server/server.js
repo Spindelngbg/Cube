@@ -95,7 +95,20 @@ const server = http.createServer(async (req, res) => {
 		return;
 	}
 
-	if (req.method === 'GET' && (req.url === '/health' || req.url === '/health/storage')) {
+	if (req.method === 'GET' && req.url === '/health') {
+		res.writeHead(200, {
+			'Content-Type': 'application/json',
+			'Access-Control-Allow-Origin': '*',
+		});
+		res.end(JSON.stringify({
+			ok: true,
+			listening: true,
+			uptime: process.uptime(),
+		}));
+		return;
+	}
+
+	if (req.method === 'GET' && req.url === '/health/storage') {
 		res.writeHead(200, {
 			'Content-Type': 'application/json',
 			'Access-Control-Allow-Origin': '*',
@@ -364,7 +377,9 @@ async function startServer() {
 	});
 
 	const { ADMIN_USER } = require('./admin');
+	const { getDataDir } = require('./data-path');
 	console.log(`Cube signaling server listening on port ${PORT}`);
+	console.log(`DATA_DIR=${getDataDir()} volume=${process.env.RAILWAY_VOLUME_MOUNT_PATH || 'none'}`);
 	console.log(`Admin panel: http://localhost:${PORT}/spindeln`);
 	console.log(`Admin user: ${ADMIN_USER} (set ADMIN_USER and ADMIN_PASSWORD in production)`);
 
