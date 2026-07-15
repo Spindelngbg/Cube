@@ -3,7 +3,8 @@ extends Node
 const PRODUCTION_API_URL := "https://cube-production-3d68.up.railway.app"
 const LOCAL_API_URL := "http://localhost:9080"
 const DEFAULT_API_URL := PRODUCTION_API_URL
-const REQUEST_TIMEOUT_SEC := 8.0
+const REQUEST_TIMEOUT_SEC := 20.0
+const MAX_RETRIES := 1
 
 var username: String = ""
 var is_guest: bool = false
@@ -17,6 +18,9 @@ signal logged_out()
 
 var _http := HTTPRequest.new()
 var _pending_action := ""
+var _pending_path := ""
+var _pending_body := {}
+var _retry_count := 0
 
 
 func _ready() -> void:
@@ -67,9 +71,16 @@ func login_as_guest() -> void:
 
 func _post(path: String, body: Dictionary, action: String) -> void:
 	_pending_action = action
-	var json_body := JSON.stringify(body)
+	_pending_path = path
+	_pending_body = body
+	_retry_count = 0
+	_send_request()
+
+
+func _send_request() -> void:
+	var json_body := JSON.stringify(_pending_body)
 	var headers := PackedStringArray(["Content-Type: application/json"])
-	var err := _http.request(api_url + path, headers, HTTPClient.METHOD_POST, json_body)
+	var err := _http.request(api_url + _pending_path, headers, HTTPClient.METHOD_POST, json_body)
 	if err != OK:
 		login_failed.emit("Kunde inte nå servern")
 
@@ -77,13 +88,21 @@ func _post(path: String, body: Dictionary, action: String) -> void:
 func _on_request_completed(
 	result: int,
 	response_code: int,
-	_headers: PackedStringArray,
+	_headers: PackedByteArray,
 	body: PackedByteArray
 ) -> void:
 	if result == HTTPRequest.RESULT_TIMEOUT:
-		login_failed.emit("Servern svarade inte i tid – försök igen")
+		if _retry_count < MAX_RETRIES:
+			_retry_count += 1
+			_send_request()
+			return
+		login_failed.emit("Servern svarade inte i tid – vänta och försök igen")
 		return
 	if result != HTTPRequest.RESULT_SUCCESS:
+		if _retry_count < MAX_RETRIES:
+			_retry_count += 1
+			_send_request()
+			return
 		login_failed.emit("Nätverksfel – kunde inte nå servern")
 		return
 

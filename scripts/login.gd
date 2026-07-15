@@ -119,7 +119,7 @@ func _enter_account_flow() -> void:
 
 	if not Profile.characters_list_ready():
 		Profile.load_characters()
-		if not await _wait_for_profile_action(9.0):
+		if not await _wait_for_profile_action(20.0):
 			_set_status("Servern svarade inte – försök igen")
 			_set_buttons_enabled(true)
 			return

@@ -1,15 +1,16 @@
 [build]
 builder = "RAILPACK"
+watchPatterns = ["signaling-server/**", "package.json"]
 
 [deploy]
 startCommand = "npm start"
-healthcheckPath = "/"
-healthcheckTimeout = 60
+healthcheckPath = "/health"
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 
 [env]
-DATA_DIR = "/data"
+DATA_DIR = "/web"
 
 [[deploy.volumes]]
 name = "cube-data"
-mountPath = "/data"
+mountPath = "/web"

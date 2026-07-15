@@ -3,6 +3,13 @@ builder = "RAILPACK"
 
 [deploy]
 startCommand = "npm start"
-healthcheckPath = "/"
-healthcheckTimeout = 30
+healthcheckPath = "/health"
+healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
+
+[env]
+DATA_DIR = "/web"
+
+[[deploy.volumes]]
+name = "cube-data"
+mountPath = "/web"

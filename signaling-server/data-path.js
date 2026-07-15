@@ -9,7 +9,7 @@ function resolveDataDir() {
 		return process.env.RAILWAY_VOLUME_MOUNT_PATH;
 	}
 	if (process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_SERVICE_ID) {
-		return '/data';
+		return '/web';
 	}
 	return path.join(__dirname, 'data');
 }

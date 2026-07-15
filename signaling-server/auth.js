@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const { DATA_DIR } = require('./data-path');
-const { getStore, setStore } = require('./persistence');
+const { getStore, setStore, flushStore } = require('./persistence');
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const MIN_PASSWORD_LEN = 4;
@@ -31,8 +31,9 @@ function loadAccounts() {
 	return getStore('accounts', {});
 }
 
-function saveAccounts(accounts) {
+async function saveAccounts(accounts) {
 	setStore('accounts', accounts);
+	await flushStore('accounts');
 }
 
 function hashPassword(password) {
@@ -91,7 +92,7 @@ function validatePassword(password) {
 	return null;
 }
 
-function register(username, password) {
+async function register(username, password) {
 	const userError = validateUsername(username);
 	if (userError) {
 		return { ok: false, error: userError };
@@ -112,7 +113,14 @@ function register(username, password) {
 		passwordHash: hashPassword(password),
 		createdAt: new Date().toISOString(),
 	};
-	saveAccounts(accounts);
+
+	try {
+		await saveAccounts(accounts);
+	} catch (error) {
+		console.error('Failed to persist account:', error);
+		return { ok: false, error: 'Kunde inte spara kontot – försök igen' };
+	}
+
 	console.log(`Registered account: ${username} (total: ${Object.keys(accounts).length})`);
 
 	const sessionToken = createSession(username, false);
@@ -214,7 +222,7 @@ async function handleAuthRequest(req, res) {
 	}
 
 	if (req.url === '/auth/register') {
-		sendJson(res, 200, register(body.username, body.password));
+		sendJson(res, 200, await register(body.username, body.password));
 		return true;
 	}
 	if (req.url === '/auth/login') {

@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const {
 	DATA_DIR,
@@ -11,12 +12,17 @@ const STORE_FILES = {
 	sessions: 'sessions.json',
 	avatars: 'avatars.json',
 	friends: 'friends.json',
+	spawn_codes: 'spawn_codes.json',
 };
+
+const POSTGRES_INIT_TIMEOUT_MS = 8000;
 
 const cache = new Map();
 let pool = null;
 let backend = 'files';
 let ready = false;
+let dataDirWritable = false;
+let persistenceWarning = '';
 
 function isObject(value) {
 	return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -26,8 +32,25 @@ function hasEntries(value) {
 	return isObject(value) && Object.keys(value).length > 0;
 }
 
+function fileNameFor(storeKey) {
+	return STORE_FILES[storeKey] || `${storeKey}.json`;
+}
+
 function filePathFor(storeKey) {
-	return path.join(DATA_DIR, STORE_FILES[storeKey]);
+	return path.join(DATA_DIR, fileNameFor(storeKey));
+}
+
+function verifyDataDirWritable() {
+	try {
+		ensureDataDir();
+		const testPath = path.join(DATA_DIR, '.write_test');
+		fs.writeFileSync(testPath, new Date().toISOString(), 'utf8');
+		fs.unlinkSync(testPath);
+		return true;
+	} catch (error) {
+		console.error(`DATA_DIR not writable (${DATA_DIR}):`, error);
+		return false;
+	}
 }
 
 async function query(text, params) {
@@ -60,6 +83,15 @@ function saveToFiles(storeKey, data) {
 	writeJsonAtomic(filePathFor(storeKey), data);
 }
 
+function withTimeout(promise, timeoutMs, label) {
+	return Promise.race([
+		promise,
+		new Promise((_, reject) => {
+			setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+		}),
+	]);
+}
+
 async function initPostgres() {
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
@@ -69,18 +101,23 @@ async function initPostgres() {
 	const { Pool } = require('pg');
 	pool = new Pool({
 		connectionString: databaseUrl,
+		connectionTimeoutMillis: POSTGRES_INIT_TIMEOUT_MS,
 		ssl: databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')
 			? false
 			: { rejectUnauthorized: false },
 	});
 
-	await query(`
-		CREATE TABLE IF NOT EXISTS cube_store (
-			store_key TEXT PRIMARY KEY,
-			data JSONB NOT NULL,
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		);
-	`);
+	await withTimeout(
+		query(`
+			CREATE TABLE IF NOT EXISTS cube_store (
+				store_key TEXT PRIMARY KEY,
+				data JSONB NOT NULL,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+		`),
+		POSTGRES_INIT_TIMEOUT_MS,
+		'PostgreSQL init'
+	);
 
 	backend = 'postgres';
 	return true;
@@ -109,6 +146,12 @@ async function preloadStores() {
 		if (backend === 'postgres') {
 			const stored = await loadFromPostgres(storeKey);
 			data = isObject(stored) ? stored : {};
+			if (!hasEntries(data)) {
+				const fromFile = loadFromFiles(storeKey, {});
+				if (hasEntries(fromFile)) {
+					data = fromFile;
+				}
+			}
 		} else {
 			data = loadFromFiles(storeKey, {});
 		}
@@ -116,17 +159,32 @@ async function preloadStores() {
 	}
 }
 
+function updatePersistenceWarning() {
+	if (!dataDirWritable) {
+		persistenceWarning = `DATA_DIR ${DATA_DIR} is not writable – accounts will not survive restarts`;
+		return;
+	}
+	if (!process.env.DATABASE_URL && !process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+		persistenceWarning = 'No DATABASE_URL and no Railway volume detected – attach volume at /web or add PostgreSQL';
+		return;
+	}
+	persistenceWarning = '';
+}
+
 async function initStorage() {
 	if (ready) {
 		return getStorageStatus();
 	}
 
+	ensureDataDir();
+	dataDirWritable = verifyDataDirWritable();
+
 	try {
 		const postgresReady = await initPostgres();
 		if (postgresReady) {
 			await migrateFilesToPostgres();
+			console.log('PostgreSQL storage ready');
 		} else {
-			ensureDataDir();
 			console.log(`No DATABASE_URL – using JSON files in ${DATA_DIR}`);
 		}
 	} catch (error) {
@@ -140,12 +198,15 @@ async function initStorage() {
 			}
 		}
 		pool = null;
-		ensureDataDir();
 	}
 
 	await preloadStores();
+	updatePersistenceWarning();
 	ready = true;
-	return getStorageStatus();
+
+	const status = getStorageStatus();
+	console.log(`Persistence: backend=${status.backend}, accounts=${status.accountCount}, dataDir=${status.dataDir}, warning=${status.persistenceWarning || 'none'}`);
+	return status;
 }
 
 function getStore(storeKey, fallback = {}) {
@@ -155,7 +216,7 @@ function getStore(storeKey, fallback = {}) {
 	if (cache.has(storeKey)) {
 		return cache.get(storeKey);
 	}
-	const data = fallback;
+	const data = loadFromFiles(storeKey, fallback);
 	cache.set(storeKey, data);
 	return data;
 }
@@ -164,14 +225,25 @@ function setStore(storeKey, data) {
 	const payload = isObject(data) ? data : {};
 	cache.set(storeKey, payload);
 
+	// Alltid skriv till fil först – även när PostgreSQL används.
+	saveToFiles(storeKey, payload);
+
 	if (backend === 'postgres' && pool) {
 		saveToPostgres(storeKey, payload).catch((error) => {
 			console.error(`Failed to persist ${storeKey} to PostgreSQL:`, error);
 		});
+	}
+}
+
+async function flushStore(storeKey) {
+	const payload = cache.get(storeKey);
+	if (!isObject(payload)) {
 		return;
 	}
-
 	saveToFiles(storeKey, payload);
+	if (backend === 'postgres' && pool) {
+		await saveToPostgres(storeKey, payload);
+	}
 }
 
 function getStorageStatus() {
@@ -180,9 +252,11 @@ function getStorageStatus() {
 		ready,
 		backend,
 		dataDir: DATA_DIR,
+		dataDirWritable,
 		volumeMount: process.env.RAILWAY_VOLUME_MOUNT_PATH || null,
 		databaseConfigured: Boolean(process.env.DATABASE_URL),
 		accountCount: Object.keys(accounts).length,
+		persistenceWarning,
 	};
 }
 
@@ -190,5 +264,6 @@ module.exports = {
 	initStorage,
 	getStore,
 	setStore,
+	flushStore,
 	getStorageStatus,
 };

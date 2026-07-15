@@ -7,7 +7,7 @@ signal nest_intro_completed()
 signal home_spawn_set(spawn_id: String)
 signal operation_failed(message: String)
 
-const REQUEST_TIMEOUT_SEC := 8.0
+const REQUEST_TIMEOUT_SEC := 20.0
 
 var avatar: AvatarData = AvatarData.new()
 var avatar_ready := false

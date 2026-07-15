@@ -95,8 +95,11 @@ const server = http.createServer(async (req, res) => {
 		return;
 	}
 
-	if (req.method === 'GET' && req.url === '/health/storage') {
-		res.writeHead(200, { 'Content-Type': 'application/json' });
+	if (req.method === 'GET' && (req.url === '/health' || req.url === '/health/storage')) {
+		res.writeHead(200, {
+			'Content-Type': 'application/json',
+			'Access-Control-Allow-Origin': '*',
+		});
 		res.end(JSON.stringify({ ok: true, ...getStorageStatus() }));
 		return;
 	}
