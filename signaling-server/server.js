@@ -2,8 +2,10 @@ const http = require('http');
 const WebSocket = require('ws');
 const crypto = require('crypto');
 const { handleAuthRequest } = require('./auth');
+const { handleAvatarRequest } = require('./avatars');
 const { handleAdminRequest } = require('./admin');
 const { renderLandingPage } = require('./landing');
+const { attachChatServer, getChatStats } = require('./chat');
 
 const MAX_PEERS = 4096;
 const MAX_LOBBIES = 1024;
@@ -70,6 +72,7 @@ function getServerStats() {
 		peersCount,
 		lobbyCount: lobbies.size,
 		wsClients: wss ? wss.clients.size : 0,
+		...getChatStats(),
 	};
 }
 
@@ -79,6 +82,9 @@ const server = http.createServer(async (req, res) => {
 			return;
 		}
 		if (await handleAuthRequest(req, res)) {
+			return;
+		}
+		if (await handleAvatarRequest(req, res)) {
 			return;
 		}
 	} catch (e) {
@@ -99,7 +105,29 @@ const server = http.createServer(async (req, res) => {
 	res.end('Not found\n');
 });
 
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ noServer: true });
+const chatWss = attachChatServer();
+
+server.on('upgrade', (request, socket, head) => {
+	let pathname = '/';
+	try {
+		pathname = new URL(request.url, 'http://localhost').pathname;
+	} catch (e) {
+		socket.destroy();
+		return;
+	}
+
+	if (pathname === '/chat') {
+		chatWss.handleUpgrade(request, socket, head, (ws) => {
+			chatWss.emit('connection', ws, request);
+		});
+		return;
+	}
+
+	wss.handleUpgrade(request, socket, head, (ws) => {
+		wss.emit('connection', ws, request);
+	});
+});
 
 class ProtoError extends Error {
 	constructor(code, message) {
@@ -306,6 +334,9 @@ wss.on('connection', (ws) => {
 
 setInterval(() => {
 	wss.clients.forEach((ws) => {
+		ws.ping();
+	});
+	chatWss.clients.forEach((ws) => {
 		ws.ping();
 	});
 }, PING_INTERVAL);
