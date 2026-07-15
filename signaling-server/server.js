@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 const crypto = require('crypto');
 const { handleAuthRequest } = require('./auth');
 const { handleAdminRequest } = require('./admin');
+const { renderLandingPage } = require('./landing');
 
 const MAX_PEERS = 4096;
 const MAX_LOBBIES = 1024;
@@ -87,9 +88,10 @@ const server = http.createServer(async (req, res) => {
 		return;
 	}
 
-	if (req.method === 'GET' && req.url === '/') {
-		res.writeHead(200, { 'Content-Type': 'text/plain' });
-		res.end('Cube signaling server is running.\n');
+	if (req.method === 'GET' && (req.url === '/' || req.url.startsWith('/?'))) {
+		const host = req.headers['x-forwarded-host'] || req.headers.host || '';
+		res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+		res.end(renderLandingPage(host.split(',')[0].trim()));
 		return;
 	}
 

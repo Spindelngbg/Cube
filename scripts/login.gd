@@ -11,7 +11,8 @@ extends Control
 
 
 func _ready() -> void:
-	server_input.text = Auth.api_url_from_signaling(Network.DEFAULT_SIGNAL_URL)
+	server_input.text = Network.signaling_url
+	server_input.placeholder_text = "wss://din-app.railway.app"
 	_set_password_visible(login_password, login_toggle, false)
 	_set_password_visible(register_password, register_toggle, false)
 
