@@ -51,8 +51,10 @@ func _update_enter_button() -> void:
 		enter_button.text = "Gå in i The Cube"
 	elif Profile.needs_nest_intro():
 		enter_button.text = "Klättra ut i nästet"
+	elif Profile.needs_home_selection():
+		enter_button.text = "Gå till ljusrummet"
 	else:
-		enter_button.text = "Gå in i The Cube"
+		enter_button.text = "Gå in i din satellitkub"
 
 
 func _setup_welcome() -> void:
@@ -195,8 +197,13 @@ func _on_character_saved() -> void:
 		_connecting = false
 		enter_button.disabled = false
 		get_tree().change_scene_to_file("res://scenes/nest_room.tscn")
+	elif Profile.needs_home_selection():
+		status_label.text = "Går mot ljuset..."
+		_connecting = false
+		enter_button.disabled = false
+		get_tree().change_scene_to_file("res://scenes/emergence_room.tscn")
 	else:
-		status_label.text = "Ansluter till The Cube..."
+		status_label.text = "Ansluter till din satellitkub..."
 		Network.connect_to_world()
 
 

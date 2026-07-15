@@ -5,11 +5,13 @@ const CAMERA_OFFSET := Vector3(0, 10, 14)
 const CAMERA_LERP_SPEED := 4.0
 
 var players: Dictionary = {}
+var _active_spawn_id := ""
 
 
 func _ready() -> void:
 	_hide_legacy_floor()
-	_build_cube_city()
+	_resolve_spawn_context()
+	_build_world()
 	_style_hud()
 	_update_hud_text()
 
@@ -26,14 +28,26 @@ func _process(delta: float) -> void:
 	_update_hud_text()
 
 
+func _resolve_spawn_context() -> void:
+	if Profile.has_home_spawn():
+		_active_spawn_id = SpawnPoints.normalize_id(Profile.active_home_spawn_id)
+	elif Auth.is_guest:
+		_active_spawn_id = "satellite_left"
+	else:
+		_active_spawn_id = "satellite_left"
+
+
 func _hide_legacy_floor() -> void:
 	var floor_node := get_node_or_null("Floor")
 	if floor_node:
 		floor_node.queue_free()
 
 
-func _build_cube_city() -> void:
-	CubeCityBuilder.build(self)
+func _build_world() -> void:
+	if _active_spawn_id != "":
+		SatelliteCubeBuilder.build(self, _active_spawn_id)
+	else:
+		CubeCityBuilder.build(self)
 	$DirectionalLight3D.rotation_degrees = Vector3(-48, 35, 0)
 
 
@@ -55,29 +69,18 @@ func _update_hud_text() -> void:
 
 	var local_id := multiplayer.get_unique_id()
 	if not players.has(local_id):
-		hint.text = CubeRegistry.full_summary()
+		hint.text = "Satellitkub %s | 30×30×30 km" % SpawnPoints.get_name(_active_spawn_id)
 		return
 
-	var player: Node3D = players[local_id]
-	var zone_id := CubeZoneId.prototype_position_to_zone(player.global_position)
-	var zone := CubeRegistry.get_zone(zone_id)
-	var permit := CubeRegistry.build_permit_status(zone_id)
+	var cube_name := SpawnPoints.get_name(_active_spawn_id)
+	var cube_id := SpawnPoints.get_cube_id(_active_spawn_id)
+	var home_note := ""
+	if Profile.has_home_spawn():
+		home_note = " | Ditt permanenta hem"
+	elif Auth.is_guest:
+		home_note = " | Gäst (ingen hemplats)"
 
-	if zone.is_empty():
-		hint.text = "Lager %d | Utanför registrerad zon | %s" % [CubeConstants.PROTOTYPE_LAYER, permit]
-		return
-
-	var block_id := str(zone.get("block_id", ""))
-	var layer_id := str(zone.get("layer_id", ""))
-	var zone_name := str(zone.get("name", zone_id))
-	var ownership := str(zone.get("ownership", "public"))
-	var governor := CubeGovernance.get_effective_block_governor(block_id)
-	var governor_name := str(governor.get("account", "ingen"))
-
-	hint.text = (
-		"%s | %s | Ägande: %s | Block: %s | Lager: %s | Styrd av: %s | %s"
-		% [zone_id, zone_name, ownership, block_id, layer_id, governor_name, permit]
-	)
+	hint.text = "%s (%s)%s | Endast hiss till huvudkuben | WASD" % [cube_name, cube_id, home_note]
 
 
 func _on_peer_connected(peer_id: int) -> void:
@@ -113,12 +116,16 @@ func _spawn_player(peer_id: int) -> void:
 	if players.has(peer_id):
 		return
 
+	var spawn_pos := SpawnPoints.get_position(_active_spawn_id)
+	if peer_id == multiplayer.get_unique_id() and Profile.has_home_spawn():
+		spawn_pos = Profile.get_home_spawn_position()
+
 	var player := PLAYER_SCENE.instantiate()
 	player.name = str(peer_id)
-	player.position = CubeZoneId.prototype_spawn_position() + Vector3(
-		(peer_id % 3) * 2.0 - 2.0,
+	player.position = spawn_pos + Vector3(
+		(peer_id % 3) * 1.5 - 1.5,
 		0.0,
-		(peer_id % 5) * 1.5 - 3.0
+		(peer_id % 5) * 1.2 - 2.4
 	)
 	player.set_multiplayer_authority(peer_id)
 	players[peer_id] = player

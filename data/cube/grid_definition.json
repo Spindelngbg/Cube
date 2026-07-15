@@ -62,6 +62,17 @@
 		"seed_file": "res://data/cube/governance_seed.json",
 		"api_template": "https://cube-production-3d68.up.railway.app/api/political/{territory_id}"
 	},
+	"satellite_cubes": {
+		"count": 4,
+		"extent_km": 30,
+		"connection": "Endast via hiss från ljusrummet i huvudkuben",
+		"elevators": {
+			"left_km": 10,
+			"top_count": 2,
+			"right_count": 1
+		},
+		"data_file": "res://data/cube/satellite_cubes.json"
+	},
 	"prototype": {
 		"layer": 10,
 		"block_origin": [13, 13],

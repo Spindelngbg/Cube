@@ -1,0 +1,65 @@
+{
+	"version": 1,
+	"main_cube_id": "THE_CUBE_ALPHA",
+	"main_cube_extent_m": 30000000,
+	"satellite_extent_km": 30,
+	"satellite_extent_m": 30000,
+	"connection_rule": "Satellitkuber nås endast via hisssystem från ljusrummet i huvudkuben. Ingen fysisk väg utanför hissarna.",
+	"elevator_layout_on_main_cube": {
+		"left": {
+			"count": 1,
+			"length_km": 10,
+			"length_m": 10000,
+			"spawn_id": "satellite_left"
+		},
+		"top": {
+			"count": 2,
+			"spawn_ids": ["satellite_top_a", "satellite_top_b"]
+		},
+		"right": {
+			"count": 1,
+			"spawn_id": "satellite_right"
+		}
+	},
+	"satellites": [
+		{
+			"id": "satellite_left",
+			"cube_id": "SAT_LEFT_30",
+			"name": "Vänsterkuben",
+			"extent_km": 30,
+			"elevator_mount": "left",
+			"elevator_length_km": 10,
+			"connection": "10 km hiss längs kubens vänstra sida",
+			"prototype_size_m": 30
+		},
+		{
+			"id": "satellite_top_a",
+			"cube_id": "SAT_TOP_A_30",
+			"name": "Toppkuben Alfa",
+			"extent_km": 30,
+			"elevator_mount": "top",
+			"elevator_index": 0,
+			"connection": "Hiss ovanpå huvudkuben (port A)",
+			"prototype_size_m": 30
+		},
+		{
+			"id": "satellite_top_b",
+			"cube_id": "SAT_TOP_B_30",
+			"name": "Toppkuben Beta",
+			"extent_km": 30,
+			"elevator_mount": "top",
+			"elevator_index": 1,
+			"connection": "Hiss ovanpå huvudkuben (port B)",
+			"prototype_size_m": 30
+		},
+		{
+			"id": "satellite_right",
+			"cube_id": "SAT_RIGHT_30",
+			"name": "Högerkuben",
+			"extent_km": 30,
+			"elevator_mount": "right",
+			"connection": "Hiss längs kubens högra sida",
+			"prototype_size_m": 30
+		}
+	]
+}

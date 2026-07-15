@@ -6,6 +6,7 @@ const {
 	sendJson,
 } = require('./auth');
 const { getStore, setStore } = require('./persistence');
+const { redeemSecretCode, SPAWN_IDS, normalizeSpawnId } = require('./spawn_codes');
 
 const MAX_CHARACTERS_DEFAULT = 6;
 const UNLIMITED_USER = 'testare1';
@@ -128,6 +129,21 @@ function migrateCharacter(character) {
 	if (character.nestVisited === undefined) {
 		character.nestVisited = true;
 	}
+	if (character.homeSpawnId === undefined) {
+		character.homeSpawnId = '';
+	}
+	if (character.homeSpawnLocked === undefined) {
+		character.homeSpawnLocked = false;
+	}
+	if (character.homeSpawnMethod === undefined) {
+		character.homeSpawnMethod = '';
+	}
+	if (character.homeSpawnId) {
+		const normalized = normalizeSpawnId(character.homeSpawnId);
+		if (normalized) {
+			character.homeSpawnId = normalized;
+		}
+	}
 	return character;
 }
 
@@ -140,6 +156,9 @@ function serializeCharacter(character) {
 		createdAt: entry.createdAt,
 		updatedAt: entry.updatedAt,
 		nestVisited: Boolean(entry.nestVisited),
+		homeSpawnId: entry.homeSpawnId || '',
+		homeSpawnLocked: Boolean(entry.homeSpawnLocked),
+		homeSpawnMethod: entry.homeSpawnMethod || '',
 	};
 }
 
@@ -302,6 +321,66 @@ function completeNestIntro(username, characterId) {
 	return { ok: true, character: serializeCharacter(character) };
 }
 
+function setHomeSpawn(username, characterId, spawnId, method) {
+	const normalizedSpawnId = normalizeSpawnId(spawnId);
+	if (!SPAWN_IDS.includes(normalizedSpawnId)) {
+		return { ok: false, error: 'Ogiltig spawnpunkt' };
+	}
+	if (!['elevator', 'secret_code'].includes(method)) {
+		return { ok: false, error: 'Ogiltig spawnmetod' };
+	}
+
+	const data = loadStore();
+	const record = ensureUserRecord(data, username);
+	const character = findCharacter(record, characterId);
+	if (!character) {
+		return { ok: false, error: 'Karaktären finns inte' };
+	}
+	migrateCharacter(character);
+	if (character.homeSpawnLocked) {
+		return { ok: false, error: 'Ditt hem är redan valt och kan inte ändras' };
+	}
+
+	character.homeSpawnId = normalizedSpawnId;
+	character.homeSpawnLocked = true;
+	character.homeSpawnMethod = method;
+	character.updatedAt = new Date().toISOString();
+	saveStore(data);
+
+	return { ok: true, character: serializeCharacter(character), spawnId: normalizedSpawnId };
+}
+
+function redeemHomeSecretCode(username, characterId, code) {
+	const data = loadStore();
+	const record = ensureUserRecord(data, username);
+	const character = findCharacter(record, characterId);
+	if (!character) {
+		return { ok: false, error: 'Karaktären finns inte' };
+	}
+	migrateCharacter(character);
+	if (character.homeSpawnLocked) {
+		return { ok: false, error: 'Ditt hem är redan valt och kan inte ändras' };
+	}
+
+	const redeemed = redeemSecretCode(username, characterId, code);
+	if (!redeemed.ok) {
+		return redeemed;
+	}
+
+	character.homeSpawnId = redeemed.spawnId;
+	character.homeSpawnLocked = true;
+	character.homeSpawnMethod = 'secret_code';
+	character.updatedAt = new Date().toISOString();
+	saveStore(data);
+
+	return {
+		ok: true,
+		character: serializeCharacter(character),
+		spawnId: redeemed.spawnId,
+		code: redeemed.code,
+	};
+}
+
 function getActiveCharacter(username) {
 	const userError = validateUsername(username);
 	if (userError) {
@@ -447,6 +526,37 @@ async function handleAvatarRequest(req, res) {
 		}
 		const characterId = body.id || body.characterId;
 		sendJson(res, 200, completeNestIntro(auth.session.username, characterId));
+		return true;
+	}
+
+	if (req.url === '/characters/set_home_spawn') {
+		const auth = requireSession(body);
+		if (!auth.ok) {
+			sendJson(res, auth.status, { ok: false, error: auth.error });
+			return true;
+		}
+		const characterId = body.id || body.characterId;
+		sendJson(res, 200, setHomeSpawn(
+			auth.session.username,
+			characterId,
+			body.spawnId,
+			body.method || 'elevator'
+		));
+		return true;
+	}
+
+	if (req.url === '/characters/redeem_secret_code') {
+		const auth = requireSession(body);
+		if (!auth.ok) {
+			sendJson(res, auth.status, { ok: false, error: auth.error });
+			return true;
+		}
+		const characterId = body.id || body.characterId;
+		sendJson(res, 200, redeemHomeSecretCode(
+			auth.session.username,
+			characterId,
+			body.code
+		));
 		return true;
 	}
 

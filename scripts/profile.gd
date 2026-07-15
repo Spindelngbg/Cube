@@ -4,6 +4,7 @@ signal characters_loaded()
 signal character_selected()
 signal character_saved()
 signal nest_intro_completed()
+signal home_spawn_set(spawn_id: String)
 signal operation_failed(message: String)
 
 const REQUEST_TIMEOUT_SEC := 8.0
@@ -14,6 +15,8 @@ var characters: Array = []
 var active_character_id: String = ""
 var active_character_name: String = ""
 var active_nest_visited := true
+var active_home_spawn_id := ""
+var active_home_spawn_locked := false
 var character_limit: int = 6
 var unlimited_slots := false
 
@@ -42,6 +45,8 @@ func clear_characters() -> void:
 	characters.clear()
 	active_character_id = ""
 	active_character_name = ""
+	active_home_spawn_id = ""
+	active_home_spawn_locked = false
 	avatar = AvatarData.new()
 	avatar_ready = false
 	_busy = false
@@ -84,11 +89,51 @@ func needs_nest_intro() -> bool:
 	return not Auth.is_guest and not active_nest_visited
 
 
+func needs_home_selection() -> bool:
+	return (
+		not Auth.is_guest
+		and active_nest_visited
+		and not active_home_spawn_locked
+		and active_home_spawn_id == ""
+	)
+
+
+func has_home_spawn() -> bool:
+	return active_home_spawn_locked and active_home_spawn_id != ""
+
+
+func get_home_spawn_position() -> Vector3:
+	if has_home_spawn():
+		return SpawnPoints.get_position(SpawnPoints.normalize_id(active_home_spawn_id))
+	return SpawnPoints.get_position("satellite_left")
+
+
 func complete_nest_intro() -> void:
 	if active_character_id == "":
 		operation_failed.emit("Ingen karaktär vald")
 		return
 	_post("/characters/nest_complete", { "id": active_character_id }, "nest_complete")
+
+
+func set_home_spawn(spawn_id: String, method: String = "elevator") -> void:
+	if active_character_id == "":
+		operation_failed.emit("Ingen karaktär vald")
+		return
+	_post("/characters/set_home_spawn", {
+		"id": active_character_id,
+		"spawnId": spawn_id,
+		"method": method,
+	}, "set_home_spawn")
+
+
+func redeem_secret_code(code: String) -> void:
+	if active_character_id == "":
+		operation_failed.emit("Ingen karaktär vald")
+		return
+	_post("/characters/redeem_secret_code", {
+		"id": active_character_id,
+		"code": code.strip_edges(),
+	}, "redeem_secret_code")
 
 
 func fetch_active_for_username(username: String, callback: Callable) -> void:
@@ -218,6 +263,15 @@ func _on_request_completed(
 						characters[i] = completed
 						break
 			nest_intro_completed.emit()
+		"set_home_spawn", "redeem_secret_code":
+			var home_character: Dictionary = data.get("character", {})
+			if not home_character.is_empty():
+				_apply_active_character(home_character)
+				for i in characters.size():
+					if typeof(characters[i]) == TYPE_DICTIONARY and str((characters[i] as Dictionary).get("id", "")) == active_character_id:
+						characters[i] = home_character
+						break
+			home_spawn_set.emit(active_home_spawn_id)
 
 
 func _apply_character_list(data: Dictionary) -> void:
@@ -242,6 +296,8 @@ func _apply_active_character(entry: Dictionary) -> void:
 	active_character_id = str(entry.get("id", ""))
 	active_character_name = str(entry.get("name", "Karaktär"))
 	active_nest_visited = bool(entry.get("nestVisited", true))
+	active_home_spawn_id = str(entry.get("homeSpawnId", ""))
+	active_home_spawn_locked = bool(entry.get("homeSpawnLocked", false))
 	var avatar_dict: Dictionary = entry.get("avatar", {})
 	if typeof(avatar_dict) == TYPE_DICTIONARY and not avatar_dict.is_empty():
 		set_avatar(AvatarData.from_dict(avatar_dict))

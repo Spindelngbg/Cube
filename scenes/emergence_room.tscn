@@ -1,0 +1,112 @@
+[gd_scene load_steps=4 format=3 uid="uid://cube_emergence_room"]
+
+[ext_resource type="Script" path="res://scripts/emergence_room.gd" id="1_emergence"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+radius = 0.45
+height = 2.0
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
+radius = 0.45
+height = 2.0
+
+[node name="EmergenceRoom" type="Node3D"]
+script = ExtResource("1_emergence")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+
+[node name="Room" type="Node3D" parent="."]
+
+[node name="Elevators" type="Node3D" parent="."]
+
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 2.5, 5.5)
+current = true
+
+[node name="Player" type="CharacterBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 6)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="Body" type="MeshInstance3D" parent="Player"]
+mesh = SubResource("CapsuleMesh_body")
+
+[node name="AvatarPivot" type="Node3D" parent="Player"]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="HintLabel" type="Label" parent="UI"]
+offset_left = 20.0
+offset_top = 16.0
+offset_right = 760.0
+offset_bottom = 72.0
+text = "Ljusrummet"
+
+[node name="SecretPanel" type="PanelContainer" parent="UI"]
+offset_left = 20.0
+offset_top = 520.0
+offset_right = 420.0
+offset_bottom = 700.0
+
+[node name="VBox" type="VBoxContainer" parent="UI/SecretPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SecretTitle" type="Label" parent="UI/SecretPanel/VBox"]
+layout_mode = 2
+text = "Hemlig kodterminal"
+
+[node name="SecretHelp" type="Label" parent="UI/SecretPanel/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Har du en hemlig kod? Skriv in den här för att låsa upp din spawnpunkt utan hiss."
+
+[node name="CodeInput" type="LineEdit" parent="UI/SecretPanel/VBox"]
+layout_mode = 2
+placeholder_text = "LJUS-001-XXXX"
+
+[node name="RedeemButton" type="Button" parent="UI/SecretPanel/VBox"]
+layout_mode = 2
+text = "Lös in kod"
+
+[node name="SecretStatus" type="Label" parent="UI/SecretPanel/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ConfirmPanel" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -120.0
+offset_right = 220.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="UI/ConfirmPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ConfirmTitle" type="Label" parent="UI/ConfirmPanel/VBox"]
+layout_mode = 2
+text = "Bekräfta hem"
+
+[node name="ConfirmBody" type="Label" parent="UI/ConfirmPanel/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ConfirmButton" type="Button" parent="UI/ConfirmPanel/VBox"]
+layout_mode = 2
+text = "Bo här för alltid"
+
+[node name="CancelButton" type="Button" parent="UI/ConfirmPanel/VBox"]
+layout_mode = 2
+text = "Tillbaka till ljusrummet"

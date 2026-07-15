@@ -31,8 +31,6 @@ func _ready() -> void:
 	hint_label.text = "WASD — gå ut mot ljuset i dörren..."
 	Profile.nest_intro_completed.connect(_on_nest_saved)
 	Profile.operation_failed.connect(_on_nest_failed)
-	Network.world_ready.connect(_on_world_ready)
-	Network.connection_failed.connect(_on_connection_failed)
 
 
 func _physics_process(delta: float) -> void:
@@ -275,17 +273,8 @@ func _on_door_entered(body: Node3D) -> void:
 
 
 func _on_nest_saved() -> void:
-	hint_label.text = "Ansluter till The Cube..."
-	Network.connect_to_world()
-
-
-func _on_world_ready() -> void:
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
-
-
-func _on_connection_failed(reason: String) -> void:
-	_transitioning = false
-	hint_label.text = "Anslutning misslyckades: %s" % reason
+	hint_label.text = "Ljuset bär dig vidare..."
+	get_tree().change_scene_to_file("res://scenes/emergence_room.tscn")
 
 
 func _on_nest_failed(message: String) -> void:
