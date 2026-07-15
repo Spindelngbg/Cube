@@ -357,12 +357,18 @@ async function startServer() {
 	console.log(`Accounts in storage: ${storageStatus.accountCount}`);
 	initPersistence();
 
-	server.listen(PORT, '0.0.0.0', () => {
-		const { ADMIN_USER } = require('./admin');
-		console.log(`Cube signaling server listening on port ${PORT}`);
-		console.log(`Admin panel: http://localhost:${PORT}/spindeln`);
-		console.log(`Admin user: ${ADMIN_USER} (set ADMIN_USER and ADMIN_PASSWORD in production)`);
+	await new Promise((resolve, reject) => {
+		server.once('error', reject);
+		server.listen(PORT, '0.0.0.0', () => {
+			server.off('error', reject);
+			resolve();
+		});
 	});
+
+	const { ADMIN_USER } = require('./admin');
+	console.log(`Cube signaling server listening on port ${PORT}`);
+	console.log(`Admin panel: http://localhost:${PORT}/spindeln`);
+	console.log(`Admin user: ${ADMIN_USER} (set ADMIN_USER and ADMIN_PASSWORD in production)`);
 }
 
 startServer().catch((error) => {
