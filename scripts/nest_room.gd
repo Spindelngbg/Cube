@@ -96,7 +96,12 @@ func _build_player_spider() -> void:
 
 
 func _build_door() -> void:
-	var frame_mat := _slime_material(Color(0.05, 0.07, 0.04), 0.65, 0.0)
+	var frame_mat := RetroTextureLibrary.make_nest_material(
+		"wall_brick_small_stone",
+		Vector2(2.5, 2.5),
+		Color(0.2, 0.18, 0.16),
+		0.9
+	)
 	var light_mat := StandardMaterial3D.new()
 	light_mat.albedo_color = Color(0.95, 0.88, 0.65)
 	light_mat.emission_enabled = true
@@ -117,9 +122,24 @@ func _build_door() -> void:
 
 
 func _build_room() -> void:
-	var floor_mat := _slime_material(Color(0.06, 0.1, 0.05), 0.15, 0.08)
-	var wall_mat := _slime_material(Color(0.04, 0.06, 0.04), 0.55, 0.03)
-	var ceiling_mat := _slime_material(Color(0.03, 0.05, 0.03), 0.7, 0.02)
+	var floor_mat := RetroTextureLibrary.make_nest_material(
+		"floor_stone_pattern",
+		Vector2(6, 6),
+		Color(0.3, 0.28, 0.26),
+		0.92
+	)
+	var wall_mat := RetroTextureLibrary.make_nest_material(
+		"wall_brick_stone_center",
+		Vector2(3, 3),
+		Color(0.24, 0.22, 0.2),
+		0.9
+	)
+	var ceiling_mat := RetroTextureLibrary.make_nest_material(
+		"wall_stone",
+		Vector2(4, 4),
+		Color(0.16, 0.15, 0.14),
+		0.95
+	)
 
 	_add_box($Room, Vector3(ROOM_SIZE.x, 0.35, ROOM_SIZE.z), Vector3(0, -0.17, 0), floor_mat)
 	_add_box($Room, Vector3(ROOM_SIZE.x, ROOM_SIZE.y, 0.35), Vector3(0, ROOM_SIZE.y * 0.5, -ROOM_SIZE.z * 0.5), wall_mat)

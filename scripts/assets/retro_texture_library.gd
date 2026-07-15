@@ -32,3 +32,16 @@ static func apply_to_mesh(mesh: MeshInstance3D, texture_name: String, uv_scale: 
 	if mesh == null:
 		return
 	mesh.material_override = make_material(texture_name, uv_scale)
+
+
+static func make_nest_material(
+	texture_name: String,
+	uv_scale: Vector2 = Vector2(4, 4),
+	tint: Color = Color(0.35, 0.32, 0.3),
+	roughness: float = 0.88
+) -> StandardMaterial3D:
+	var mat := make_material(texture_name, uv_scale)
+	mat.albedo_color = tint
+	mat.roughness = roughness
+	mat.metallic = 0.04
+	return mat
