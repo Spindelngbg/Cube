@@ -48,7 +48,7 @@ text = "Server"
 [node name="ServerInput" type="LineEdit" parent="Panel"]
 unique_name_in_owner = true
 layout_mode = 2
-placeholder_text = "ws://localhost:9080"
+placeholder_text = "wss://cube-production-3d68.up.railway.app"
 
 [node name="Tabs" type="TabContainer" parent="Panel"]
 layout_mode = 2

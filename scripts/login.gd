@@ -12,7 +12,7 @@ extends Control
 
 func _ready() -> void:
 	server_input.text = Network.signaling_url
-	server_input.placeholder_text = "wss://din-app.railway.app"
+	server_input.placeholder_text = Network.PRODUCTION_SIGNAL_URL
 	_set_password_visible(login_password, login_toggle, false)
 	_set_password_visible(register_password, register_toggle, false)
 

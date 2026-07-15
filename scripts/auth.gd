@@ -1,6 +1,8 @@
 extends Node
 
-const DEFAULT_API_URL := "http://localhost:9080"
+const PRODUCTION_API_URL := "https://cube-production-3d68.up.railway.app"
+const LOCAL_API_URL := "http://localhost:9080"
+const DEFAULT_API_URL := PRODUCTION_API_URL
 
 var username: String = ""
 var is_guest: bool = false

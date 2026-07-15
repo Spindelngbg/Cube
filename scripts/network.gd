@@ -1,7 +1,8 @@
 extends Node
 
-## Default signaling URL. Change to your Railway wss:// URL in production.
-const DEFAULT_SIGNAL_URL := "ws://localhost:9080"
+const PRODUCTION_SIGNAL_URL := "wss://cube-production-3d68.up.railway.app"
+const LOCAL_SIGNAL_URL := "ws://localhost:9080"
+const DEFAULT_SIGNAL_URL := PRODUCTION_SIGNAL_URL
 
 var client: WebRTCMultiplayerClient
 var signaling_url: String = DEFAULT_SIGNAL_URL
