@@ -1,4 +1,7 @@
 const crypto = require('crypto');
+const { promisify } = require('util');
+
+const scryptAsync = promisify(crypto.scrypt);
 const { DATA_DIR } = require('./data-path');
 const { getStore, setStore } = require('./persistence');
 
@@ -35,9 +38,9 @@ function saveAccounts(accounts) {
 	setStore('accounts', accounts);
 }
 
-function hashPassword(password) {
+async function hashPassword(password) {
 	const salt = crypto.randomBytes(16).toString('hex');
-	const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+	const hash = (await scryptAsync(password, salt, 64)).toString('hex');
 	return `${salt}:${hash}`;
 }
 
@@ -109,7 +112,7 @@ async function register(username, password) {
 
 	accounts[key] = {
 		username,
-		passwordHash: hashPassword(password),
+		passwordHash: await hashPassword(password),
 		createdAt: new Date().toISOString(),
 	};
 

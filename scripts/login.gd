@@ -110,26 +110,21 @@ func _on_login_succeeded(p_username: String, is_guest: bool) -> void:
 		Profile.clear_characters()
 		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
 	else:
-		Profile.clear_characters()
 		_enter_account_flow()
 
 
 func _enter_account_flow() -> void:
 	_set_status("Laddar karaktärer...")
 	_set_buttons_enabled(false)
+	Profile.clear_characters()
 
-	if not Profile.characters_list_ready():
-		Profile.load_characters()
-		if not await _wait_for_profile_action(20.0):
-			_set_status("Servern svarade inte – försök igen")
-			_set_buttons_enabled(true)
-			return
+	if not await _profile_list_characters():
+		_set_buttons_enabled(true)
+		return
 
 	if Profile.characters.is_empty():
 		_set_status("Skapar karaktär...")
-		Profile.create_character("Karaktär 1")
-		if not await _wait_for_profile_action(20.0):
-			_set_status("Kunde inte skapa karaktär – servern svarade inte")
+		if not await _profile_create_character("Karaktär 1"):
 			_set_buttons_enabled(true)
 			return
 		if Profile.active_character_id == "":
@@ -143,7 +138,23 @@ func _enter_account_flow() -> void:
 		get_tree().change_scene_to_file("res://scenes/character_select.tscn")
 
 
-func _wait_for_profile_action(max_sec: float) -> bool:
+func _profile_list_characters() -> bool:
+	var result := await _wait_for_profile_action(25.0, func() -> void:
+		Profile.load_characters()
+	)
+	if not result:
+		if status_label.text == "Laddar karaktärer...":
+			_set_status("Servern svarade inte – försök igen")
+	return result
+
+
+func _profile_create_character(name: String) -> bool:
+	return await _wait_for_profile_action(25.0, func() -> void:
+		Profile.create_character(name)
+	)
+
+
+func _wait_for_profile_action(max_sec: float, start_action: Callable) -> bool:
 	var state := {"done": false, "ok": false, "error": ""}
 	var on_loaded := func() -> void:
 		state.done = true
@@ -154,6 +165,7 @@ func _wait_for_profile_action(max_sec: float) -> bool:
 		state.error = message
 	Profile.characters_loaded.connect(on_loaded, CONNECT_ONE_SHOT)
 	Profile.operation_failed.connect(on_failed, CONNECT_ONE_SHOT)
+	start_action.call()
 
 	var deadline := Time.get_ticks_msec() + int(max_sec * 1000.0)
 	while not state.done:

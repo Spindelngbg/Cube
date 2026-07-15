@@ -3,8 +3,8 @@ extends Node
 const PRODUCTION_API_URL := "https://cube-production-3d68.up.railway.app"
 const LOCAL_API_URL := "http://localhost:9080"
 const DEFAULT_API_URL := PRODUCTION_API_URL
-const REQUEST_TIMEOUT_SEC := 20.0
-const MAX_RETRIES := 1
+const REQUEST_TIMEOUT_SEC := 25.0
+const MAX_RETRIES := 2
 
 var username: String = ""
 var is_guest: bool = false
@@ -21,6 +21,7 @@ var _pending_action := ""
 var _pending_path := ""
 var _pending_body := {}
 var _retry_count := 0
+var _request_in_flight := false
 
 
 func _ready() -> void:
@@ -44,11 +45,18 @@ func set_api_url(url: String) -> void:
 
 
 func logout() -> void:
+	cancel_request()
 	username = ""
 	is_guest = false
 	is_logged_in = false
 	session_token = ""
 	logged_out.emit()
+
+
+func cancel_request() -> void:
+	if _request_in_flight:
+		_http.cancel_request()
+	_request_in_flight = false
 
 
 func register(p_username: String, password: String) -> void:
@@ -70,6 +78,7 @@ func login_as_guest() -> void:
 
 
 func _post(path: String, body: Dictionary, action: String) -> void:
+	cancel_request()
 	_pending_action = action
 	_pending_path = path
 	_pending_body = body
@@ -79,10 +88,21 @@ func _post(path: String, body: Dictionary, action: String) -> void:
 
 func _send_request() -> void:
 	var json_body := JSON.stringify(_pending_body)
-	var headers := PackedStringArray(["Content-Type: application/json"])
+	var headers := PackedStringArray([
+		"Content-Type: application/json",
+		"Accept: application/json",
+		"User-Agent: CubeGodot/1.0",
+	])
 	var err := _http.request(api_url + _pending_path, headers, HTTPClient.METHOD_POST, json_body)
+	if err == ERR_BUSY and _retry_count < MAX_RETRIES:
+		_retry_count += 1
+		get_tree().create_timer(0.15).timeout.connect(_send_request, CONNECT_ONE_SHOT)
+		return
 	if err != OK:
-		login_failed.emit("Kunde inte nå servern")
+		_request_in_flight = false
+		login_failed.emit("Kunde inte nå servern (fel %d)" % err)
+		return
+	_request_in_flight = true
 
 
 func _on_request_completed(
@@ -91,6 +111,8 @@ func _on_request_completed(
 	_headers: PackedByteArray,
 	body: PackedByteArray
 ) -> void:
+	_request_in_flight = false
+
 	if result == HTTPRequest.RESULT_TIMEOUT:
 		if _retry_count < MAX_RETRIES:
 			_retry_count += 1
@@ -103,7 +125,10 @@ func _on_request_completed(
 			_retry_count += 1
 			_send_request()
 			return
-		login_failed.emit("Nätverksfel – kunde inte nå servern")
+		login_failed.emit("Nätverksfel – kunde inte nå servern (kod %d)" % result)
+		return
+	if response_code < 200 or response_code >= 300:
+		login_failed.emit("Serverfel (%d)" % response_code)
 		return
 
 	var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())

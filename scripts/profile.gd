@@ -42,6 +42,7 @@ func get_avatar() -> AvatarData:
 
 
 func clear_characters() -> void:
+	cancel_request()
 	characters.clear()
 	active_character_id = ""
 	active_character_name = ""
@@ -53,12 +54,19 @@ func clear_characters() -> void:
 	_list_synced = false
 
 
+func cancel_request() -> void:
+	if _busy:
+		_http.cancel_request()
+	_busy = false
+
+
 func characters_list_ready() -> bool:
 	return _list_synced
 
 
 func load_characters() -> void:
 	if _busy:
+		operation_failed.emit("Vänta på förra serveranropet...")
 		return
 	_post("/characters/list", {}, "list")
 
@@ -181,15 +189,23 @@ func _post(path: String, body: Dictionary, action: String) -> void:
 	if _busy:
 		operation_failed.emit("Vänta på förra serveranropet...")
 		return
-	_busy = true
 	_pending_action = action
 	body["token"] = Auth.session_token
 	var json_body := JSON.stringify(body)
-	var headers := PackedStringArray(["Content-Type: application/json"])
+	var headers := PackedStringArray([
+		"Content-Type: application/json",
+		"Accept: application/json",
+		"User-Agent: CubeGodot/1.0",
+	])
+	_busy = true
 	var err := _http.request(Auth.api_url + path, headers, HTTPClient.METHOD_POST, json_body)
+	if err == ERR_BUSY:
+		_busy = false
+		operation_failed.emit("Servern upptagen – försök igen")
+		return
 	if err != OK:
 		_busy = false
-		operation_failed.emit("Kunde inte nå servern")
+		operation_failed.emit("Kunde inte nå servern (fel %d)" % err)
 
 
 func _on_request_completed(
