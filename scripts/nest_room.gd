@@ -34,8 +34,8 @@ var _egg_pulse := 0.0
 var _mother_anim := 0.0
 var _intro_index := 0
 var _intro_timer := 0.0
-var _door_glow := 2.4
-var _fog_density := 0.045
+var _door_glow := 4.0
+var _fog_density := 0.014
 
 
 func _ready() -> void:
@@ -44,8 +44,11 @@ func _ready() -> void:
 	_build_mother()
 	_build_egg()
 	_build_player_spider()
+	_setup_lighting()
 	_style_ui()
 	_fog_density = world_env.environment.fog_density
+	player.rotation.y = 0.0
+	camera_pivot.rotation.y = 0.0
 	door_zone.body_entered.connect(_on_door_entered)
 	Profile.nest_intro_completed.connect(_on_nest_saved)
 	Profile.operation_failed.connect(_on_nest_failed)
@@ -100,9 +103,9 @@ func _update_door_beckon() -> void:
 	var door_pos := door_zone.global_position
 	var dist := player.global_position.distance_to(door_pos)
 	var nearness := clampf(1.0 - dist / 9.0, 0.0, 1.0)
-	_door_glow = lerpf(2.4, 6.5, nearness)
+	_door_glow = lerpf(4.0, 9.0, nearness)
 	door_light.light_energy = _door_glow
-	door_spot.light_energy = lerpf(3.5, 8.0, nearness)
+	door_spot.light_energy = lerpf(5.5, 12.0, nearness)
 
 	if nearness > 0.55 and _intro_index >= INTRO_LINES.size():
 		hint_label.text = "Ljuset kallar — gå igenom dörren."
@@ -178,23 +181,53 @@ func _build_door() -> void:
 	$DoorFrame.add_child(glow)
 
 
+func _setup_lighting() -> void:
+	var env := world_env.environment
+	env.ambient_light_energy = 0.42
+	env.fog_density = _fog_density
+	env.fog_light_color = Color(0.22, 0.28, 0.18)
+	door_light.light_energy = _door_glow
+	door_light.omni_range = 12.0
+	door_light.shadow_enabled = false
+	door_spot.light_energy = 5.5
+	door_spot.spot_range = 16.0
+	door_spot.shadow_enabled = false
+	egg_flicker.light_energy = 0.9
+
+	var fill := OmniLight3D.new()
+	fill.name = "RoomFill"
+	fill.light_color = Color(0.55, 0.62, 0.48)
+	fill.light_energy = 1.6
+	fill.omni_range = 14.0
+	fill.position = Vector3(0, 3.2, 0)
+	add_child(fill)
+
+	for i in 4:
+		var beacon := OmniLight3D.new()
+		beacon.light_color = Color(0.9, 0.78, 0.5)
+		beacon.light_energy = 0.55
+		beacon.omni_range = 4.5
+		beacon.position = Vector3(0, 1.2, -2.5 + i * 2.5)
+		add_child(beacon)
+
+
 func _build_room() -> void:
 	var floor_mat := RetroTextureLibrary.make_nest_material(
 		"floor_stone_pattern",
 		Vector2(6, 6),
-		Color(0.3, 0.28, 0.26),
+		Color(0.38, 0.35, 0.32),
 		0.92
 	)
 	var wall_mat := RetroTextureLibrary.make_nest_material(
 		"wall_brick_stone_center",
 		Vector2(3, 3),
-		Color(0.24, 0.22, 0.2),
+		Color(0.32, 0.3, 0.27),
 		0.9
 	)
 	var ceiling_mat := RetroTextureLibrary.make_nest_material(
 		"wall_stone",
 		Vector2(4, 4),
-		Color(0.16, 0.15, 0.14),
+		Color(0.24, 0.23, 0.21),
 		0.95
 	)
 
@@ -340,25 +373,49 @@ func _play_hatching_cinematic() -> void:
 	tween.tween_property(egg_pivot, "scale", Vector3(1.35, 1.55, 1.35), 0.5)
 	tween.chain().tween_property(egg_pivot, "scale", Vector3.ZERO, 0.35)
 
+	var cam_target := camera_pivot.position
+	cam_target.z = player.position.z + 2.5
 	var cam_tween := create_tween()
-	cam_tween.tween_property(camera_pivot, "position:z", player.global_position.z + 2.5, 1.2)\
+	cam_tween.tween_property(camera_pivot, "position", cam_target, 1.2)\
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 	SceneTransition.pulse_vignette(0.35, 1.5)
 
 	await get_tree().create_timer(1.0).timeout
+	if not is_inside_tree():
+		return
 	hint_label.text = WHISPER_LINES[1]
 	await get_tree().create_timer(0.8).timeout
+	if not is_inside_tree():
+		return
 	hint_label.text = "Ljuset slukar dig — välkommen till The Cube..."
 	await get_tree().create_timer(0.6).timeout
+	if not is_inside_tree():
+		return
 	Profile.complete_nest_intro()
+	get_tree().create_timer(8.0).timeout.connect(_on_nest_timeout, CONNECT_ONE_SHOT)
 
 
 func _on_nest_saved() -> void:
 	hint_label.text = WHISPER_LINES[2]
-	await SceneTransition.white_flash_then_scene("res://scenes/emergence_room.tscn")
+	_go_to_emergence_room()
 
 
 func _on_nest_failed(message: String) -> void:
-	_transitioning = false
-	hint_label.text = message
+	hint_label.text = "%s — fortsätter ändå..." % message
+	Profile.mark_nest_intro_completed_local()
+	get_tree().create_timer(1.2).timeout.connect(_go_to_emergence_room, CONNECT_ONE_SHOT)
+
+
+func _on_nest_timeout() -> void:
+	if not _transitioning:
+		return
+	hint_label.text = "Ljuset bär dig vidare..."
+	Profile.mark_nest_intro_completed_local()
+	_go_to_emergence_room()
+
+
+func _go_to_emergence_room() -> void:
+	if SceneTransition.is_busy():
+		return
+	SceneTransition.white_flash_then_scene("res://scenes/emergence_room.tscn")

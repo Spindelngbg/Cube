@@ -73,7 +73,7 @@ static func is_valid(spawn_id: String) -> bool:
 	return DATA.has(normalize_id(spawn_id))
 
 
-static func get_name(spawn_id: String) -> String:
+static func get_spawn_name(spawn_id: String) -> String:
 	var id := normalize_id(spawn_id)
 	return str(DATA.get(id, {}).get("name", spawn_id))
 

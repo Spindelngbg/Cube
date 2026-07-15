@@ -206,7 +206,7 @@ func _build_elevator_port(spec: Dictionary) -> void:
 	var length_text := ""
 	if mount == "left":
 		length_text = "\n10 km hiss"
-	label.text = "%s%s\n[E] Till %s" % [spec.label, length_text, SpawnPoints.get_name(spawn_id)]
+	label.text = "%s%s\n[E] Till %s" % [spec.label, length_text, SpawnPoints.get_spawn_name(spawn_id)]
 	label.font_size = 38
 	label.modulate = Color(0.18, 0.16, 0.14)
 	label.position = Vector3(0, 2.4, 0)
@@ -263,7 +263,7 @@ func _update_elevator_proximity() -> void:
 				extra = " (10 km)"
 			hint_label.text = (
 				"%s%s — tryck [E]. Enda förbindelse till en 30×30×30 km satellitkub."
-				% [SpawnPoints.get_name(spawn_id), extra]
+				% [SpawnPoints.get_spawn_name(spawn_id), extra]
 			)
 			return
 
@@ -286,7 +286,7 @@ func _start_elevator_ride(spawn_id: String) -> void:
 	_ride_start = _ride_car.position
 	_ride_end = _ride_target_for_entry(entry)
 	player.velocity = Vector3.ZERO
-	hint_label.text = "Hissen åker mot %s..." % SpawnPoints.get_name(spawn_id)
+	hint_label.text = "Hissen åker mot %s..." % SpawnPoints.get_spawn_name(spawn_id)
 
 
 func _ride_target_for_entry(entry: Dictionary) -> Vector3:
@@ -312,7 +312,7 @@ func _process_elevator_ride(delta: float) -> void:
 
 
 func _show_confirm(spawn_id: String) -> void:
-	confirm_title.text = "Bo i %s?" % SpawnPoints.get_name(spawn_id)
+	confirm_title.text = "Bo i %s?" % SpawnPoints.get_spawn_name(spawn_id)
 	confirm_body.text = (
 		"%s\n\nSatellitkub: 30×30×30 km.\n"
 		+ "Enda förbindelsen till huvudkuben är hissarna.\n"
@@ -359,7 +359,7 @@ func _on_secret_pressed() -> void:
 
 func _on_home_spawn_set(spawn_id: String) -> void:
 	_hide_confirm()
-	secret_status.text = "Hem: %s (%s)" % [SpawnPoints.get_name(spawn_id), SpawnPoints.get_cube_id(spawn_id)]
+	secret_status.text = "Hem: %s (%s)" % [SpawnPoints.get_spawn_name(spawn_id), SpawnPoints.get_cube_id(spawn_id)]
 	hint_label.text = "Ditt hem i satellitkuben är låst. Går in..."
 	_enter_world()
 
@@ -387,7 +387,8 @@ func _on_connection_failed(reason: String) -> void:
 
 
 func _style_ui() -> void:
-	SpiderTheme.apply_to($UI)
+	SpiderTheme.apply_to(secret_panel)
+	SpiderTheme.apply_to(confirm_panel)
 	SpiderTheme.style_status(hint_label)
 	SpiderTheme.wrap_label_in_panel(hint_label)
 	hint_label.offset_right = 900.0

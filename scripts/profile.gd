@@ -126,6 +126,10 @@ func complete_nest_intro() -> void:
 	_post("/characters/nest_complete", { "id": active_character_id }, "nest_complete")
 
 
+func mark_nest_intro_completed_local() -> void:
+	active_nest_visited = true
+
+
 func set_home_spawn(spawn_id: String, method: String = "elevator") -> void:
 	if active_character_id == "":
 		operation_failed.emit("Ingen karaktär vald")

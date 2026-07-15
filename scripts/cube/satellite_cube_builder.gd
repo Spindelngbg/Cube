@@ -18,7 +18,7 @@ static func build(parent: Node3D, spawn_id: String) -> Node3D:
 	_build_district(root, size_m, str(entry.get("kit", "commercial")))
 
 	var label := Label3D.new()
-	label.text = "%s\n30×30×30 km\nEnda vägen: hiss till huvudkuben" % SpawnPoints.get_name(id)
+	label.text = "%s\n30×30×30 km\nEnda vägen: hiss till huvudkuben" % SpawnPoints.get_spawn_name(id)
 	label.font_size = 36
 	label.modulate = Color(0.85, 0.8, 0.7)
 	label.position = Vector3(size_m * 0.5, 3.0, size_m * 0.5)

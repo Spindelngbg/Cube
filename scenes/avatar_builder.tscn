@@ -83,7 +83,7 @@ horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Layout/Left/TitleBox"]
 layout_mode = 2
-text = "Forma din spindel"
+text = "Forma ditt rymdmonster"
 horizontal_alignment = 1
 
 [node name="WelcomeLabel" type="Label" parent="Layout/Left"]
@@ -159,7 +159,7 @@ theme_override_constants/separation = 10
 [node name="RandomizeButton" type="Button" parent="Layout/Left/ActionRow"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Slumpa"
+text = "Slumpa monster"
 
 [node name="ResetButton" type="Button" parent="Layout/Left/ActionRow"]
 unique_name_in_owner = true

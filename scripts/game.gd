@@ -69,10 +69,10 @@ func _update_hud_text() -> void:
 
 	var local_id := multiplayer.get_unique_id()
 	if not players.has(local_id):
-		hint.text = "Satellitkub %s | 30×30×30 km" % SpawnPoints.get_name(_active_spawn_id)
+		hint.text = "Satellitkub %s | 30×30×30 km" % SpawnPoints.get_spawn_name(_active_spawn_id)
 		return
 
-	var cube_name := SpawnPoints.get_name(_active_spawn_id)
+	var cube_name := SpawnPoints.get_spawn_name(_active_spawn_id)
 	var cube_id := SpawnPoints.get_cube_id(_active_spawn_id)
 	var home_note := ""
 	if Profile.has_home_spawn():

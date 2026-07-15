@@ -12,6 +12,7 @@ var _avatar := AvatarData.new()
 var _preview_root: Node3D
 var _preview_yaw := 0.0
 var _connecting := false
+var _last_archetype := ""
 
 
 func _ready() -> void:
@@ -75,10 +76,10 @@ func _init_preview() -> void:
 func _setup_avatar() -> void:
 	if Profile.avatar_ready:
 		_avatar = Profile.get_avatar()
-	elif Auth.is_guest:
-		_avatar = _random_starter_avatar()
 	else:
-		_avatar = AvatarData.new()
+		_avatar = _random_starter_avatar()
+		if not Auth.is_guest:
+			status_label.text = "Arketyp: %s — forma ditt rymdmonster." % _last_archetype
 
 
 func _process(delta: float) -> void:
@@ -231,6 +232,7 @@ func _on_randomize_pressed() -> void:
 	_avatar = _random_starter_avatar()
 	_sync_ui_from_avatar()
 	_refresh_preview()
+	status_label.text = "Arketyp: %s" % _last_archetype
 
 
 func _on_reset_pressed() -> void:
@@ -282,82 +284,142 @@ func _sync_ui_from_avatar() -> void:
 
 func _random_starter_avatar() -> AvatarData:
 	var data := AvatarData.new()
-	var archetype := randi() % 5
+	var archetype := randi() % 8
 
 	match archetype:
 		0:
-			data.body_scale = randf_range(1.05, 1.45)
-			data.abdomen_scale = randf_range(1.1, 1.55)
-			data.head_scale = randf_range(0.95, 1.25)
-			data.leg_length = randf_range(1.05, 1.45)
-			data.arm_length = randf_range(1.0, 1.35)
-			data.spider_leg_count = randi_range(8, 12)
-			data.eye_count = randi_range(8, 12)
-			data.eye_size = randf_range(1.4, 2.8)
-			data.spike_amount = randf_range(0.55, 1.0)
-			data.crest_size = randf_range(0.45, 1.0)
-		1:
-			data.body_scale = randf_range(0.8, 1.05)
-			data.abdomen_scale = randf_range(0.65, 0.95)
-			data.head_scale = randf_range(1.1, 1.35)
-			data.leg_length = randf_range(1.2, 1.5)
-			data.arm_length = randf_range(1.1, 1.4)
-			data.spider_leg_count = randi_range(6, 10)
-			data.eye_count = randi_range(6, 10)
-			data.eye_size = randf_range(1.2, 2.2)
-			data.eye_stalk_length = randf_range(0.7, 1.5)
-			data.eye_spread = randf_range(1.2, 2.0)
-			data.stance_width = randf_range(0.55, 0.85)
-		2:
+			_last_archetype = "Kvävande koloss"
 			data.body_scale = randf_range(1.15, 1.5)
 			data.abdomen_scale = randf_range(1.2, 1.6)
-			data.head_scale = randf_range(0.85, 1.1)
-			data.spider_leg_count = randi_range(4, 6)
-			data.eye_count = randi_range(2, 4)
-			data.eye_size = randf_range(1.8, 3.0)
-			data.mandible_length = randf_range(1.2, 2.0)
-			data.fang_length = randf_range(1.4, 2.5)
-			data.claw_size = randf_range(1.0, 2.0)
-			data.spike_amount = randf_range(0.7, 1.0)
-		3:
-			data.body_scale = randf_range(0.75, 1.0)
-			data.abdomen_scale = randf_range(1.3, 1.6)
-			data.head_scale = randf_range(0.8, 1.0)
-			data.eye_count = randi_range(10, 12)
-			data.eye_size = randf_range(0.8, 1.5)
-			data.eye_stalk_length = randf_range(0.9, 1.5)
-			data.eye_spread = randf_range(1.4, 2.0)
-			data.glow_strength = randf_range(1.2, 2.0)
-			data.abdomen_segments = randf_range(0.65, 1.0)
-		_:
-			data.body_scale = randf_range(0.9, 1.3)
-			data.abdomen_scale = randf_range(0.9, 1.35)
 			data.head_scale = randf_range(0.95, 1.2)
-			data.leg_length = randf_range(0.9, 1.3)
-			data.arm_length = randf_range(0.9, 1.3)
+			data.leg_length = randf_range(1.1, 1.45)
+			data.arm_length = randf_range(1.05, 1.4)
+			data.spider_leg_count = randi_range(8, 12)
+			data.eye_count = randi_range(6, 10)
+			data.eye_size = randf_range(1.3, 2.4)
+			data.spike_amount = randf_range(0.65, 1.0)
+			data.crest_size = randf_range(0.5, 1.0)
+			data.mandible_length = randf_range(1.0, 1.8)
+		1:
+			_last_archetype = "Stalkerspindel"
+			data.body_scale = randf_range(0.78, 1.05)
+			data.abdomen_scale = randf_range(0.65, 0.95)
+			data.head_scale = randf_range(1.12, 1.38)
+			data.leg_length = randf_range(1.25, 1.5)
+			data.arm_length = randf_range(1.15, 1.45)
+			data.spider_leg_count = randi_range(6, 10)
+			data.eye_count = randi_range(6, 10)
+			data.eye_size = randf_range(1.4, 2.6)
+			data.eye_stalk_length = randf_range(0.85, 1.5)
+			data.eye_spread = randf_range(1.25, 2.0)
+			data.stance_width = randf_range(0.55, 0.82)
+		2:
+			_last_archetype = "Tandgaparen"
+			data.body_scale = randf_range(1.1, 1.45)
+			data.abdomen_scale = randf_range(1.0, 1.35)
+			data.head_scale = randf_range(0.9, 1.15)
+			data.spider_leg_count = randi_range(4, 7)
+			data.eye_count = randi_range(2, 5)
+			data.eye_size = randf_range(1.9, 3.0)
+			data.mandible_length = randf_range(1.4, 2.0)
+			data.fang_length = randf_range(1.5, 2.5)
+			data.claw_size = randf_range(1.1, 2.0)
+			data.spike_amount = randf_range(0.55, 0.95)
+		3:
+			_last_archetype = "Svärmöga"
+			data.body_scale = randf_range(0.72, 1.0)
+			data.abdomen_scale = randf_range(1.25, 1.6)
+			data.head_scale = randf_range(0.82, 1.05)
+			data.eye_count = randi_range(10, 12)
+			data.eye_size = randf_range(0.85, 1.6)
+			data.eye_stalk_length = randf_range(0.95, 1.5)
+			data.eye_spread = randf_range(1.45, 2.0)
+			data.glow_strength = randf_range(1.1, 2.0)
+			data.abdomen_segments = randf_range(0.7, 1.0)
+		4:
+			_last_archetype = "Bioluminescent skräck"
+			data.body_scale = randf_range(0.85, 1.2)
+			data.abdomen_scale = randf_range(1.0, 1.4)
+			data.spider_leg_count = randi_range(6, 9)
+			data.eye_count = randi_range(5, 8)
+			data.glow_strength = randf_range(1.3, 2.0)
+			data.abdomen_segments = randf_range(0.55, 0.95)
+			data.crest_size = randf_range(0.35, 0.85)
+			data.spike_amount = randf_range(0.35, 0.75)
+		5:
+			_last_archetype = "Benkrossaren"
+			data.body_scale = randf_range(1.05, 1.35)
+			data.arm_length = randf_range(1.15, 1.4)
+			data.leg_length = randf_range(1.0, 1.35)
+			data.spider_leg_count = randi_range(7, 11)
+			data.claw_size = randf_range(1.2, 2.0)
+			data.mandible_length = randf_range(1.1, 1.7)
+			data.fang_length = randf_range(1.0, 2.0)
+			data.spike_amount = randf_range(0.45, 0.85)
+		6:
+			_last_archetype = "Tomma skalet"
+			data.body_scale = randf_range(0.75, 0.95)
+			data.abdomen_scale = randf_range(0.7, 1.0)
+			data.head_scale = randf_range(1.05, 1.3)
+			data.leg_length = randf_range(1.25, 1.5)
+			data.arm_length = randf_range(1.2, 1.4)
+			data.spider_leg_count = randi_range(8, 12)
+			data.eye_count = randi_range(4, 7)
+			data.eye_stalk_length = randf_range(0.6, 1.2)
+			data.stance_width = randf_range(0.55, 0.75)
+			data.chitin_metallic = randf_range(0.35, 0.65)
+		_:
+			_last_archetype = "Xeno-parasit"
+			data.body_scale = randf_range(0.9, 1.25)
+			data.abdomen_scale = randf_range(1.1, 1.5)
+			data.head_scale = randf_range(0.88, 1.12)
 			data.spider_leg_count = randi_range(5, 9)
-			data.eye_count = randi_range(5, 9)
-			data.eye_size = randf_range(1.0, 2.0)
-			data.mandible_length = randf_range(0.6, 1.6)
-			data.fang_length = randf_range(0.5, 1.8)
-			data.claw_size = randf_range(0.4, 1.4)
-			data.abdomen_segments = randf_range(0.2, 0.85)
-			data.crest_size = randf_range(0.1, 0.75)
-			data.spike_amount = randf_range(0.25, 0.9)
+			data.eye_count = randi_range(6, 10)
+			data.eye_size = randf_range(1.1, 2.2)
+			data.mandible_length = randf_range(0.9, 1.8)
+			data.fang_length = randf_range(0.8, 2.0)
+			data.claw_size = randf_range(0.7, 1.6)
+			data.abdomen_segments = randf_range(0.45, 0.95)
+			data.crest_size = randf_range(0.35, 0.9)
+			data.spike_amount = randf_range(0.5, 1.0)
 
-	var hue := randf()
-	data.body_color = Color.from_hsv(hue, randf_range(0.15, 0.55), randf_range(0.06, 0.22))
-	data.accent_color = Color.from_hsv(fmod(hue + randf_range(0.08, 0.35), 1.0), randf_range(0.5, 1.0), randf_range(0.18, 0.45))
-	if randf() > 0.35:
-		data.eye_color = Color.from_hsv(randf_range(0.0, 0.12), randf_range(0.75, 1.0), randf_range(0.85, 1.0))
-	else:
-		data.eye_color = Color.from_hsv(randf_range(0.55, 0.75), randf_range(0.6, 1.0), randf_range(0.75, 1.0))
-	data.glow_color = data.eye_color.lightened(randf_range(0.05, 0.35))
-	if data.glow_strength <= 0.0:
-		data.glow_strength = randf_range(0.45, 1.8)
-	data.chitin_roughness = randf_range(0.2, 0.9)
-	data.chitin_metallic = randf_range(0.05, 0.55)
-	data.stance_width = data.stance_width if data.stance_width != 1.0 else randf_range(0.65, 1.4)
-	data.eye_spread = data.eye_spread if data.eye_spread != 1.0 else randf_range(0.7, 1.8)
-	data.eye_stalk_length = data.eye_stalk_length if data.eye_stalk_length != 0.35 else randf_range(0.1, 1.2)
+	_apply_monster_palette(data)
 	return data
+
+
+func _apply_monster_palette(data: AvatarData) -> void:
+	var palette := randi() % 5
+	match palette:
+		0:
+			var hue := randf_range(0.08, 0.18)
+			data.body_color = Color.from_hsv(hue, randf_range(0.2, 0.5), randf_range(0.04, 0.16))
+			data.accent_color = Color.from_hsv(fmod(hue + 0.04, 1.0), randf_range(0.55, 0.95), randf_range(0.15, 0.38))
+			data.eye_color = Color.from_hsv(randf_range(0.0, 0.08), randf_range(0.8, 1.0), randf_range(0.85, 1.0))
+		1:
+			data.body_color = Color.from_hsv(randf_range(0.28, 0.42), randf_range(0.25, 0.55), randf_range(0.05, 0.18))
+			data.accent_color = Color.from_hsv(randf_range(0.5, 0.62), randf_range(0.45, 0.9), randf_range(0.2, 0.42))
+			data.eye_color = Color.from_hsv(randf_range(0.58, 0.72), randf_range(0.65, 1.0), randf_range(0.8, 1.0))
+		2:
+			data.body_color = Color.from_hsv(randf_range(0.0, 0.05), randf_range(0.1, 0.3), randf_range(0.03, 0.12))
+			data.accent_color = Color.from_hsv(randf_range(0.95, 1.0), randf_range(0.4, 0.85), randf_range(0.18, 0.35))
+			data.eye_color = Color.from_hsv(randf_range(0.08, 0.15), randf_range(0.7, 1.0), randf_range(0.9, 1.0))
+		3:
+			data.body_color = Color.from_hsv(randf_range(0.12, 0.22), randf_range(0.35, 0.65), randf_range(0.06, 0.2))
+			data.accent_color = Color.from_hsv(randf_range(0.78, 0.88), randf_range(0.5, 0.95), randf_range(0.22, 0.45))
+			data.eye_color = Color.from_hsv(randf_range(0.72, 0.82), randf_range(0.55, 1.0), randf_range(0.75, 1.0))
+		_:
+			data.body_color = Color.from_hsv(randf_range(0.0, 1.0), randf_range(0.15, 0.45), randf_range(0.04, 0.14))
+			data.accent_color = Color.from_hsv(randf(), randf_range(0.5, 1.0), randf_range(0.2, 0.4))
+			data.eye_color = Color.from_hsv(randf(), randf_range(0.7, 1.0), randf_range(0.85, 1.0))
+
+	data.glow_color = data.eye_color.lightened(randf_range(0.08, 0.35))
+	if data.glow_strength <= 0.0:
+		data.glow_strength = randf_range(0.55, 1.8)
+	data.chitin_roughness = randf_range(0.18, 0.88)
+	data.chitin_metallic = randf_range(0.08, 0.58)
+	if data.stance_width == 1.0:
+		data.stance_width = randf_range(0.62, 1.38)
+	if data.eye_spread == 1.0:
+		data.eye_spread = randf_range(0.75, 1.85)
+	if data.eye_stalk_length <= 0.4:
+		data.eye_stalk_length = randf_range(0.25, 1.25)

@@ -1,32 +1,32 @@
 class_name AvatarData
 extends Resource
 
-@export var body_color := Color(0.12, 0.14, 0.1)
-@export var accent_color := Color(0.45, 0.08, 0.12)
-@export var eye_color := Color(0.95, 0.2, 0.15)
-@export var glow_color := Color(0.8, 0.15, 0.25)
+@export var body_color := Color(0.07, 0.1, 0.06)
+@export var accent_color := Color(0.52, 0.06, 0.14)
+@export var eye_color := Color(0.98, 0.22, 0.12)
+@export var glow_color := Color(0.9, 0.18, 0.28)
 
-@export_range(0.75, 1.5, 0.01) var body_scale := 1.0
-@export_range(0.6, 1.6, 0.01) var abdomen_scale := 1.0
-@export_range(0.8, 1.4, 0.01) var head_scale := 1.0
-@export_range(0.7, 1.5, 0.01) var leg_length := 1.0
-@export_range(0.6, 1.4, 0.01) var arm_length := 1.0
+@export_range(0.75, 1.5, 0.01) var body_scale := 1.08
+@export_range(0.6, 1.6, 0.01) var abdomen_scale := 1.12
+@export_range(0.8, 1.4, 0.01) var head_scale := 1.05
+@export_range(0.7, 1.5, 0.01) var leg_length := 1.05
+@export_range(0.6, 1.4, 0.01) var arm_length := 1.08
 
-@export_range(4, 12, 1) var spider_leg_count := 6
-@export_range(2, 12, 1) var eye_count := 6
-@export_range(0.4, 3.0, 0.01) var eye_size := 1.0
-@export_range(0.4, 2.0, 0.01) var eye_spread := 1.0
-@export_range(0.0, 1.5, 0.01) var eye_stalk_length := 0.35
-@export_range(0.0, 2.0, 0.01) var mandible_length := 1.0
-@export_range(0.0, 2.5, 0.01) var fang_length := 0.8
-@export_range(0.0, 2.0, 0.01) var claw_size := 0.6
-@export_range(0.0, 1.0, 0.01) var abdomen_segments := 0.5
-@export_range(0.0, 1.0, 0.01) var crest_size := 0.25
-@export_range(0.0, 1.0, 0.01) var chitin_roughness := 0.55
-@export_range(0.0, 1.0, 0.01) var chitin_metallic := 0.15
-@export_range(0.0, 2.0, 0.01) var glow_strength := 0.6
-@export_range(0.0, 1.0, 0.01) var spike_amount := 0.35
-@export_range(0.5, 1.5, 0.01) var stance_width := 1.0
+@export_range(4, 12, 1) var spider_leg_count := 8
+@export_range(2, 12, 1) var eye_count := 8
+@export_range(0.4, 3.0, 0.01) var eye_size := 1.2
+@export_range(0.4, 2.0, 0.01) var eye_spread := 1.15
+@export_range(0.0, 1.5, 0.01) var eye_stalk_length := 0.55
+@export_range(0.0, 2.0, 0.01) var mandible_length := 1.25
+@export_range(0.0, 2.5, 0.01) var fang_length := 1.1
+@export_range(0.0, 2.0, 0.01) var claw_size := 0.85
+@export_range(0.0, 1.0, 0.01) var abdomen_segments := 0.62
+@export_range(0.0, 1.0, 0.01) var crest_size := 0.42
+@export_range(0.0, 1.0, 0.01) var chitin_roughness := 0.48
+@export_range(0.0, 1.0, 0.01) var chitin_metallic := 0.22
+@export_range(0.0, 2.0, 0.01) var glow_strength := 0.85
+@export_range(0.0, 1.0, 0.01) var spike_amount := 0.58
+@export_range(0.5, 1.5, 0.01) var stance_width := 1.08
 
 
 func duplicate_data() -> AvatarData:
@@ -91,28 +91,28 @@ static func from_dict(data: Dictionary) -> AvatarData:
 	var avatar := AvatarData.new()
 	if data.is_empty():
 		return avatar
-	avatar.body_color = Color.html(data.get("body_color", "#1f2420"))
-	avatar.accent_color = Color.html(data.get("accent_color", "#730c1e"))
-	avatar.eye_color = Color.html(data.get("eye_color", "#f23326"))
-	avatar.glow_color = Color.html(data.get("glow_color", "#cc2640"))
-	avatar.body_scale = float(data.get("body_scale", 1.0))
-	avatar.abdomen_scale = float(data.get("abdomen_scale", 1.0))
-	avatar.head_scale = float(data.get("head_scale", 1.0))
-	avatar.leg_length = float(data.get("leg_length", 1.0))
-	avatar.arm_length = float(data.get("arm_length", 1.0))
-	avatar.spider_leg_count = int(data.get("spider_leg_count", 6))
-	avatar.eye_count = int(data.get("eye_count", 6))
-	avatar.eye_size = float(data.get("eye_size", 1.0))
-	avatar.eye_spread = float(data.get("eye_spread", 1.0))
-	avatar.eye_stalk_length = float(data.get("eye_stalk_length", 0.35))
-	avatar.mandible_length = float(data.get("mandible_length", 1.0))
-	avatar.fang_length = float(data.get("fang_length", 0.8))
-	avatar.claw_size = float(data.get("claw_size", 0.6))
-	avatar.abdomen_segments = float(data.get("abdomen_segments", 0.5))
-	avatar.crest_size = float(data.get("crest_size", 0.25))
-	avatar.chitin_roughness = float(data.get("chitin_roughness", 0.55))
-	avatar.chitin_metallic = float(data.get("chitin_metallic", 0.15))
-	avatar.glow_strength = float(data.get("glow_strength", 0.6))
-	avatar.spike_amount = float(data.get("spike_amount", 0.35))
-	avatar.stance_width = float(data.get("stance_width", 1.0))
+	avatar.body_color = Color.html(data.get("body_color", "#121a0f"))
+	avatar.accent_color = Color.html(data.get("accent_color", "#850f24"))
+	avatar.eye_color = Color.html(data.get("eye_color", "#fa381f"))
+	avatar.glow_color = Color.html(data.get("glow_color", "#e52e47"))
+	avatar.body_scale = float(data.get("body_scale", 1.08))
+	avatar.abdomen_scale = float(data.get("abdomen_scale", 1.12))
+	avatar.head_scale = float(data.get("head_scale", 1.05))
+	avatar.leg_length = float(data.get("leg_length", 1.05))
+	avatar.arm_length = float(data.get("arm_length", 1.08))
+	avatar.spider_leg_count = int(data.get("spider_leg_count", 8))
+	avatar.eye_count = int(data.get("eye_count", 8))
+	avatar.eye_size = float(data.get("eye_size", 1.2))
+	avatar.eye_spread = float(data.get("eye_spread", 1.15))
+	avatar.eye_stalk_length = float(data.get("eye_stalk_length", 0.55))
+	avatar.mandible_length = float(data.get("mandible_length", 1.25))
+	avatar.fang_length = float(data.get("fang_length", 1.1))
+	avatar.claw_size = float(data.get("claw_size", 0.85))
+	avatar.abdomen_segments = float(data.get("abdomen_segments", 0.62))
+	avatar.crest_size = float(data.get("crest_size", 0.42))
+	avatar.chitin_roughness = float(data.get("chitin_roughness", 0.48))
+	avatar.chitin_metallic = float(data.get("chitin_metallic", 0.22))
+	avatar.glow_strength = float(data.get("glow_strength", 0.85))
+	avatar.spike_amount = float(data.get("spike_amount", 0.58))
+	avatar.stance_width = float(data.get("stance_width", 1.08))
 	return avatar

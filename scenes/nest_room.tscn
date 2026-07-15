@@ -4,13 +4,13 @@
 
 [sub_resource type="Environment" id="Environment_nest"]
 background_mode = 1
-background_color = Color(0.01, 0.015, 0.01, 1)
+background_color = Color(0.04, 0.05, 0.04, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.08, 0.1, 0.06, 1)
-ambient_light_energy = 0.15
+ambient_light_color = Color(0.18, 0.22, 0.14, 1)
+ambient_light_energy = 0.42
 fog_enabled = true
-fog_light_color = Color(0.12, 0.18, 0.08, 1)
-fog_density = 0.045
+fog_light_color = Color(0.22, 0.28, 0.18, 1)
+fog_density = 0.014
 fog_sky_affect = 0.0
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
@@ -39,22 +39,22 @@ environment = SubResource("Environment_nest")
 [node name="Spiders" type="Node3D" parent="."]
 
 [node name="DoorFrame" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 5.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 4.8)
 
 [node name="DoorLight" type="OmniLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.2, 6.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 5.8)
 light_color = Color(0.95, 0.82, 0.55, 1)
-light_energy = 2.4
-omni_range = 9.0
-shadow_enabled = true
+light_energy = 4.0
+omni_range = 12.0
+shadow_enabled = false
 
 [node name="DoorSpot" type="SpotLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 2.8, 7.5)
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 3.0, 6.8)
 light_color = Color(1, 0.9, 0.65, 1)
-light_energy = 3.5
-spot_range = 14.0
-spot_angle = 40.0
-shadow_enabled = true
+light_energy = 5.5
+spot_range = 16.0
+spot_angle = 42.0
+shadow_enabled = false
 
 [node name="EggFlicker" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -2)
@@ -82,7 +82,7 @@ current = true
 fov = 68.0
 
 [node name="DoorZone" type="Area3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 5.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 4.6)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="DoorZone"]
 shape = SubResource("BoxShape3D_door")

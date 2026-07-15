@@ -49,6 +49,11 @@ func seal_and_start() -> void:
 
 
 func _start(url: String, lobby_code: String) -> void:
+	if client == null:
+		await ready
+	if client == null:
+		connection_failed.emit("Nätverksklienten är inte redo")
+		return
 	stop()
 	signaling_url = url if url != "" else signaling_url if signaling_url != "" else DEFAULT_SIGNAL_URL
 	current_lobby = lobby_code
