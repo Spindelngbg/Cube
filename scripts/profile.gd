@@ -6,7 +6,7 @@ signal character_saved()
 signal nest_intro_completed()
 signal operation_failed(message: String)
 
-const REQUEST_TIMEOUT_SEC := 12.0
+const REQUEST_TIMEOUT_SEC := 8.0
 
 var avatar: AvatarData = AvatarData.new()
 var avatar_ready := false
@@ -20,6 +20,7 @@ var unlimited_slots := false
 var _http := HTTPRequest.new()
 var _pending_action := ""
 var _busy := false
+var _list_synced := false
 
 
 func _ready() -> void:
@@ -44,9 +45,16 @@ func clear_characters() -> void:
 	avatar = AvatarData.new()
 	avatar_ready = false
 	_busy = false
+	_list_synced = false
+
+
+func characters_list_ready() -> bool:
+	return _list_synced
 
 
 func load_characters() -> void:
+	if _busy:
+		return
 	_post("/characters/list", {}, "list")
 
 
@@ -177,6 +185,7 @@ func _on_request_completed(
 				characters.append(created)
 				active_character_id = str(data.get("activeId", created.get("id", "")))
 				_apply_active_character(created)
+			_list_synced = true
 			characters_loaded.emit()
 		"select":
 			var selected: Dictionary = data.get("character", {})
@@ -198,6 +207,7 @@ func _on_request_completed(
 						break
 			else:
 				avatar_ready = false
+			_list_synced = true
 			characters_loaded.emit()
 		"nest_complete":
 			var completed: Dictionary = data.get("character", {})
@@ -216,6 +226,7 @@ func _apply_character_list(data: Dictionary) -> void:
 	unlimited_slots = bool(data.get("unlimited", false))
 	var limit_value: Variant = data.get("limit")
 	character_limit = int(limit_value) if limit_value != null else 6
+	_list_synced = true
 
 	if active_character_id != "":
 		for entry in characters:

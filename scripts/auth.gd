@@ -3,6 +3,7 @@ extends Node
 const PRODUCTION_API_URL := "https://cube-production-3d68.up.railway.app"
 const LOCAL_API_URL := "http://localhost:9080"
 const DEFAULT_API_URL := PRODUCTION_API_URL
+const REQUEST_TIMEOUT_SEC := 8.0
 
 var username: String = ""
 var is_guest: bool = false
@@ -20,6 +21,7 @@ var _pending_action := ""
 
 func _ready() -> void:
 	add_child(_http)
+	_http.timeout = REQUEST_TIMEOUT_SEC
 	_http.request_completed.connect(_on_request_completed)
 
 
@@ -78,6 +80,9 @@ func _on_request_completed(
 	_headers: PackedStringArray,
 	body: PackedByteArray
 ) -> void:
+	if result == HTTPRequest.RESULT_TIMEOUT:
+		login_failed.emit("Servern svarade inte i tid – försök igen")
+		return
 	if result != HTTPRequest.RESULT_SUCCESS:
 		login_failed.emit("Nätverksfel – kunde inte nå servern")
 		return

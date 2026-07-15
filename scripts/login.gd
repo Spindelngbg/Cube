@@ -110,7 +110,51 @@ func _on_login_succeeded(p_username: String, is_guest: bool) -> void:
 		Profile.clear_characters()
 		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
 	else:
+		_enter_account_flow()
+
+
+func _enter_account_flow() -> void:
+	_set_status("Laddar karaktärer...")
+	_set_buttons_enabled(false)
+
+	if not Profile.characters_list_ready():
+		Profile.load_characters()
+		if not await _wait_for_profile_action(9.0):
+			_set_status("Servern svarade inte – försök igen")
+			_set_buttons_enabled(true)
+			return
+
+	if Profile.characters.is_empty():
+		_set_status("Skapar karaktär...")
+		Profile.create_character("Karaktär 1")
+		if not await _wait_for_profile_action(9.0) or Profile.active_character_id == "":
+			_set_status("Kunde inte skapa karaktär – försök igen")
+			_set_buttons_enabled(true)
+			return
+		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
+	elif Profile.characters.size() == 1:
+		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
+	else:
 		get_tree().change_scene_to_file("res://scenes/character_select.tscn")
+
+
+func _wait_for_profile_action(max_sec: float) -> bool:
+	var state := {"done": false, "ok": false}
+	var on_loaded := func() -> void:
+		state.done = true
+		state.ok = true
+	var on_failed := func(_message: String) -> void:
+		state.done = true
+		state.ok = false
+	Profile.characters_loaded.connect(on_loaded, CONNECT_ONE_SHOT)
+	Profile.operation_failed.connect(on_failed, CONNECT_ONE_SHOT)
+
+	var deadline := Time.get_ticks_msec() + int(max_sec * 1000.0)
+	while not state.done:
+		if Time.get_ticks_msec() > deadline:
+			return false
+		await get_tree().process_frame
+	return state.ok
 
 
 func _on_login_failed(message: String) -> void:

@@ -7,6 +7,7 @@ extends Control
 @onready var play_button: Button = %PlayButton
 
 var _selected_id := ""
+var _navigate_after_create := false
 
 
 func _ready() -> void:
@@ -23,11 +24,19 @@ func _ready() -> void:
 	play_button.pressed.connect(_on_play_pressed)
 	%LogoutButton.pressed.connect(_on_logout_pressed)
 
-	_set_status("Laddar karaktärer...")
-	Profile.load_characters()
+	if Profile.characters_list_ready():
+		_refresh_ui()
+		_set_status("Välj en karaktär eller skapa en ny.")
+	else:
+		_set_status("Laddar karaktärer...")
+		Profile.load_characters()
 
 
 func _refresh_ui() -> void:
+	if _navigate_after_create and not Profile.characters.is_empty():
+		_navigate_after_create = false
+		get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
+		return
 	slots_label.text = "Karaktärer: %s" % Profile.slots_label()
 	create_button.disabled = not Profile.can_create_more()
 	_clear_children(character_list)
@@ -103,6 +112,7 @@ func _on_create_pressed() -> void:
 	_set_status("Skapar karaktär...")
 	create_button.disabled = true
 	play_button.disabled = true
+	_navigate_after_create = true
 	Profile.create_character("Karaktär %d" % (Profile.characters.size() + 1))
 
 
@@ -110,6 +120,7 @@ func _on_play_pressed() -> void:
 	if _selected_id == "":
 		return
 	if _selected_id != Profile.active_character_id:
+		_set_status("Väljer karaktär...")
 		Profile.select_character(_selected_id)
 		await Profile.character_selected
 	get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
@@ -127,6 +138,7 @@ func _on_logout_pressed() -> void:
 
 
 func _on_operation_failed(message: String) -> void:
+	_navigate_after_create = false
 	create_button.disabled = not Profile.can_create_more() or Profile.is_busy()
 	play_button.disabled = Profile.characters.is_empty() or Profile.is_busy()
 	_set_status(message)

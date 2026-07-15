@@ -25,10 +25,8 @@ func _ready() -> void:
 
 	_setup_welcome()
 	_setup_avatar()
-	_build_preview()
-	_setup_preview_stage()
-	_refresh_preview()
 	_bind_sliders()
+	call_deferred("_init_preview")
 
 	enter_button.pressed.connect(_on_enter_pressed)
 	%LogoutButton.pressed.connect(_on_logout_pressed)
@@ -64,6 +62,12 @@ func _setup_welcome() -> void:
 		welcome_label.text = "%s — %s" % [Auth.username, Profile.active_character_name]
 	else:
 		welcome_label.text = "Välkommen, %s" % Auth.username
+
+
+func _init_preview() -> void:
+	_build_preview()
+	_setup_preview_stage()
+	_refresh_preview()
 
 
 func _setup_avatar() -> void:
