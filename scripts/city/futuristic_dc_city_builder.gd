@@ -11,6 +11,7 @@ const StreetLampScript = preload("res://scripts/city/street_lamp.gd")
 const StreetLampServiceScript = preload("res://scripts/city/street_lamp_service.gd")
 const ZezzlorPaBuilderScript = preload("res://scripts/city/zezzlor_pa_builder.gd")
 const SpawnDensityScript = preload("res://scripts/world/spawn_density.gd")
+const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.gd")
 const WaterBuilderScript = preload("res://scripts/environment/water_builder.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
 const FeaturedBuildingBuilderScript = preload("res://scripts/city/featured_building_builder.gd")
@@ -182,7 +183,7 @@ static func _build_zone_block(parent: Node3D, cell: Vector2i) -> void:
 		CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
 	else:
 		CityKitLibrary.spawn(zone_root, "roads", "tile-low", center + Vector3(0.0, 0.02, 0.0))
-		if SpawnDensityScript.should_scatter_cell_accent(cell):
+		if not GlesPerformanceScript.skip_greenery() and SpawnDensityScript.should_scatter_cell_accent(cell):
 			GreeneryVegetationBuilder.scatter_cell_accent(zone_root, center, cell)
 
 	_add_zone_marker(zone_root, center, spec, true)

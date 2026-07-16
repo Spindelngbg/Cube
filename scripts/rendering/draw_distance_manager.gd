@@ -13,6 +13,8 @@ const SHADOWS_KEY := "display.shadows_enabled"
 const SSAO_GLOW_KEY := "display.ssao_glow_enabled"
 const RENDER_SCALE_KEY := "display.render_scale"
 const ColonyLightingScript = preload("res://scripts/rendering/colony_lighting.gd")
+const RuntimeVisibilityBudgetScript = preload("res://scripts/rendering/runtime_visibility_budget.gd")
+const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.gd")
 
 
 func _ready() -> void:
@@ -21,8 +23,8 @@ func _ready() -> void:
 		return
 	settings.set_default(SETTING_KEY, 0)
 	settings.set_default(SHADOWS_KEY, true)
-	settings.set_default(SSAO_GLOW_KEY, true)
-	settings.set_default(RENDER_SCALE_KEY, 1.0)
+	settings.set_default(SSAO_GLOW_KEY, false)
+	settings.set_default(RENDER_SCALE_KEY, 0.65 if GlesPerformanceScript.is_active() else 0.75)
 	if settings.has_signal("setting_changed"):
 		settings.setting_changed.connect(_on_setting_changed)
 	if settings.has_signal("settings_loaded"):
@@ -48,8 +50,8 @@ func get_preset_index() -> int:
 
 func get_distance_m() -> float:
 	var distance_m := PRESETS_M[get_preset_index()]
-	if not ColonyLightingScript._uses_forward_plus():
-		distance_m = minf(distance_m, 350.0)
+	if GlesPerformanceScript.is_active():
+		distance_m = minf(distance_m, GlesPerformanceScript.draw_distance_cap_m())
 	var competitive := get_node_or_null("/root/CompetitiveMode")
 	if competitive != null and competitive.has_method("max_draw_distance_m"):
 		var cap := float(competitive.max_draw_distance_m())
@@ -79,6 +81,18 @@ func apply_colony(game_root: Node3D, is_exposed_city: bool) -> void:
 		ColonyLightingScript.apply_sun(sun, is_exposed_city, distance_m)
 
 	_apply_render_scale(game_root)
+	_apply_visibility_budget(game_root, is_exposed_city, distance_m)
+
+
+func _apply_visibility_budget(game_root: Node3D, is_exposed_city: bool, distance_m: float) -> void:
+	if not is_exposed_city:
+		return
+	var satellite := game_root.get_node_or_null("Satellite_satellite_right")
+	if satellite == null:
+		return
+	var city := satellite.get_node_or_null("NeoWashington") as Node3D
+	if city:
+		RuntimeVisibilityBudgetScript.apply_to_root(city, distance_m * 1.05)
 
 
 func refresh_active_scenes() -> void:
@@ -98,7 +112,10 @@ func get_render_scale() -> float:
 	var settings := get_node_or_null("/root/Settings")
 	if settings == null:
 		return 1.0
-	return clampf(float(settings.get_value(RENDER_SCALE_KEY, 1.0)), 0.5, 1.0)
+	var scale := clampf(float(settings.get_value(RENDER_SCALE_KEY, 1.0)), 0.5, 1.0)
+	if GlesPerformanceScript.is_active():
+		scale = minf(scale, GlesPerformanceScript.render_scale_cap())
+	return scale
 
 
 func _apply_render_scale(game_root: Node3D) -> void:

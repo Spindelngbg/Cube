@@ -1,6 +1,8 @@
 class_name SpawnDensity
 extends RefCounted
 
+const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.gd")
+
 ## Glesbygd nära spawn, tätare stad längre bort.
 
 const DC_SPAWN_CELL := Vector2i(0, 0)
@@ -24,6 +26,9 @@ static func building_chance(cell: Vector2i, spawn_cell: Vector2i = DC_SPAWN_CELL
 
 
 static func should_place_building(cell: Vector2i, spawn_cell: Vector2i = DC_SPAWN_CELL) -> bool:
+	if GlesPerformanceScript.is_active():
+		if grid_distance(cell, spawn_cell) >= GlesPerformanceScript.max_building_grid_dist():
+			return false
 	var chance := building_chance(cell, spawn_cell)
 	var roll := _hash_roll(cell, spawn_cell, 41)
 	return roll < chance

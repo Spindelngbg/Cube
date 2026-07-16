@@ -91,11 +91,15 @@ const MINIMAP_UPDATE_INTERVAL := 0.25
 const INTERACTION_SCAN_INTERVAL := 0.28
 const WORLD_TICK_INTERVAL := 0.2
 const ZNOOD_UI_UPDATE_INTERVAL := 0.3
+const ENTITY_BUDGET_INTERVAL := 0.35
+const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.gd")
+const RuntimeVisibilityBudgetScript = preload("res://scripts/rendering/runtime_visibility_budget.gd")
 var _hud_timer := 0.0
 var _minimap_timer := 0.0
 var _interaction_timer := 0.0
 var _world_tick_timer := 0.0
 var _znood_ui_timer := 0.0
+var _entity_budget_timer := 0.0
 var _mouse_capture_allowed := true
 
 @onready var _minimap: MinimapPanel = %Minimap
@@ -167,7 +171,7 @@ func _process(delta: float) -> void:
 		_hud_timer = 0.0
 		_update_hud_text()
 	_minimap_timer += delta
-	if _minimap_timer >= MINIMAP_UPDATE_INTERVAL:
+	if _minimap_timer >= GlesPerformanceScript.minimap_update_interval_s():
 		_minimap_timer = 0.0
 		_update_minimap()
 	if _znood_ui and _znood_ui.visible:
@@ -210,6 +214,10 @@ func _process(delta: float) -> void:
 		_update_economy_station_interaction()
 		_update_harvest_node_interaction()
 		_tick_story_witness()
+	_entity_budget_timer += delta
+	if _entity_budget_timer >= ENTITY_BUDGET_INTERVAL:
+		_entity_budget_timer = 0.0
+		_apply_entity_simulation_budget()
 	_world_tick_timer += delta
 	if _world_tick_timer >= WORLD_TICK_INTERVAL:
 		var world_step := _world_tick_timer
@@ -266,6 +274,8 @@ func _finish_world_bootstrap() -> void:
 		SceneTransition.set_spawn_loading_status("Laddar", "Säkerställer spawn...")
 		await _align_player_to_floor(players[local_id])
 	_notify_armament_weapon_sources()
+	refresh_draw_distance()
+	call_deferred("_apply_entity_simulation_budget")
 
 
 func _populate_world_entities() -> void:
@@ -308,6 +318,8 @@ func _populate_world_entities() -> void:
 
 
 func _build_deferred_greenery() -> void:
+	if GlesPerformanceScript.skip_greenery():
+		return
 	if _active_spawn_id != "satellite_right":
 		return
 	var city := get_node_or_null("Satellite_satellite_right/NeoWashington") as Node3D
@@ -358,6 +370,57 @@ func _exit_tree() -> void:
 	MouseLook.deactivate()
 
 
+func _apply_entity_simulation_budget() -> void:
+	var player := get_local_player()
+	if player == null:
+		return
+	var origin := player.global_position
+	var sim_radius := GlesPerformanceScript.entity_sim_radius_m()
+	var sim_radius_sq := sim_radius * sim_radius
+	var render_radius := GlesPerformanceScript.entity_render_radius_m()
+	if render_radius <= 0.0:
+		render_radius = DrawDistance.get_distance_m() * 0.9
+	var render_radius_sq := render_radius * render_radius
+	var entity_groups := [
+		"world_npc",
+		"world_monster",
+		"zezzla_bot",
+		"delivery_bot",
+		"help_robot",
+		"gleazer_npc",
+		"pedestrian_npc",
+		"allmakare_npc",
+		"criminal_boss_npc",
+		"criminal_henchman_npc",
+		"src_guard",
+	]
+	var seen: Dictionary = {}
+	for group_name in entity_groups:
+		for node in get_tree().get_nodes_in_group(group_name):
+			if not is_instance_valid(node) or not node is Node3D:
+				continue
+			var id := node.get_instance_id()
+			if seen.has(id):
+				continue
+			seen[id] = true
+			var entity := node as Node3D
+			var offset := entity.global_position - origin
+			var dist_sq := offset.x * offset.x + offset.z * offset.z
+			if dist_sq > render_radius_sq:
+				entity.process_mode = Node.PROCESS_MODE_DISABLED
+				entity.visible = false
+				continue
+			entity.visible = true
+			entity.process_mode = Node.PROCESS_MODE_INHERIT
+			if entity is CharacterBody3D:
+				(entity as CharacterBody3D).set_physics_process(dist_sq <= sim_radius_sq)
+	var zone_radius := GlesPerformanceScript.zone_cull_radius_m()
+	if zone_radius > 0.0:
+		var city := get_node_or_null("Satellite_%s/NeoWashington" % _active_spawn_id) as Node3D
+		if city:
+			RuntimeVisibilityBudgetScript.apply_zone_culling(city, origin, zone_radius)
+
+
 func _follow_local_player_camera(_delta: float) -> void:
 	var local_id := multiplayer.get_unique_id()
 	if not players.has(local_id):
@@ -370,8 +433,6 @@ func _follow_local_player_camera(_delta: float) -> void:
 			_camera_pivot.global_position = vehicle.get_camera_anchor_global_position()
 		else:
 			_camera_pivot.global_position = vehicle.global_position + Vector3(0.0, 1.75, 0.35)
-	elif player.has_method("get_camera_anchor_global_position"):
-		_camera_pivot.global_position = player.get_camera_anchor_global_position()
 	else:
 		_camera_pivot.global_position = player.global_position + Vector3(0.0, 1.62, 0.08)
 

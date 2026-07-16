@@ -7,7 +7,9 @@ const HUB_SHADOW_DISTANCE := 180.0
 static func apply_environment(env: Environment, is_exposed_city: bool, draw_distance_m: float = -1.0) -> void:
 	var fog_end := draw_distance_m if draw_distance_m > 0.0 else (5200.0 if is_exposed_city else 25_000.0)
 	var fog_begin := maxf(28.0 if is_exposed_city else 80.0, fog_end * 0.04)
-	var ssao_on := ssao_glow_enabled() and _uses_forward_plus()
+	var forward_plus := _uses_forward_plus()
+	var ssao_on := ssao_glow_enabled() and forward_plus
+	var glow_on := ssao_glow_enabled() and forward_plus
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.ssao_enabled = ssao_on
 	if env.ssao_enabled:
@@ -30,7 +32,8 @@ static func apply_environment(env: Environment, is_exposed_city: bool, draw_dist
 		env.fog_depth_end = fog_end
 		env.fog_sky_affect = 0.1
 		env.tonemap_exposure = 0.84
-		if ssao_glow_enabled():
+		env.glow_enabled = glow_on
+		if glow_on:
 			env.glow_intensity = 0.72
 			env.glow_strength = 0.9
 		else:
@@ -45,7 +48,8 @@ static func apply_environment(env: Environment, is_exposed_city: bool, draw_dist
 		env.fog_depth_end = fog_end
 		env.fog_sky_affect = 0.18
 		env.tonemap_exposure = 0.92
-		if ssao_glow_enabled():
+		env.glow_enabled = glow_on
+		if glow_on:
 			env.glow_intensity = 0.55
 			env.glow_strength = 0.82
 		else:

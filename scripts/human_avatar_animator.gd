@@ -76,6 +76,9 @@ func _cache_rest_poses() -> void:
 func _process(delta: float) -> void:
 	if not _bound or _anim_player == null:
 		return
+	if not _moving and not showcase_mode and _punch_timer <= 0.0 and _attack_timer <= 0.0:
+		if Engine.get_frames_drawn() % 3 != 0:
+			return
 
 	_idle_time += delta
 	var locomoting := _moving or showcase_mode
