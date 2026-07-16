@@ -97,8 +97,6 @@ var _interaction_timer := 0.0
 var _world_tick_timer := 0.0
 var _znood_ui_timer := 0.0
 var _mouse_capture_allowed := true
-var _camera_anchor_smooth := Vector3.INF
-const CAMERA_ANCHOR_SMOOTH_RATE := 48.0
 
 @onready var _minimap: MinimapPanel = %Minimap
 @onready var _owdb_bridge: Node = %WorldState
@@ -151,13 +149,13 @@ func _boot_world() -> void:
 	for peer_id in multiplayer.get_peers():
 		_spawn_player(peer_id)
 		_request_avatars_from_peer.rpc_id(peer_id)
+	await _finish_world_bootstrap()
 	SceneTransition.mark_spawn_loading_ready()
 	await SceneTransition.wait_spawn_briefing_dismissed()
 	ArrivalQuestManager.on_briefing_dismissed()
 	ArmamentQuestManager.on_briefing_dismissed()
 	MouseLook.activate(_camera_pivot, _camera)
 	restore_gameplay_mouse()
-	call_deferred("_finish_world_bootstrap")
 
 
 func _physics_process(delta: float) -> void:
@@ -256,16 +254,20 @@ func _build_world_geometry() -> void:
 
 
 func _finish_world_bootstrap() -> void:
+	SceneTransition.set_spawn_loading_status("Laddar", "Förbereder världen...")
 	GuiFontLibraryScript.fix_label3d_tree(self)
-	_populate_world_entities()
+	await _populate_world_entities()
+	SceneTransition.set_spawn_loading_status("Laddar", "Planterar vegetation...")
 	_build_deferred_greenery()
-	call_deferred("_register_znood_pois")
-	call_deferred("_start_poi_guide")
-	# Om-spawna fötterna när all världskollision finns (undvik under mark / i hus).
+	await get_tree().process_frame
+	SceneTransition.set_spawn_loading_status("Laddar", "Kartlägger kolonin...")
+	await _register_znood_pois()
+	_start_poi_guide()
 	var local_id := multiplayer.get_unique_id()
 	if players.has(local_id):
-		_align_player_to_floor.call_deferred(players[local_id])
-	call_deferred("_notify_armament_weapon_sources")
+		SceneTransition.set_spawn_loading_status("Laddar", "Säkerställer spawn...")
+		await _align_player_to_floor(players[local_id])
+	_notify_armament_weapon_sources()
 
 
 func _populate_world_entities() -> void:
@@ -276,6 +278,7 @@ func _populate_world_entities() -> void:
 		return
 
 	var spawn_pos := _shift_world(SpawnPoints.get_play_spawn_position(_active_spawn_id))
+	SceneTransition.set_spawn_loading_status("Laddar", "Fyller koloni med liv...")
 	var monsters_root := MonsterSpawner.populate(
 		self,
 		_active_spawn_id,
@@ -284,18 +287,23 @@ func _populate_world_entities() -> void:
 		spawn_pos
 	)
 	_collect_monsters(monsters_root)
+	await get_tree().process_frame
 	SuperZezzlorSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
 	ZezzlorPatrolSpawnerScript.populate(self, _active_spawn_id, _owdb_bridge)
+	await get_tree().process_frame
 	NpcSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
 	GleazerSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
 	AllmakareSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
+	await get_tree().process_frame
 	PedestrianSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
 	DeliveryBotSpawnerScript.populate(self, _active_spawn_id, _owdb_bridge)
 	HelpRobotSpawnerScript.populate(self, _active_spawn_id, _owdb_bridge)
+	await get_tree().process_frame
 	CriminalBossHqBuilderScript.place_all(self, _active_spawn_id, spawn_pos)
 	CriminalBossSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
 	ZezzlaBotSpawnerScript.populate(self, _active_spawn_id, _owdb_bridge)
 	ClimbVehicleSpawnerScript.populate(self, _active_spawn_id, _owdb_bridge)
+	await get_tree().process_frame
 	var zone_mgr := RuntimeGlobals.zone_ownership()
 	if zone_mgr:
 		zone_mgr.setup_world_visuals(self, _active_spawn_id)
@@ -352,11 +360,11 @@ func _exit_tree() -> void:
 	MouseLook.deactivate()
 
 
-func reset_camera_anchor_smooth(pos: Vector3 = Vector3.INF) -> void:
-	_camera_anchor_smooth = pos
+func reset_camera_anchor_smooth(_pos: Vector3 = Vector3.INF) -> void:
+	pass
 
 
-func _follow_local_player_camera(delta: float) -> void:
+func _follow_local_player_camera(_delta: float) -> void:
 	var local_id := multiplayer.get_unique_id()
 	if not players.has(local_id):
 		return
@@ -369,17 +377,12 @@ func _follow_local_player_camera(delta: float) -> void:
 			target_pos = vehicle.get_camera_anchor_global_position()
 		else:
 			target_pos = vehicle.global_position + Vector3(0.0, 1.75, 0.35)
-		_camera_anchor_smooth = target_pos
 	elif player.has_method("get_camera_anchor_global_position"):
 		target_pos = player.get_camera_anchor_global_position()
 	else:
 		target_pos = player.global_position + Vector3(0.0, 1.62, 0.08)
 
-	if _camera_anchor_smooth == Vector3.INF:
-		_camera_anchor_smooth = target_pos
-	var blend := 1.0 - exp(-CAMERA_ANCHOR_SMOOTH_RATE * maxf(delta, 0.0001))
-	_camera_anchor_smooth = _camera_anchor_smooth.lerp(target_pos, blend)
-	_camera_pivot.global_position = _camera_anchor_smooth
+	_camera_pivot.global_position = target_pos
 
 	var fill := get_node_or_null("FillLight") as OmniLight3D
 	if fill:
@@ -1485,8 +1488,6 @@ func _spawn_player(peer_id: int) -> void:
 	$Players.add_child(player, true)
 	if peer_id == multiplayer.get_unique_id():
 		player.set_spawn_anchor(spawn_pos)
-		reset_camera_anchor_smooth()
-		_align_player_to_floor.call_deferred(player)
 
 		if player.has_signal("died") and not player.died.is_connected(_on_local_player_died):
 			player.died.connect(_on_local_player_died)

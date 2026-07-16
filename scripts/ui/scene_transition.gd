@@ -202,6 +202,16 @@ func show_spawn_loading_briefing(
 		_loading_root.visible = false
 
 
+func set_spawn_loading_status(message: String, subtitle: String = "") -> void:
+	if _briefing_root == null or not _briefing_loading_phase:
+		return
+	_briefing_loading_title = message
+	if subtitle != "":
+		_briefing_loading_subtitle = subtitle
+	if _briefing_loading_label:
+		_briefing_loading_label.text = "%s — %s" % [message, _briefing_loading_subtitle]
+
+
 func mark_spawn_loading_ready(ready_note: String = "Världen är klar — tryck Fortsätt.") -> void:
 	if _briefing_root == null:
 		return
