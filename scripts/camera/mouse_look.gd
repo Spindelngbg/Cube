@@ -13,6 +13,10 @@ var _active := false
 var _was_paused := false
 var _want_capture := true
 var _ignore_look_frames := 0
+var _shake_strength := 0.0
+var _shake_decay := 8.0
+var _shake_offset := Vector3.ZERO
+var _camera_rest_offset := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -67,6 +71,11 @@ func get_aim_direction() -> Vector3:
 	return -_camera.global_transform.basis.z.normalized()
 
 
+func request_shake(strength: float, duration_hint: float = 0.12) -> void:
+	_shake_strength = maxf(_shake_strength, strength)
+	_shake_decay = maxf(4.0, 1.0 / maxf(duration_hint, 0.04))
+
+
 func get_aim_origin(fallback_position: Vector3) -> Vector3:
 	if not is_active() or _camera == null:
 		return fallback_position + Vector3(0.0, 1.45, 0.0)
@@ -110,9 +119,10 @@ func _input(event: InputEvent) -> void:
 	)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _ignore_look_frames > 0:
 		_ignore_look_frames -= 1
+	_apply_camera_shake(delta)
 	if not _active:
 		return
 	var paused := get_tree().paused
@@ -169,3 +179,19 @@ func _set_input_mode_ui() -> void:
 	var mode = get_node_or_null("/root/InputMode")
 	if mode and mode.has_method("ui"):
 		mode.ui()
+
+
+func _apply_camera_shake(delta: float) -> void:
+	if _camera == null:
+		return
+	if _shake_strength <= 0.001:
+		_camera.position = _camera_rest_offset
+		return
+	_shake_strength = maxf(0.0, _shake_strength - _shake_decay * delta)
+	var amount := _shake_strength
+	_shake_offset = Vector3(
+		randf_range(-amount, amount),
+		randf_range(-amount * 0.6, amount * 0.6),
+		randf_range(-amount * 0.25, amount * 0.25)
+	)
+	_camera.position = _camera_rest_offset + _shake_offset

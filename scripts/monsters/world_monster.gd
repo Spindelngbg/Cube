@@ -42,6 +42,7 @@ func setup(entry: Dictionary, spawn_pos: Vector3, bounds_center: Vector3, bounds
 	_bounds_center = bounds_center
 	_bounds_radius = bounds_radius
 	_display_name = str(entry.get("name", "Monster"))
+	set_meta("monster_kind", str(entry.get("kind", "")))
 	_move_speed = float(entry.get("speed", 2.0)) * WANDER_SPEED_MULT
 	_name_label.text = _display_name
 	position = spawn_pos
@@ -113,6 +114,9 @@ func _die() -> void:
 	set_collision_layer_value(4, false)
 	NpcDialogueBarkScript.play_for_npc(self, "death", "ian")
 	_refresh_health_bar()
+	var kind := str(get_meta("monster_kind", ""))
+	if kind in ["spider", "hybrid"]:
+		SpiderQuestManager.notify_spider_kill()
 	var game := get_tree().get_first_node_in_group("game_director")
 	if game and game.has_method("unregister_monster"):
 		game.unregister_monster(self)

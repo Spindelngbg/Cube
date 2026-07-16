@@ -39,6 +39,7 @@ const HudClockUIScript = preload("res://scripts/ui/hud_clock_ui.gd")
 const GameplayHudThemeScript = preload("res://scripts/ui/gameplay_hud_theme.gd")
 const ExteriorLadderScript = preload("res://scripts/access/exterior_ladder.gd")
 const DevWeaponToolsScript = preload("res://scripts/dev/dev_weapon_tools.gd")
+const DevSpawnPanelScript = preload("res://scripts/dev/dev_spawn_panel.gd")
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
 const GreeneryVegetationBuilderScript = preload("res://scripts/city/greenery_vegetation_builder.gd")
 const ZezzlorDossierRuntimeScript = preload("res://scripts/monsters/zezzlor_dossier_runtime.gd")
@@ -132,6 +133,8 @@ func _boot_world() -> void:
 	_connect_zone_spawn_signals()
 	QuestManager.on_enter_colony(_active_spawn_id)
 	ArrivalQuestManager.on_enter_colony(_active_spawn_id)
+	ArmamentQuestManager.on_enter_colony(_active_spawn_id)
+	SpiderQuestManager.on_enter_colony(_active_spawn_id)
 	_update_hud_text()
 	_refresh_online_count()
 
@@ -144,6 +147,7 @@ func _boot_world() -> void:
 	SceneTransition.mark_spawn_loading_ready()
 	await SceneTransition.wait_spawn_briefing_dismissed()
 	ArrivalQuestManager.on_briefing_dismissed()
+	ArmamentQuestManager.on_briefing_dismissed()
 	MouseLook.activate(_camera_pivot, _camera)
 	restore_gameplay_mouse()
 	call_deferred("_finish_world_bootstrap")
@@ -245,10 +249,12 @@ func _finish_world_bootstrap() -> void:
 	_populate_world_entities()
 	_build_deferred_greenery()
 	call_deferred("_register_znood_pois")
+	call_deferred("_start_poi_guide")
 	# Om-spawna fötterna när all världskollision finns (undvik under mark / i hus).
 	var local_id := multiplayer.get_unique_id()
 	if players.has(local_id):
 		_align_player_to_floor.call_deferred(players[local_id])
+	call_deferred("_notify_armament_weapon_sources")
 
 
 func _populate_world_entities() -> void:
@@ -298,6 +304,14 @@ func _register_znood_pois() -> void:
 		znood_mgr.ingest_markers_from_tree(self)
 
 
+func _start_poi_guide() -> void:
+	PoiGuideManager.begin_colony_session(self, _active_spawn_id)
+
+
+func get_active_spawn_id() -> String:
+	return _active_spawn_id
+
+
 func _configure_colony_rendering() -> void:
 	var is_exposed_city := SpawnPoints.normalize_id(_active_spawn_id) == "satellite_right"
 	DrawDistance.apply_colony(self, is_exposed_city)
@@ -321,6 +335,7 @@ func _redirect_to_play_scene() -> void:
 
 
 func _exit_tree() -> void:
+	PoiGuideManager.stop_guide()
 	MouseLook.deactivate()
 
 
@@ -543,6 +558,8 @@ func _setup_health_ui() -> void:
 	_health_bar = HealthBarUIScript.new()
 	ui.add_child(_health_bar)
 	ui.move_child(_health_bar, -1)
+	var dev_panel := DevSpawnPanelScript.new()
+	ui.add_child(dev_panel)
 	_inventory_ui = ModularInventoryHudScript.new()
 	_inventory_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(_inventory_ui)
@@ -792,6 +809,25 @@ func _notify_arrival_interact() -> void:
 	if player == null:
 		return
 	ArrivalQuestManager.notify_nearby_interact(player.global_position)
+	_notify_armament_weapon_sources()
+	SpiderQuestManager.notify_spider_rumor()
+
+
+func _notify_armament_weapon_sources() -> void:
+	if _has_weapon_in_inventory() or _near_weapon_shop_owner != null or _near_weapon_shop != null:
+		ArmamentQuestManager.notify_weapon_source()
+	if WeaponManager.can_use_equipped_weapon():
+		ArmamentQuestManager.notify_equipped()
+
+
+func _has_weapon_in_inventory() -> bool:
+	for weapon_id in ChatCheatCommands.WEAPON_IDS:
+		if InventoryManager.has_item(weapon_id):
+			return true
+	return (
+		InventoryManager.has_item(WeaponManager.SLIMESHOOTER_ID)
+		or InventoryManager.has_item(WeaponManager.LASERRIFLE_ID)
+	)
 
 
 func _try_interact() -> void:
@@ -1076,6 +1112,7 @@ func _update_weapon_shop_owner_interaction() -> void:
 
 
 func _on_weapon_shop_dialog_closed() -> void:
+	_notify_armament_weapon_sources()
 	restore_gameplay_mouse()
 
 

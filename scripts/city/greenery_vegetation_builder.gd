@@ -3,6 +3,9 @@ extends RefCounted
 
 const SpawnDensityScript = preload("res://scripts/world/spawn_density.gd")
 
+## Träd och svampar avstängda — inga vegetationsobjekt spawnas i världen.
+const VEGETATION_ENABLED := false
+
 ## Stora träd och jättestora svampar i alla gröna zoner runt stadsrutnätet.
 
 const TREE_LARGE_SCALE := 24.0
@@ -21,6 +24,8 @@ const MUSHROOM_CAP_COLORS := [
 
 
 static func build(parent: Node3D, spawn_id: String = "satellite_right") -> Node3D:
+	if not VEGETATION_ENABLED:
+		return null
 	var root := Node3D.new()
 	root.name = "Greenery"
 	parent.add_child(root)
@@ -219,6 +224,8 @@ static func _cell_has_primary_building(cell: Vector2i, spec: Dictionary) -> bool
 
 
 static func scatter_cell_accent(parent: Node3D, center: Vector3, cell: Vector2i) -> void:
+	if not VEGETATION_ENABLED:
+		return
 	if not SpawnDensityScript.should_scatter_cell_accent(cell):
 		return
 	var accent_seed: int = int(hash(Vector3i(cell.x, cell.y, 19)))
@@ -243,6 +250,8 @@ static func scatter_in_radius(
 	mushroom_count: int = 4,
 	spawn_id: String = "satellite_right"
 ) -> void:
+	if not VEGETATION_ENABLED:
+		return
 	var theme := ColonyCityTheme.for_spawn(spawn_id)
 	var patch := Node3D.new()
 	patch.name = "GreeneryPatch"

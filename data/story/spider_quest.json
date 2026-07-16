@@ -1,0 +1,33 @@
+{
+	"quest": {
+		"id": "spider_whispers",
+		"title": "Spindlarnas viskningar",
+		"company": "Znood — fältobservation",
+		"tagline": "Ibland kallar kolonin dig Spindeln. Ibland har de rätt.",
+		"steps": [
+			{
+				"id": "hear_rumor",
+				"title": "Rykten",
+				"objective": "Prata med en NPC eller hjälprobot om spindlar [E]",
+				"briefing": "Folk viskar om spindlar i ventilationen. Fråga någon i spawnområdet.",
+				"achievement": "spider_rumor"
+			},
+			{
+				"id": "hunt_spiders",
+				"title": "Jakt",
+				"objective": "Besegra 2 spindlar eller spindelhybrider",
+				"briefing": "Stalkerspindlar, kolossspindlar och SRC-hybrider räknas. Håll dig nära spawn om du vill.",
+				"achievement": "spider_hunt",
+				"kill_target": 2
+			},
+			{
+				"id": "embrace_name",
+				"title": "Spindeln",
+				"objective": "Acceptera smeknamnet — du kan nu kallas Spindeln i kolonin",
+				"briefing": "Kolonisterna har börjat kalla dig Spindeln. Det är inte alltid en förolämpning.",
+				"achievement": "spider_nickname"
+			}
+		],
+		"complete_achievement": "spider_whispers_complete"
+	}
+}

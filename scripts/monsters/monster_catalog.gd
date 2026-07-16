@@ -219,16 +219,20 @@ static func get_spawn_batches(spawn_id: String, spawn_center: Vector3) -> Array:
 
 	if id != "satellite_right":
 		return [{
-			"center": spawn_center,
-			"radius": SpawnPoints.get_extent_m() * 0.08,
+			"center": spawn_center + Vector3(
+				SpawnPoints.get_extent_m() * 0.14,
+				0.0,
+				SpawnPoints.get_extent_m() * 0.1
+			),
+			"radius": SpawnPoints.get_extent_m() * 0.16,
 			"entries": plan,
 		}]
 
 	var block := float(DcZoneCatalog.BLOCK_M)
 	return [
 		{
-			"center": spawn_center + Vector3(28.0, 0.0, 18.0),
-			"radius": 42.0,
+			"center": spawn_center + Vector3(72.0, 0.0, 58.0),
+			"radius": 52.0,
 			"entries": _entries([
 				["hybrid", "crawler", 1],
 				["hybrid", "stalker", 1],
@@ -265,8 +269,8 @@ static func get_spawn_batches(spawn_id: String, spawn_center: Vector3) -> Array:
 			]),
 		},
 		{
-			"center": spawn_center,
-			"radius": SpawnPoints.get_extent_m() * 0.1,
+			"center": spawn_center + Vector3(-block * 6.0, 0.0, block * 3.5),
+			"radius": SpawnPoints.get_extent_m() * 0.14,
 			"entries": plan,
 		},
 	]

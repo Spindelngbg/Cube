@@ -69,8 +69,22 @@ func _on_canvas_draw() -> void:
 		znood.get_backup_pings_for_local() if znood else [],
 		znood.get_blink_alpha() if znood else 1.0,
 		false,
-		false
+		false,
+		_get_poi_blink_alpha(),
+		_is_poi_guide_active()
 	)
+
+
+func _is_poi_guide_active() -> bool:
+	var guide := get_node_or_null("/root/PoiGuideManager")
+	return guide != null and guide.is_poi_highlighted()
+
+
+func _get_poi_blink_alpha() -> float:
+	var guide := get_node_or_null("/root/PoiGuideManager")
+	if guide == null:
+		return 1.0
+	return guide.get_poi_blink_alpha()
 
 
 func _on_canvas_input(event: InputEvent) -> void:

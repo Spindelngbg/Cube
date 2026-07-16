@@ -54,7 +54,9 @@ static func draw(
 	backup_pings: Array = [],
 	blink_alpha: float = 1.0,
 	show_footer: bool = false,
-	show_text: bool = true
+	show_text: bool = true,
+	poi_blink_alpha: float = 1.0,
+	highlight_pois: bool = false
 ) -> void:
 	if inner.size.x <= 4.0 or inner.size.y <= 4.0:
 		return
@@ -96,7 +98,16 @@ static func draw(
 		var poi_pos: Vector3 = poi.get("world_position", Vector3.ZERO)
 		var px := _world_to_map(poi_pos, inner, map_center, half_extent, true)
 		var color: Color = poi.get("color", Color(0.45, 0.92, 0.68))
-		canvas.draw_rect(Rect2(px - Vector2(4, 4), Vector2(8, 8)), color, true)
+		var alpha := poi_blink_alpha if highlight_pois else 1.0
+		if highlight_pois:
+			var pulse := 10.0 + poi_blink_alpha * 6.0
+			canvas.draw_circle(px, pulse, Color(color.r, color.g, color.b, alpha * 0.22))
+			canvas.draw_circle(px, 7.0 + poi_blink_alpha * 2.0, Color(color.r, color.g, color.b, alpha * 0.35))
+		canvas.draw_rect(
+			Rect2(px - Vector2(5, 5), Vector2(10, 10)),
+			Color(color.r, color.g, color.b, alpha),
+			true
+		)
 		if show_text:
 			var label_pos := Vector2(
 				clampf(px.x + 6.0, inner.position.x + 2.0, inner.end.x - 72.0),

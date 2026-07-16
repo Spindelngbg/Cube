@@ -84,6 +84,7 @@ func _build() -> void:
 	col.add_child(rule)
 
 	_first_button = _add_button(col, "Fortsätt", resume)
+	_add_button(col, "Jag sitter fast", _stuck_slap)
 	_add_button(col, "Inställningar", _open_options)
 	_add_button(col, "Huvudmeny", _main_menu)
 	_add_button(col, "Avsluta spelet", _quit)
@@ -144,6 +145,17 @@ func _add_button(parent: Container, text: String, cb: Callable) -> Button:
 	button.add_theme_color_override("font_pressed_color", SpiderTheme.VENOM)
 	parent.add_child(button)
 	return button
+
+
+func _stuck_slap() -> void:
+	var game := get_tree().get_first_node_in_group("game_director")
+	if game == null or not game.has_method("get_local_player"):
+		return
+	var player: Node3D = game.get_local_player()
+	if player == null or not player.has_method("request_slap"):
+		return
+	player.request_slap()
+	resume()
 
 
 func _open_options() -> void:

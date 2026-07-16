@@ -30,6 +30,7 @@ const MeleeWeaponStrikeScript = preload("res://scripts/combat/melee_weapon_strik
 const PlayerFootstepsScript = preload("res://scripts/audio/player_footsteps.gd")
 const ExteriorLadderScript = preload("res://scripts/access/exterior_ladder.gd")
 const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const ProceduralSfxScript = preload("res://scripts/audio/procedural_sfx.gd")
 const PlayerDamageGruntLibraryScript = preload("res://scripts/audio/player_damage_grunt_library.gd")
 const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
@@ -615,6 +616,10 @@ func set_spawn_anchor(pos: Vector3) -> void:
 	_spawn_anchor = pos
 
 
+func get_spawn_anchor() -> Vector3:
+	return _spawn_anchor
+
+
 func get_account_username() -> String:
 	return _player_username
 
@@ -629,6 +634,8 @@ func matches_player_name(query: String) -> bool:
 
 
 func get_slap_display_name() -> String:
+	if SpiderQuestManager.should_call_player_spider():
+		return "Spindeln"
 	var label := name_label.text.strip_edges() if name_label else ""
 	if label != "":
 		return label
@@ -671,8 +678,10 @@ func _process_slap_physics(delta: float) -> void:
 func _finish_slap_landing() -> void:
 	_slap_active = false
 	_slap_airborne = false
+	var impact_speed := _peak_fall_speed
 	_peak_fall_speed = 0.0
 	velocity = Vector3.ZERO
+	_play_landing_feedback(maxf(impact_speed, SLAP_LAUNCH_VELOCITY * 0.45))
 	ensure_safe_ground()
 	_slap_immunity_timer = maxf(_slap_immunity_timer, SLAP_POST_LAND_IMMUNITY_SEC)
 	_stuck_frames = 0
@@ -683,6 +692,7 @@ func _apply_landing_fall_damage(was_on_floor_before: bool) -> void:
 		if not was_on_floor_before:
 			var impact_speed := maxf(_peak_fall_speed, maxf(0.0, -velocity.y))
 			_peak_fall_speed = 0.0
+			_play_landing_feedback(impact_speed)
 			var damage := _fall_damage_for_speed(impact_speed)
 			if damage > 0.0:
 				take_fall_damage(damage)
@@ -690,6 +700,28 @@ func _apply_landing_fall_damage(was_on_floor_before: bool) -> void:
 			_peak_fall_speed = 0.0
 	elif velocity.y < 0.0:
 		_peak_fall_speed = maxf(_peak_fall_speed, -velocity.y)
+
+
+func _play_landing_feedback(impact_speed: float) -> void:
+	if not is_multiplayer_authority():
+		return
+	if impact_speed < 5.5:
+		return
+	var weight := clampf(
+		inverse_lerp(5.5, FALL_DAMAGE_LETHAL_SPEED, impact_speed),
+		0.0,
+		1.0
+	)
+	var stream := ProceduralSfxScript.bounce_stream()
+	GameSfxScript.play_3d_varied(
+		self,
+		global_position,
+		stream,
+		Vector2(-16.0, lerpf(-8.0, -2.0, weight)),
+		Vector2(lerpf(0.82, 1.08, weight), lerpf(0.95, 1.18, weight))
+	)
+	if weight >= 0.2 and MouseLook.has_method("request_shake"):
+		MouseLook.request_shake(lerpf(0.04, 0.14, weight), lerpf(0.08, 0.2, weight))
 
 
 func _fall_damage_for_speed(impact_speed: float) -> float:

@@ -175,6 +175,10 @@ func get_current_step_id(quest_id: String = MAIN_QUEST_ID) -> String:
 
 
 func get_hud_quest_hint() -> String:
+	if ArmamentQuestManager.is_active():
+		return ArmamentQuestManager.get_hud_hint()
+	if SpiderQuestManager.is_active():
+		return SpiderQuestManager.get_hud_hint()
 	if ArrivalQuestManager.is_active() or ArrivalQuestManager.is_completed():
 		return ArrivalQuestManager.get_hud_hint()
 	if GleazerQuestManager.has_active_quest():

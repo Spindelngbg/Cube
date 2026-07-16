@@ -104,6 +104,8 @@ static func _run_slash_command(tree: SceneTree, raw: String) -> String:
 			return _cmd_spawn(tree, ["/spawn", str(parts[1]) if parts.size() > 1 else ""])
 		"/unjail":
 			return _cmd_unjail(tree)
+		"/slap":
+			return _cmd_slap(tree)
 		_:
 			return "Okänt kommando: %s — skriv /cheats" % cmd
 
@@ -176,6 +178,7 @@ static func _cheats_help_text() -> String:
 		+ "/tp [x] [z] — teleportera | /kill — dö/respawn\n"
 		+ "/materials — malm x99 | /fatstack — allt\n"
 		+ "/unjail — släpp från Zezzlor-fängelse\n"
+		+ "/slap — skicka upp dig själv (samma som pausmenyn)\n"
 		+ "Kodord (utan /): SHAWSHANK, REDEMPTION, GETBUSY,\n"
 		+ "IDDQD, IDKFA, PILLBOT, ALLMAKARE, SPIDERMAN,\n"
 		+ "NEOWASH, KONAMI, BROOKS, ANDY, ZEZZLOR, FATSTACK"
@@ -324,6 +327,15 @@ static func _cmd_fatstack(tree: SceneTree) -> String:
 	_cmd_heal(tree)
 	PoisonManager.cure()
 	return "Fatstack: pengar, vapen, buffs, material, god mode, full HP."
+
+
+static func _cmd_slap(tree: SceneTree) -> String:
+	var player := _local_player(tree)
+	if player == null:
+		return "Ingen spelare i världen."
+	if player.has_method("request_slap"):
+		return player.request_slap()
+	return "Slap ej tillgängligt."
 
 
 static func _cmd_unjail(tree: SceneTree) -> String:

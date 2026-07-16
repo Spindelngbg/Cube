@@ -24,6 +24,12 @@ func _ready() -> void:
 	ArrivalQuestManager.quest_step_changed.connect(func(_idx: int) -> void: _refresh())
 	ArrivalQuestManager.quest_started.connect(func() -> void: _refresh())
 	ArrivalQuestManager.quest_completed.connect(func() -> void: _refresh())
+	ArmamentQuestManager.quest_step_changed.connect(func(_idx: int) -> void: _refresh())
+	ArmamentQuestManager.quest_started.connect(func() -> void: _refresh())
+	ArmamentQuestManager.quest_completed.connect(func() -> void: _refresh())
+	SpiderQuestManager.quest_step_changed.connect(func(_idx: int) -> void: _refresh())
+	SpiderQuestManager.quest_started.connect(func() -> void: _refresh())
+	SpiderQuestManager.quest_completed.connect(func() -> void: _refresh())
 	GleazerQuestManager.gleazer_quest_changed.connect(_refresh)
 
 
@@ -91,6 +97,40 @@ func _build() -> void:
 
 
 func _refresh() -> void:
+	if ArmamentQuestManager.is_active():
+		var armament: Dictionary = ArmamentQuestManager.get_journal_entry()
+		_title.text = str(armament.get("title", ""))
+		_company.text = str(armament.get("company", ""))
+		if bool(armament.get("completed", false)):
+			_objective.text = "AVSLUTAD — du är beväpnad."
+			_briefing.text = "Kolonisäkerhet har registrerat ditt vapen."
+		else:
+			_objective.text = str(armament.get("current_objective", ""))
+			_briefing.text = str(armament.get("current_briefing", ""))
+		_tagline.text = "%s\n\nDelmål:\n%s" % [
+			str(armament.get("tagline", "")),
+			str(armament.get("milestones", "")),
+		]
+		_append_side_quests()
+		return
+
+	if SpiderQuestManager.is_active():
+		var spider: Dictionary = SpiderQuestManager.get_journal_entry()
+		_title.text = str(spider.get("title", ""))
+		_company.text = str(spider.get("company", ""))
+		if bool(spider.get("completed", false)):
+			_objective.text = "AVSLUTAD — Spindeln har vaknat."
+			_briefing.text = "Du kan ibland kallas Spindeln i kolonin."
+		else:
+			_objective.text = str(spider.get("current_objective", ""))
+			_briefing.text = str(spider.get("current_briefing", ""))
+		_tagline.text = "%s\n\nDelmål:\n%s" % [
+			str(spider.get("tagline", "")),
+			str(spider.get("milestones", "")),
+		]
+		_append_side_quests()
+		return
+
 	if ArrivalQuestManager.is_active() or ArrivalQuestManager.is_completed():
 		var arrival: Dictionary = ArrivalQuestManager.get_journal_entry()
 		_title.text = str(arrival.get("title", ""))
@@ -105,12 +145,7 @@ func _refresh() -> void:
 			str(arrival.get("tagline", "")),
 			str(arrival.get("milestones", "")),
 		]
-		if GleazerQuestManager.has_active_quest():
-			var gq: Dictionary = GleazerQuestManager.get_active_summary()
-			_objective.text += "\n\n[Gleazers] %s\n%s" % [
-				str(gq.get("title", "")),
-				str(gq.get("objective", "")),
-			]
+		_append_side_quests()
 		return
 
 	var entries: Array = QuestManager.get_journal_entries()
@@ -132,6 +167,10 @@ func _refresh() -> void:
 		_objective.text = str(entry.get("current_objective", ""))
 		_briefing.text = str(entry.get("current_briefing", ""))
 	_tagline.text = str(entry.get("tagline", ""))
+	_append_side_quests()
+
+
+func _append_side_quests() -> void:
 	if GleazerQuestManager.has_active_quest():
 		var gq: Dictionary = GleazerQuestManager.get_active_summary()
 		_objective.text += "\n\n[Gleazers] %s\n%s" % [

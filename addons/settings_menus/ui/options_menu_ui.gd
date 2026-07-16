@@ -213,6 +213,43 @@ func _build_display_tab() -> Control:
 		dd_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		tab.add_child(dd_note)
 
+	var shadows_row := _row(tab, "Skuggor")
+	var shadows_cb := CheckBox.new()
+	shadows_cb.button_pressed = bool(settings.get_value("display.shadows_enabled", true))
+	shadows_cb.toggled.connect(func(p):
+		var s := _settings()
+		if s != null:
+			s.set_value("display.shadows_enabled", p))
+	shadows_row.add_child(shadows_cb)
+
+	var ssao_row := _row(tab, "SSAO / glow")
+	var ssao_cb := CheckBox.new()
+	ssao_cb.button_pressed = bool(settings.get_value("display.ssao_glow_enabled", true))
+	ssao_cb.toggled.connect(func(p):
+		var s := _settings()
+		if s != null:
+			s.set_value("display.ssao_glow_enabled", p))
+	ssao_row.add_child(ssao_cb)
+
+	var scale_row := _row(tab, "Render scale")
+	var scale_opt := OptionButton.new()
+	scale_opt.add_item("75 %")
+	scale_opt.add_item("100 %")
+	var current_scale := float(settings.get_value("display.render_scale", 1.0))
+	scale_opt.selected = 0 if current_scale < 0.99 else 1
+	scale_opt.item_selected.connect(func(idx):
+		var s := _settings()
+		if s != null:
+			s.set_value("display.render_scale", 0.75 if idx == 0 else 1.0))
+	scale_row.add_child(scale_opt)
+
+	var gfx_note := Label.new()
+	gfx_note.text = "Skuggor och SSAO/glow kräver Forward+. Render scale påverkar 3D direkt."
+	gfx_note.add_theme_font_size_override("font_size", 11)
+	gfx_note.add_theme_color_override("font_color", theme_data.text_dim)
+	gfx_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(gfx_note)
+
 	return tab
 
 

@@ -7,8 +7,9 @@ const HUB_SHADOW_DISTANCE := 180.0
 static func apply_environment(env: Environment, is_exposed_city: bool, draw_distance_m: float = -1.0) -> void:
 	var fog_end := draw_distance_m if draw_distance_m > 0.0 else (5200.0 if is_exposed_city else 25_000.0)
 	var fog_begin := maxf(28.0 if is_exposed_city else 80.0, fog_end * 0.04)
+	var ssao_on := ssao_glow_enabled() and _uses_forward_plus()
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.ssao_enabled = _uses_forward_plus()
+	env.ssao_enabled = ssao_on
 	if env.ssao_enabled:
 		env.ssao_radius = 1.15
 		env.ssao_intensity = 1.35
@@ -29,8 +30,12 @@ static func apply_environment(env: Environment, is_exposed_city: bool, draw_dist
 		env.fog_depth_end = fog_end
 		env.fog_sky_affect = 0.1
 		env.tonemap_exposure = 0.84
-		env.glow_intensity = 0.72
-		env.glow_strength = 0.9
+		if ssao_glow_enabled():
+			env.glow_intensity = 0.72
+			env.glow_strength = 0.9
+		else:
+			env.glow_intensity = 0.0
+			env.glow_strength = 0.0
 	else:
 		env.ambient_light_color = Color(0.14, 0.17, 0.24)
 		env.ambient_light_energy = 0.28 if not shadows_enabled() else 0.18
@@ -40,8 +45,25 @@ static func apply_environment(env: Environment, is_exposed_city: bool, draw_dist
 		env.fog_depth_end = fog_end
 		env.fog_sky_affect = 0.18
 		env.tonemap_exposure = 0.92
-		env.glow_intensity = 0.55
-		env.glow_strength = 0.82
+		if ssao_glow_enabled():
+			env.glow_intensity = 0.55
+			env.glow_strength = 0.82
+		else:
+			env.glow_intensity = 0.0
+			env.glow_strength = 0.0
+
+
+static func ssao_glow_enabled() -> bool:
+	var settings := Engine.get_main_loop()
+	if settings == null:
+		return true
+	var tree := settings as SceneTree
+	if tree == null:
+		return true
+	var mgr := tree.root.get_node_or_null("Settings")
+	if mgr == null:
+		return true
+	return bool(mgr.get_value("display.ssao_glow_enabled", true))
 
 
 static func _uses_forward_plus() -> bool:
@@ -52,6 +74,11 @@ static func _uses_forward_plus() -> bool:
 
 
 static func shadows_enabled() -> bool:
+	var settings_tree := Engine.get_main_loop() as SceneTree
+	if settings_tree != null:
+		var mgr := settings_tree.root.get_node_or_null("Settings")
+		if mgr != null and not bool(mgr.get_value("display.shadows_enabled", true)):
+			return false
 	return _uses_forward_plus()
 
 

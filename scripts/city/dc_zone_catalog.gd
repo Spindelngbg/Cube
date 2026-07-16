@@ -115,12 +115,12 @@ const GREENERY_ZONE_TYPES := [
 
 
 const GREENERY_DENSITY := {
-	"NATIONALMALLEN": {"trees": 2, "mushrooms": 1},
-	"VATTENFRONT": {"trees": 1, "mushrooms": 2},
-	"BOSTADSKVARTER": {"trees": 1, "mushrooms": 1},
-	"AMBASSADNÄSET": {"trees": 1, "mushrooms": 1},
-	"MONUMENTKÄRNA": {"trees": 2, "mushrooms": 1},
-	"PARKBÄLTE": {"trees": 2, "mushrooms": 1},
+	"NATIONALMALLEN": {"trees": 0, "mushrooms": 0},
+	"VATTENFRONT": {"trees": 0, "mushrooms": 0},
+	"BOSTADSKVARTER": {"trees": 0, "mushrooms": 0},
+	"AMBASSADNÄSET": {"trees": 0, "mushrooms": 0},
+	"MONUMENTKÄRNA": {"trees": 0, "mushrooms": 0},
+	"PARKBÄLTE": {"trees": 0, "mushrooms": 0},
 }
 
 

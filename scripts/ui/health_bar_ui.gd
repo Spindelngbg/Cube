@@ -37,11 +37,11 @@ func _build() -> void:
 	set_anchors_preset(Control.PRESET_CENTER_TOP)
 	anchor_left = 0.5
 	anchor_right = 0.5
-	offset_left = -200.0
-	offset_right = 200.0
-	offset_top = 10.0
-	offset_bottom = 78.0
-	custom_minimum_size = Vector2(400, 68)
+	offset_left = -230.0
+	offset_right = 230.0
+	offset_top = 8.0
+	offset_bottom = 92.0
+	custom_minimum_size = Vector2(460, 84)
 
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -49,14 +49,14 @@ func _build() -> void:
 	add_child(col)
 
 	_hp_label = Label.new()
-	_hp_label.text = "HP 100 / 100"
+	_hp_label.text = "❤ HP 100 / 100"
 	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameplayHudThemeScript.style_body(_hp_label)
+	GameplayHudThemeScript.style_title(_hp_label, 18)
 	col.add_child(_hp_label)
 
 	_bar = ProgressBar.new()
 	_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_bar.custom_minimum_size = Vector2(380, 22)
+	_bar.custom_minimum_size = Vector2(420, 28)
 	_bar.max_value = 100.0
 	_bar.value = 100.0
 	_bar.show_percentage = false
@@ -90,7 +90,7 @@ func _apply_values(current: float, maximum: float) -> void:
 	maximum = maxf(maximum, 1.0)
 	current = clampf(current, 0.0, maximum)
 	_bar.max_value = maximum
-	_hp_label.text = "HP %d / %d" % [int(round(current)), int(round(maximum))]
+	_hp_label.text = "❤ HP %d / %d" % [int(round(current)), int(round(maximum))]
 	var ratio := current / maximum
 	_apply_fill_color(ratio)
 	if _value_tween != null and _value_tween.is_valid():

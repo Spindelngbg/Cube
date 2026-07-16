@@ -50,7 +50,7 @@ static func load_model(kit: String, name: String) -> PackedScene:
 static func warmup_dc_city_models() -> void:
 	var models := {
 		"commercial": ["building-a", "building-b", "building-c", "building-d", "building-e"],
-		"suburban": ["building-type-a", "building-type-b", "building-type-c", "tree-small", "tree-large"],
+		"suburban": ["building-type-a", "building-type-b", "building-type-c"],
 		"industrial": ["building-a", "building-c", "building-f"],
 		"roads": ["tile-low", "road-square"],
 		"building": ["wall-doorway-square", "floor"],

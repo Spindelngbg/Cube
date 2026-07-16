@@ -1,0 +1,33 @@
+{
+	"quest": {
+		"id": "armament_warning",
+		"title": "Det är på väg att hända något dåligt",
+		"company": "Kolonisäkerhet",
+		"tagline": "Beväpna dig innan något hittar dig först.",
+		"max_distance_m": 120.0,
+		"steps": [
+			{
+				"id": "hear_warning",
+				"title": "Varning",
+				"objective": "Läs varningen och förbered dig",
+				"briefing": "Sensorerna har plockat upp rörelse utanför spawn. Kolonisäkerhet kräver att du utrustar ett vapen omedelbart.",
+				"achievement": "armament_warning_heard"
+			},
+			{
+				"id": "find_weapon",
+				"title": "Hitta vapen",
+				"objective": "Besök vapenbutik, lila lasertorn eller ta ett vapen från inventory",
+				"briefing": "Vapenbutik [E], lila lasertorn nära spawn eller öppna inventory [I] om du redan har ett vapen.",
+				"achievement": "armament_weapon_found"
+			},
+			{
+				"id": "equip_weapon",
+				"title": "Beväpna dig",
+				"objective": "Utrusta ett vapen — slime, laser, närstrid eller butiksvapen",
+				"briefing": "Tryck utrusta i vapenbutiken eller equip via inventory. Du är inte säker förrän något sitter i händerna.",
+				"achievement": "armament_equipped"
+			}
+		],
+		"complete_achievement": "armament_warning_complete"
+	}
+}

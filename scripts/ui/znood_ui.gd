@@ -320,8 +320,24 @@ func _on_map_draw() -> void:
 		_znood_mgr().waypoint,
 		_znood_mgr().has_waypoint,
 		_znood_mgr().get_backup_pings_for_local(),
-		_znood_mgr().get_blink_alpha()
+		_znood_mgr().get_blink_alpha(),
+		true,
+		true,
+		_get_poi_blink_alpha(),
+		_is_poi_guide_active()
 	)
+
+
+func _is_poi_guide_active() -> bool:
+	var guide := get_node_or_null("/root/PoiGuideManager")
+	return guide != null and guide.is_poi_highlighted()
+
+
+func _get_poi_blink_alpha() -> float:
+	var guide := get_node_or_null("/root/PoiGuideManager")
+	if guide == null:
+		return 1.0
+	return guide.get_poi_blink_alpha()
 
 
 func _on_map_input(event: InputEvent) -> void:
