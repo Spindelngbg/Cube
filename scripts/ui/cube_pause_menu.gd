@@ -53,21 +53,10 @@ func _build() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 
-	var shell := Control.new()
-	shell.custom_minimum_size = Vector2(theme_data.menu_max_width + 28.0, 0.0)
-	center.add_child(shell)
-
 	_panel = PanelContainer.new()
-	_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_panel.offset_left = -theme_data.menu_max_width * 0.5
-	_panel.offset_right = theme_data.menu_max_width * 0.5
 	_panel.add_theme_stylebox_override("panel", _panel_style())
 	_panel.custom_minimum_size = Vector2(theme_data.menu_max_width, 0)
-	shell.add_child(_panel)
-
-	var decor := PauseMenuDecorScript.new()
-	decor.name = "PauseDecor"
-	_panel.add_child(decor)
+	center.add_child(_panel)
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 14)
@@ -104,6 +93,24 @@ func _build() -> void:
 	SpiderTheme.style_subtitle(hint)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(hint)
+
+	var decor := PauseMenuDecorScript.new()
+	decor.name = "PauseDecor"
+	decor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	decor.z_index = 4
+	_panel.add_child(decor)
+	_panel.resized.connect(_sync_pause_decor.bind(decor))
+	call_deferred("_sync_pause_decor", decor)
+
+
+func _sync_pause_decor(decor: Control) -> void:
+	if not is_instance_valid(decor) or not is_instance_valid(_panel):
+		return
+	decor.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	decor.offset_left = -14.0
+	decor.offset_top = -14.0
+	decor.offset_right = 14.0
+	decor.offset_bottom = 14.0
 
 
 func _add_dangling_spider(pivot: Vector2, thread_length: float) -> void:

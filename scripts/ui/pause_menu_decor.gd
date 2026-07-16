@@ -71,13 +71,13 @@ func _draw_corner_webs(corners: Array) -> void:
 		for strand in 5:
 			var angle := TAU * float(strand) / 5.0 + _time * 0.08
 			var end: Vector2 = corner_pos + Vector2(cos(angle), sin(angle)) * radius
-			draw_line(corner, end, WEB, 1.0)
+			draw_line(corner_pos, end, WEB, 1.0)
 		for ring in range(1, 3):
 			var rr := radius * float(ring) / 3.0
 			var arc: PackedVector2Array = []
 			for step in 6:
 				var a := TAU * float(step) / 5.0 + _time * 0.08
-				arc.append(corner + Vector2(cos(a), sin(a)) * rr)
+				arc.append(corner_pos + Vector2(cos(a), sin(a)) * rr)
 			draw_polyline(arc, WEB, 1.0)
 
 
