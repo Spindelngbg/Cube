@@ -48,7 +48,7 @@ static func build(parent: Node3D, spawn_id: String) -> Node3D:
 		scan.light_energy = 1.35
 		scan.spot_range = 36.0
 		scan.spot_angle = 48.0
-		scan.shadow_enabled = true
+		scan.shadow_enabled = false
 		root.add_child(scan)
 
 	var label := Label3D.new()

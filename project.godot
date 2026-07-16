@@ -46,7 +46,7 @@ ZnoodManager="*res://scripts/znood/znood_manager.gd"
 
 [debug]
 
-gdscript/warnings/untyped_declaration=1
+gdscript/warnings/untyped_declaration=0
 
 [display]
 
@@ -56,7 +56,7 @@ window/stretch/mode="canvas_items"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/settings_menus/plugin.cfg", "res://addons/roommate/plugin.cfg")
+enabled=PackedStringArray("res://addons/settings_menus/plugin.cfg")
 
 [input]
 
@@ -149,3 +149,9 @@ dev_grant_weapon={
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+anti_aliasing/quality/msaa_3d=1
+lights_and_shadows/positional_shadow/atlas_size=2048
+lights_and_shadows/directional_shadow/size=2048
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=1
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=0
+environment/defaults/default_clear_color=Color(0, 0, 0, 1)

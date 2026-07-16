@@ -349,7 +349,7 @@ static func _add_park_lights(parent: Node3D, center: Vector3, theme: Dictionary)
 		scan.light_energy = 0.42
 		scan.spot_range = 18.0
 		scan.spot_angle = 14.0
-		scan.shadow_enabled = true
+		scan.shadow_enabled = false
 		parent.add_child(scan)
 
 
@@ -379,7 +379,7 @@ static func _add_light_pole(
 	lamp.light_energy = energy
 	lamp.spot_range = range_m
 	lamp.spot_angle = 32.0
-	lamp.shadow_enabled = true
+	lamp.shadow_enabled = false
 	parent.add_child(lamp)
 
 

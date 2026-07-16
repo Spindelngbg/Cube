@@ -99,11 +99,12 @@ func set_login_screen_active(active: bool) -> void:
 
 
 func _ready() -> void:
-	SpiderTheme.apply_to(chat_panel)
-	SpiderTheme.style_section(%ChatTitle)
+	SpiderTheme.apply_hud_clean(chat_panel)
+	chat_title.add_theme_color_override("font_color", SpiderTheme.BONE)
+	chat_title.add_theme_font_size_override("font_size", 12)
 	SpiderTheme.style_status(status_label)
-	SpiderTheme.style_tab_button(chat_tab_button, true)
-	SpiderTheme.style_tab_button(friends_tab_button, false)
+	_style_tab_button_clean(chat_tab_button, true)
+	_style_tab_button_clean(friends_tab_button, false)
 
 	messages.meta_clicked.connect(_on_message_meta_clicked)
 	messages.scroll_following = true
@@ -114,7 +115,7 @@ func _ready() -> void:
 	minimize_button.pressed.connect(_toggle_minimize)
 	chat_panel.mouse_entered.connect(_on_panel_mouse_entered)
 	chat_panel.mouse_exited.connect(_on_panel_mouse_exited)
-	_panel_style_open = chat_panel.get_theme_stylebox("panel")
+	_panel_style_open = SpiderTheme.hud_panel_style(0.82)
 	_panel_style_compact = _make_compact_panel_style()
 
 	Auth.login_succeeded.connect(_on_auth_changed)
@@ -124,7 +125,7 @@ func _ready() -> void:
 	_connect_chat()
 	_show_tab("chat")
 	_refresh_friends_ui()
-	_apply_layout_mode()
+	_set_minimized(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -353,8 +354,8 @@ func _show_tab(tab: String) -> void:
 	_active_tab = tab
 	chat_view.visible = tab == "chat"
 	friends_view.visible = tab == "friends"
-	SpiderTheme.style_tab_button(chat_tab_button, tab == "chat")
-	SpiderTheme.style_tab_button(friends_tab_button, tab == "friends")
+	_style_tab_button_clean(chat_tab_button, tab == "chat")
+	_style_tab_button_clean(friends_tab_button, tab == "friends")
 	if tab == "friends":
 		_send_json({ "type": "friends_refresh" })
 
@@ -515,13 +516,18 @@ func _apply_layout_mode() -> void:
 		minimize_button.tooltip_text = "Minimera chatt [C]"
 
 
+func _style_tab_button_clean(button: Button, active: bool) -> void:
+	button.flat = true
+	if active:
+		button.add_theme_color_override("font_color", Color(0.82, 0.88, 0.95))
+	else:
+		button.add_theme_color_override("font_color", SpiderTheme.MUTED)
+
+
 func _make_compact_panel_style() -> StyleBox:
-	var style := FantasyBorderLibrary.panel_style(Color(0.82, 0.38, 0.42, 0.42))
-	if style is StyleBoxTexture:
-		var compact := (style as StyleBoxTexture).duplicate() as StyleBoxTexture
-		compact.content_margin_left = 6
-		compact.content_margin_right = 6
-		compact.content_margin_top = 3
-		compact.content_margin_bottom = 3
-		return compact
+	var style := SpiderTheme.hud_panel_style(0.42)
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	style.content_margin_top = 3
+	style.content_margin_bottom = 3
 	return style

@@ -142,7 +142,8 @@ func show_loading(message: String = "Laddar", subtitle: String = "Bygger koloni 
 
 
 func hide_loading() -> void:
-	if not _loading_visible:
+	if not _loading_visible or _loading_root == null or not is_instance_valid(_loading_root):
+		_loading_visible = false
 		return
 	_loading_visible = false
 	var tween := create_tween()

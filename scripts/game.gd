@@ -16,6 +16,7 @@ const GameTutorialUIScript = preload("res://scripts/ui/game_tutorial_ui.gd")
 const ZnoodUIScript = preload("res://scripts/ui/znood_ui.gd")
 const NavigationArrowUIScript = preload("res://scripts/ui/navigation_arrow_ui.gd")
 const DevWeaponToolsScript = preload("res://scripts/dev/dev_weapon_tools.gd")
+const ColonyLightingScript = preload("res://scripts/rendering/colony_lighting.gd")
 
 var players: Dictionary = {}
 var _active_spawn_id := ""
@@ -162,8 +163,6 @@ func _build_world() -> void:
 		var zone_mgr := RuntimeGlobals.zone_ownership()
 		if zone_mgr:
 			zone_mgr.setup_world_visuals(self, "")
-	if SpawnPoints.normalize_id(_active_spawn_id) != "satellite_right":
-		$DirectionalLight3D.rotation_degrees = Vector3(-48, 35, 0)
 
 
 func _register_znood_pois() -> void:
@@ -180,40 +179,18 @@ func _configure_colony_rendering() -> void:
 	var is_exposed_city := SpawnPoints.normalize_id(_active_spawn_id) == "satellite_right"
 	var env_node := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if env_node and env_node.environment:
-		var env := env_node.environment
-		env.fog_enabled = true
-		if is_exposed_city:
-			env.ambient_light_color = Color(0.1, 0.13, 0.22)
-			env.ambient_light_energy = 0.1
-			env.fog_light_color = Color(0.14, 0.18, 0.28)
-			env.fog_density = 0.0032
-			env.fog_depth_begin = 28.0
-			env.fog_depth_end = 5200.0
-			env.fog_sky_affect = 0.1
-			env.tonemap_exposure = 0.84
-			env.glow_intensity = 0.72
-			env.glow_strength = 0.9
-		else:
-			env.fog_density = 0.00004
-			env.fog_depth_begin = 200.0
-			env.fog_depth_end = 25_000.0
+		ColonyLightingScript.apply_environment(env_node.environment, is_exposed_city)
 
 	var sun := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if sun:
-		if is_exposed_city:
-			sun.light_color = Color(0.58, 0.68, 0.92)
-			sun.light_energy = 0.58
-			sun.rotation_degrees = Vector3(-78, 18, 0)
-			sun.shadow_enabled = true
-			sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-		else:
-			sun.rotation_degrees = Vector3(-48, 35, 0)
+		ColonyLightingScript.apply_sun(sun, is_exposed_city)
 
 	var fill := get_node_or_null("FillLight") as OmniLight3D
 	if fill and is_exposed_city:
 		fill.light_color = Color(0.32, 0.42, 0.62)
 		fill.light_energy = 0.06
 		fill.omni_range = 14.0
+		fill.shadow_enabled = false
 
 
 func _redirect_to_play_scene() -> void:

@@ -13,6 +13,43 @@ const MUTED := Color(0.55, 0.5, 0.56)
 const INPUT_BG := Color(0.06, 0.05, 0.08, 0.96)
 
 
+static func hud_panel_style(alpha: float = 0.78) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.06, 0.09, alpha)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.24, 0.28, 0.36, 0.5)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	style.anti_aliasing = true
+	return style
+
+
+static func apply_hud_clean(root: Control) -> void:
+	var theme := Theme.new()
+	var panel := hud_panel_style()
+	theme.set_stylebox("panel", "PanelContainer", panel)
+	theme.set_stylebox("normal", "Button", _hud_button_style(false))
+	theme.set_stylebox("hover", "Button", _hud_button_style(true))
+	theme.set_stylebox("pressed", "Button", _hud_button_style(true))
+	theme.set_stylebox("normal", "LineEdit", _hud_input_style(false))
+	theme.set_stylebox("focus", "LineEdit", _hud_input_style(true))
+	theme.set_color("font_color", "Label", BONE)
+	theme.set_color("font_placeholder_color", "LineEdit", MUTED)
+	theme.set_color("font_color", "LineEdit", BONE)
+	theme.set_color("font_color", "Button", BONE)
+	theme.set_color("font_hover_color", "Button", Color(0.82, 0.88, 0.95))
+	theme.set_font_size("font_size", "Label", 14)
+	theme.set_font_size("font_size", "Button", 14)
+	theme.set_font_size("font_size", "LineEdit", 14)
+	root.theme = theme
+
+
 static func apply_to(root: Control) -> void:
 	var theme := Theme.new()
 	theme.set_stylebox("panel", "PanelContainer", FantasyBorderLibrary.panel_style())
@@ -91,6 +128,33 @@ static func wrap_label_in_panel(label: Label, style: StyleBoxTexture = null) -> 
 		panel.position = pos
 		panel.size = size
 	return panel
+
+
+static func _hud_button_style(hover: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.12, 0.16, 0.92) if hover else Color(0.08, 0.09, 0.12, 0.82)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 5
+	style.content_margin_bottom = 5
+	return style
+
+
+static func _hud_input_style(focused: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.07, 0.08, 0.11, 0.95)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.35, 0.42, 0.55, 0.75) if focused else Color(0.2, 0.24, 0.3, 0.45)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	return style
 
 
 static func _button_disabled_style() -> StyleBoxTexture:

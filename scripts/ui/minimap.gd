@@ -11,7 +11,7 @@ var _map_input_enabled := false
 
 
 func _ready() -> void:
-	SpiderTheme.apply_to(self)
+	SpiderTheme.apply_hud_clean(self)
 	custom_minimum_size = Vector2(188, 188)
 
 	_canvas = Control.new()
