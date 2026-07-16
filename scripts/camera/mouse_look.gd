@@ -1,6 +1,7 @@
 extends Node
 
-## Musstyrning för FPS-vy. Enda ägare av musläge under spel (InputMode styr bara flaggor).
+## Musstyrning för FPS-vy. Enda ägare av musläge under spel.
+## Alt = visa/flytta muspekaren. Rör musen i spelvyn = lås sikt (utan extra klick).
 
 const MOUSE_SENSITIVITY := 0.0022
 const PITCH_LIMIT := 1.15
@@ -10,6 +11,7 @@ var _camera: Camera3D
 var _active := false
 var _was_paused := false
 var _want_capture := true
+var _user_cursor_free := false
 var _ignore_look_frames := 0
 var _shake_strength := 0.0
 var _shake_decay := 8.0
@@ -25,11 +27,16 @@ func is_active() -> bool:
 	return _active and _pivot != null and _camera != null
 
 
+func is_cursor_user_free() -> bool:
+	return _user_cursor_free
+
+
 func activate(pivot: Node3D, camera: Camera3D) -> void:
 	_pivot = pivot
 	_camera = camera
 	_active = true
 	_was_paused = false
+	_user_cursor_free = false
 	_want_capture = true
 	if _pivot and _camera:
 		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
@@ -40,6 +47,7 @@ func deactivate() -> void:
 	_active = false
 	_pivot = null
 	_camera = null
+	_user_cursor_free = false
 	_want_capture = false
 	_release_mouse()
 
@@ -87,27 +95,37 @@ func _input(event: InputEvent) -> void:
 	if not is_active() or get_tree().paused:
 		return
 
+	if event.is_action_pressed("toggle_cursor"):
+		_toggle_user_cursor()
+		get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
 		if button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
-			if _should_auto_capture() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			if _user_cursor_free and _game_allows_capture():
+				_user_cursor_free = false
 				_capture_mouse()
 		return
 
 	if not (event is InputEventMouseMotion):
 		return
+
+	var motion := event as InputEventMouseMotion
+	if _should_auto_capture() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		_capture_mouse(false)
+
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	if not _want_capture or not _should_auto_capture():
 		return
 	if _ignore_look_frames > 0:
 		return
-
-	var motion := event as InputEventMouseMotion
-	if absf(motion.relative.x) > 80.0 or absf(motion.relative.y) > 80.0:
+	if absf(motion.relative.x) > 120.0 or absf(motion.relative.y) > 120.0:
 		return
 	if _pivot == null or _camera == null:
 		return
+
 	_pivot.rotation.y -= motion.relative.x * MOUSE_SENSITIVITY
 	_camera.rotation.x = clampf(
 		_camera.rotation.x - motion.relative.y * MOUSE_SENSITIVITY,
@@ -132,6 +150,7 @@ func _process(delta: float) -> void:
 	if paused and not _was_paused:
 		_release_mouse()
 	elif not paused and _was_paused:
+		_user_cursor_free = false
 		request_recapture()
 	_was_paused = paused
 	if paused:
@@ -146,14 +165,28 @@ func _process(delta: float) -> void:
 			_release_mouse()
 
 
+func _toggle_user_cursor() -> void:
+	if not is_active():
+		return
+	_user_cursor_free = not _user_cursor_free
+	if _user_cursor_free:
+		_release_mouse()
+	elif _game_allows_capture():
+		_capture_mouse()
+
+
 func _should_auto_capture() -> bool:
-	if not _active:
+	if not _active or _user_cursor_free:
 		return false
 	if _is_drag_active():
 		return false
 	var input_mode := get_node_or_null("/root/InputMode")
 	if input_mode and input_mode.has_method("allow_game_input") and not input_mode.allow_game_input():
 		return false
+	return _game_allows_capture()
+
+
+func _game_allows_capture() -> bool:
 	var tree := get_tree()
 	if tree == null:
 		return false
@@ -168,12 +201,13 @@ func _is_drag_active() -> bool:
 	return input_mode != null and input_mode.has_method("is_drag_active") and input_mode.is_drag_active()
 
 
-func _capture_mouse() -> void:
+func _capture_mouse(reset_look_frames: bool = true) -> void:
 	_want_capture = true
 	_set_tracking_mode(true)
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		_ignore_look_frames = 2
+		if reset_look_frames:
+			_ignore_look_frames = 1
 
 
 func _release_mouse() -> void:
