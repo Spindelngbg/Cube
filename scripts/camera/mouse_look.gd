@@ -25,8 +25,33 @@ var _viewport_xform: Transform2D = Transform2D.IDENTITY
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	Input.set_use_accumulated_input(false)
 	_input_mode = get_node_or_null("/root/InputMode")
+	_connect_settings()
+	_apply_mouse_input_mode()
+
+
+func _connect_settings() -> void:
+	var settings := get_node_or_null("/root/Settings")
+	if settings == null:
+		return
+	if settings.has_signal("settings_loaded") and not settings.settings_loaded.is_connected(_apply_mouse_input_mode):
+		settings.settings_loaded.connect(_apply_mouse_input_mode)
+	if settings.has_signal("setting_changed") and not settings.setting_changed.is_connected(_on_settings_changed):
+		settings.setting_changed.connect(_on_settings_changed)
+
+
+func _on_settings_changed(key: String, _value) -> void:
+	if key == "controls.raw_mouse_input":
+		_apply_mouse_input_mode()
+
+
+func _apply_mouse_input_mode() -> void:
+	var raw := true
+	var settings := get_node_or_null("/root/Settings")
+	if settings != null:
+		raw = bool(settings.get_value("controls.raw_mouse_input", true))
+	Input.set_use_accumulated_input(not raw)
+	_pending_look = Vector2.ZERO
 
 
 func is_active() -> bool:

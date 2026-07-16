@@ -37,6 +37,7 @@ var _defaults: Dictionary = {
 	"a11y.font_scale": 1.0,
 	"a11y.colorblind_filter": "none",  # none | protanopia | deuteranopia | tritanopia
 	"a11y.reduce_motion": false,
+	"controls.raw_mouse_input": true,
 	"keybinds": {},
 }
 
@@ -452,7 +453,7 @@ func _coerce_setting_value(key: String, value):
 			return clampi(int(value), 0, 999)
 		"display.render_scale":
 			return clampf(float(value), 0.5, 1.0)
-		"display.vsync", "display.fps_visible", "display.shadows_enabled", "display.ssao_glow_enabled", "audio.footsteps_enabled", "a11y.reduce_motion":
+		"display.vsync", "display.fps_visible", "display.shadows_enabled", "display.ssao_glow_enabled", "audio.footsteps_enabled", "a11y.reduce_motion", "controls.raw_mouse_input":
 			return bool(value)
 		"audio.master", "audio.music", "audio.sfx", "a11y.font_scale":
 			return float(value)

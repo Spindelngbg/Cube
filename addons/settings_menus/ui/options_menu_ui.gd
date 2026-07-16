@@ -264,8 +264,24 @@ func _build_controls_tab() -> Control:
 	if settings == null:
 		return tab
 
+	var raw_row := _row(tab, "Rå musinput")
+	var raw_cb := CheckBox.new()
+	raw_cb.button_pressed = bool(settings.get_value("controls.raw_mouse_input", true))
+	raw_cb.toggled.connect(func(enabled: bool) -> void:
+		var s := _settings()
+		if s != null:
+			s.set_value("controls.raw_mouse_input", enabled))
+	raw_row.add_child(raw_cb)
+
+	var raw_note := Label.new()
+	raw_note.text = "På = varje musrörelse räknas direkt (rekommenderas). Av = Godot slår ihop rörelser per bildruta."
+	raw_note.add_theme_font_size_override("font_size", 11)
+	raw_note.add_theme_color_override("font_color", theme_data.text_dim)
+	raw_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(raw_note)
+
 	var hint := Label.new()
-	hint.text = "Click a binding to rebind. Press any key, mouse button, or gamepad button to set."
+	hint.text = "Klicka en bindning för att ändra. Tryck tangent, musknapp eller gamepad-knapp."
 	hint.add_theme_font_size_override("font_size", theme_data.body_font_size)
 	hint.add_theme_color_override("font_color", theme_data.text_dim)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
