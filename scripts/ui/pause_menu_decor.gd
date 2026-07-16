@@ -66,10 +66,11 @@ func _draw_gem(center: Vector2, pulse: float) -> void:
 
 func _draw_corner_webs(corners: Array) -> void:
 	for corner in corners:
-		var radius := 28.0 + sin(_time * 0.7 + corner.x * 0.01) * 2.0
+		var corner_pos: Vector2 = corner as Vector2 if corner is Vector2 else Vector2.ZERO
+		var radius := 28.0 + sin(_time * 0.7 + corner_pos.x * 0.01) * 2.0
 		for strand in 5:
 			var angle := TAU * float(strand) / 5.0 + _time * 0.08
-			var end := corner + Vector2(cos(angle), sin(angle)) * radius
+			var end: Vector2 = corner_pos + Vector2(cos(angle), sin(angle)) * radius
 			draw_line(corner, end, WEB, 1.0)
 		for ring in range(1, 3):
 			var rr := radius * float(ring) / 3.0
