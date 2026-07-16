@@ -1,11 +1,10 @@
 extends Node
 
-## Musstyrning för FPS-vy via scenens CameraPivot.
-## Roterar direkt på musrörelse (samma bildruta). Alt = fri pekare.
+## Musstyrning för FPS-vy. Yaw på spelaren, pitch på kameran. Alt = fri pekare.
 
-const DEFAULT_MOUSE_SENSITIVITY := 0.0024
+const DEFAULT_MOUSE_SENSITIVITY := 0.0022
 const PITCH_LIMIT := 1.15
-const MOTION_SPIKE_LIMIT := 200.0
+const MOTION_SPIKE_LIMIT := 120.0
 const RAW_MOUSE_SETTING := "controls.raw_mouse_input"
 
 var _pivot: Node3D
@@ -22,7 +21,6 @@ var _input_mode: Node
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	process_priority = -80
 	_input_mode = get_node_or_null("/root/InputMode")
 	_connect_settings()
 	_apply_mouse_input_mode()
@@ -172,7 +170,8 @@ func _input(event: InputEvent) -> void:
 	if _pivot == null or _camera == null:
 		return
 
-	_apply_look_delta(_scaled_mouse_relative(event as InputEventMouseMotion))
+	var rel := (event as InputEventMouseMotion).relative
+	_apply_look_delta(rel)
 
 
 func _process(delta: float) -> void:
@@ -197,18 +196,6 @@ func _process(delta: float) -> void:
 	if not _user_cursor_free and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		if _game_allows_capture():
 			_capture_mouse()
-
-
-func _scaled_mouse_relative(motion: InputEventMouseMotion) -> Vector2:
-	var rel := motion.relative
-	var viewport := get_viewport()
-	if viewport == null:
-		return rel
-	var stretch := viewport.get_stretch_transform()
-	var scale := stretch.get_scale()
-	if scale.x > 0.0001 and is_equal_approx(scale.x, scale.y):
-		return rel / scale.x
-	return motion.xformed_by(stretch).relative
 
 
 func _apply_look_delta(rel: Vector2) -> void:

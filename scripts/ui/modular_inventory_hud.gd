@@ -99,8 +99,5 @@ func _restore_mouse_look() -> void:
 	if get_tree().paused:
 		return
 	var game := get_tree().current_scene
-	if game and game.has_node("CameraPivot/Camera3D"):
-		MouseLook.activate(
-			game.get_node("CameraPivot") as Node3D,
-			game.get_node("CameraPivot/Camera3D") as Camera3D
-		)
+	if game and game.has_method("activate_gameplay_mouse"):
+		game.activate_gameplay_mouse()

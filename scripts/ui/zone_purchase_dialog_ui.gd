@@ -204,5 +204,5 @@ func _on_currency_changed(_amount: int) -> void:
 func _restore_mouse() -> void:
 	var game := get_tree().get_first_node_in_group("game_director")
 	if game and game.has_method("should_capture_mouse") and game.should_capture_mouse():
-		if game.has_method("get_camera_pivot") and game.has_method("get_camera"):
-			MouseLook.activate(game.get_camera_pivot(), game.get_camera())
+		if game.has_method("activate_gameplay_mouse"):
+			game.activate_gameplay_mouse()
