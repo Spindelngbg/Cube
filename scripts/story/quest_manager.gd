@@ -102,6 +102,12 @@ func on_interact(interact_id: String) -> void:
 	if interact_id.begins_with("gleazer_"):
 		_trigger_gleazer(interact_id)
 		return
+	if "_hench_" in interact_id:
+		_trigger_criminal_henchman(interact_id)
+		return
+	if interact_id.begins_with("criminal_boss_"):
+		_trigger_criminal_boss(interact_id)
+		return
 	if interact_id.begins_with("npc_"):
 		NpcCatalogScript.trigger_dialogue(interact_id)
 		return
@@ -202,6 +208,26 @@ func _trigger_allmakare(npc_id: String) -> void:
 			continue
 		if node.has_method("build_allmakare_talk_payload"):
 			AllmakareDebtManager.on_interact(npc_id, node.build_allmakare_talk_payload())
+		return
+
+
+func _trigger_criminal_boss(npc_id: String) -> void:
+	for node in get_tree().get_nodes_in_group("criminal_boss_npc"):
+		if not is_instance_valid(node):
+			continue
+		if str(node.get_meta("npc_id", "")) != npc_id:
+			continue
+		CriminalBossManager.on_boss_talk(npc_id)
+		return
+
+
+func _trigger_criminal_henchman(npc_id: String) -> void:
+	for node in get_tree().get_nodes_in_group("criminal_henchman_npc"):
+		if not is_instance_valid(node):
+			continue
+		if str(node.get_meta("npc_id", "")) != npc_id:
+			continue
+		CriminalBossManager.on_henchman_talk(npc_id)
 		return
 
 

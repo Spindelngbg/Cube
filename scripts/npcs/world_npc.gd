@@ -14,6 +14,7 @@ const NpcDialogueBarkScript = preload("res://scripts/audio/npc_dialogue_bark.gd"
 const ZezzlorLoreScript = preload("res://scripts/story/zezzlor_lore.gd")
 const SrcGuardLoreScript = preload("res://scripts/story/src_guard_lore.gd")
 const SrcHqCatalogScript = preload("res://scripts/story/src_hq_catalog.gd")
+const CriminalBossLoreScript = preload("res://scripts/story/criminal_boss_lore.gd")
 const SimulationLodScript = preload("res://scripts/world/simulation_lod.gd")
 
 const TURN_SPEED := 5.0
@@ -61,6 +62,12 @@ var _quest_bark_timer := 0.0
 var _is_allmakare := false
 var _allmakare_name := ""
 var _is_pedestrian := false
+var _is_criminal_boss := false
+var _is_criminal_henchman := false
+var _criminal_boss_id := ""
+var _criminal_boss_name := ""
+var _criminal_henchman_name := ""
+var _criminal_harass_timer := 0.0
 var _route: Array[Vector3] = []
 var _route_index := 0
 var _wallet := 0
@@ -90,6 +97,11 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 	_is_allmakare = bool(entry.get("allmakare", false))
 	_allmakare_name = str(entry.get("allmakare_name", entry.get("zezzlor_name", "")))
 	_is_pedestrian = bool(entry.get("pedestrian", false))
+	_is_criminal_boss = bool(entry.get("criminal_boss", false))
+	_is_criminal_henchman = bool(entry.get("criminal_henchman", false))
+	_criminal_boss_id = str(entry.get("criminal_boss_id", ""))
+	_criminal_boss_name = str(entry.get("boss_name", ""))
+	_criminal_henchman_name = str(entry.get("henchman_name", ""))
 	_wallet = int(entry.get("wallet", 0)) if _is_pedestrian else 0
 	_style_seed = int(entry.get("style_seed", seed))
 	_configure_route(entry, world_pos)
@@ -101,6 +113,10 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 	elif bool(entry.get("src_guard", false)):
 		_name_label.modulate = SrcGuardLoreScript.LABEL_COLOR
 		_configure_src_guard(entry, world_pos)
+	elif _is_criminal_boss or _is_criminal_henchman:
+		_refresh_criminal_label_color()
+		if _is_criminal_henchman:
+			_criminal_harass_timer = _rng.randf_range(2.0, 6.0)
 	position = world_pos
 	rotation.y = float(entry.get("rotation_y", 0.0))
 	_bounds_center = world_pos
@@ -124,6 +140,13 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 		_post_rotation_y = float(entry.get("rotation_y", 0.0))
 	if _is_pedestrian:
 		add_to_group("pedestrian_npc")
+	if _is_criminal_boss:
+		add_to_group("criminal_boss_npc")
+	if _is_criminal_henchman:
+		add_to_group("criminal_henchman_npc")
+	if (_is_criminal_boss or _is_criminal_henchman) and _criminal_boss_id != "":
+		if not CriminalBossManager.respect_changed.is_connected(_on_criminal_respect_changed):
+			CriminalBossManager.respect_changed.connect(_on_criminal_respect_changed)
 
 
 func _physics_process(delta: float) -> void:
@@ -138,6 +161,8 @@ func _physics_process(delta: float) -> void:
 		_lod_wait = 0.0
 		if _is_gleazer:
 			_tick_gleazer(step)
+		if _is_criminal_henchman:
+			_tick_criminal_henchman(step)
 		if _is_allmakare:
 			_tick_allmakare(step)
 		elif _is_pedestrian:
@@ -353,6 +378,13 @@ func _resolve_display_name(entry: Dictionary) -> String:
 		)
 	if bool(entry.get("allmakare", false)):
 		return ZezzlorLoreScript.format_name("allmakare", str(entry.get("allmakare_name", "")))
+	if bool(entry.get("criminal_boss", false)):
+		return CriminalBossLoreScript.format_boss_title(
+			str(entry.get("boss_name", "")),
+			str(entry.get("syndicate", ""))
+		)
+	if bool(entry.get("criminal_henchman", false)):
+		return CriminalBossLoreScript.format_henchman_name(str(entry.get("henchman_name", "")))
 	return str(entry.get("name", "NPC"))
 
 
@@ -468,6 +500,56 @@ func _try_rob_pedestrian(shooter_id: int) -> void:
 		"Du slog ner %s och tog %d %s från plånboken."
 		% [_display_name, amount, ItemCatalog.currency_symbol()]
 	)
+
+
+func _refresh_criminal_label_color() -> void:
+	if _criminal_boss_id == "":
+		return
+	var tier := CriminalBossManager.get_tier(_criminal_boss_id)
+	_name_label.modulate = CriminalBossLoreScript.label_color_for_tier(tier)
+
+
+func _tick_criminal_henchman(delta: float) -> void:
+	if _criminal_boss_id == "":
+		return
+	if CriminalBossManager.is_respected(_criminal_boss_id):
+		if _wander_enabled:
+			_simulate_wander(delta)
+		return
+	_criminal_harass_timer -= delta
+	if _wander_enabled:
+		_simulate_wander(delta)
+	if _criminal_harass_timer > 0.0:
+		return
+	var target := _find_nearby_local_player(9.0)
+	if target == null:
+		return
+	_criminal_harass_timer = _rng.randf_range(5.0, 11.0)
+	if _rng.randf() > 0.55:
+		return
+	var line := CriminalBossLoreScript.pick_henchman_line(false, _rng)
+	NpcDialogueBarkScript.play_for_npc(self, "shouting")
+	QuestManager.story_toast.emit(_display_name, line)
+	var to_target := target.global_position - global_position
+	to_target.y = 0.0
+	if to_target.length() > 0.5:
+		var stare_yaw := atan2(to_target.x, to_target.z)
+		rotation.y = lerp_angle(rotation.y, stare_yaw, SRC_TURN_SPEED * delta * 2.0)
+
+
+func _on_criminal_respect_changed(boss_id: String, _respect: int) -> void:
+	if boss_id != _criminal_boss_id:
+		return
+	_refresh_criminal_label_color()
+
+
+func build_criminal_talk_payload() -> Dictionary:
+	return {
+		"criminal_boss_id": _criminal_boss_id,
+		"boss_name": _criminal_boss_name,
+		"henchman_name": _criminal_henchman_name,
+		"world_pos": global_position,
+	}
 
 
 func build_gleazer_talk_payload() -> Dictionary:
@@ -653,6 +735,29 @@ func _mount_model(entry: Dictionary) -> void:
 			_anim_player = null
 		_avatar_animator = null
 		return
+	if _is_criminal_boss or _is_criminal_henchman:
+		var criminal_model := HumanCharacterLibraryScript.spawn(
+			_model_pivot,
+			Vector3.ZERO,
+			0.0,
+			scale_factor
+		)
+		if criminal_model == null:
+			return
+		_model_root = criminal_model
+		var criminal_avatar := CriminalBossLoreScript.build_avatar(_style_seed, entry)
+		HumanCharacterLibraryScript.apply_avatar_customization(criminal_model, criminal_avatar)
+		if criminal_avatar.glow_strength > 0.05:
+			HumanCharacterLibraryScript.apply_accent_glow(
+				criminal_model,
+				criminal_avatar.glow_color,
+				criminal_avatar.glow_strength
+			)
+		_human_animator = HumanAvatarAnimator.ensure_on(_model_pivot)
+		_human_animator.bind(criminal_model)
+		_anim_player = null
+		return
+
 	var model := HumanCharacterLibraryScript.spawn(
 		_model_pivot,
 		Vector3.ZERO,
