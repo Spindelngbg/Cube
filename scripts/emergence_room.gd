@@ -190,7 +190,7 @@ func _build_room() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color(1.0, 0.95, 0.82)
 	sun.light_energy = 2.4
-	sun.shadow_enabled = true
+	sun.shadow_enabled = false
 	sun.rotation_degrees = Vector3(-50, 30, 0)
 	$Room.add_child(sun)
 

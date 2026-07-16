@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3 uid="uid://cube_super_zezzlor"]
+
+[ext_resource type="Script" path="res://scripts/monsters/super_zezzlor.gd" id="1_super"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_super"]
+radius = 0.4
+height = 1.75
+
+[node name="SuperZezzlor" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_super")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_super")
+
+[node name="ModelPivot" type="Node3D" parent="."]
+
+[node name="NameLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.45, 0)
+text = "[Super-Zezzla] Bruce"
+font_size = 26
+outline_size = 6
+modulate = Color(1, 0.84, 0.18, 1)
+billboard = 1
+no_depth_test = true

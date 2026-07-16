@@ -38,6 +38,11 @@ const RANKS := {
 		"abbrev": "Ktr",
 		"color": Color(0.38, 0.52, 0.9),
 	},
+	"superman": {
+		"title": "Super-Zezzla",
+		"abbrev": "Sup",
+		"color": Color(1.0, 0.84, 0.18),
+	},
 }
 
 const CHASE_RANK_ORDER: Array[String] = ["recruit", "patrol", "officer", "sergeant"]

@@ -1,7 +1,8 @@
+## Account login over HTTPS JSON API to the official Cube server. No local script execution.
 extends Node
 
-const PRODUCTION_API_URL := "https://cube-production-3d68.up.railway.app"
-const LOCAL_API_URL := "http://localhost:9080"
+const PRODUCTION_API_URL := AppIdentity.PRODUCTION_API_URL
+const LOCAL_API_URL := AppIdentity.LOCAL_API_URL
 const DEFAULT_API_URL := PRODUCTION_API_URL
 const REQUEST_TIMEOUT_SEC := 18.0
 const MAX_RETRIES := 2

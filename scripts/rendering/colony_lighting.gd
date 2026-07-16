@@ -1,10 +1,12 @@
 class_name ColonyLighting
 extends RefCounted
 
-const HUB_SHADOW_DISTANCE := 720.0
+const HUB_SHADOW_DISTANCE := 180.0
 
 
-static func apply_environment(env: Environment, is_exposed_city: bool) -> void:
+static func apply_environment(env: Environment, is_exposed_city: bool, draw_distance_m: float = -1.0) -> void:
+	var fog_end := draw_distance_m if draw_distance_m > 0.0 else (5200.0 if is_exposed_city else 25_000.0)
+	var fog_begin := maxf(28.0 if is_exposed_city else 80.0, fog_end * 0.04)
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.ssao_enabled = _uses_forward_plus()
 	if env.ssao_enabled:
@@ -20,22 +22,22 @@ static func apply_environment(env: Environment, is_exposed_city: bool) -> void:
 
 	if is_exposed_city:
 		env.ambient_light_color = Color(0.1, 0.13, 0.22)
-		env.ambient_light_energy = 0.1
+		env.ambient_light_energy = 0.22 if not shadows_enabled() else 0.1
 		env.fog_light_color = Color(0.14, 0.18, 0.28)
 		env.fog_density = 0.0032
-		env.fog_depth_begin = 28.0
-		env.fog_depth_end = 5200.0
+		env.fog_depth_begin = fog_begin
+		env.fog_depth_end = fog_end
 		env.fog_sky_affect = 0.1
 		env.tonemap_exposure = 0.84
 		env.glow_intensity = 0.72
 		env.glow_strength = 0.9
 	else:
 		env.ambient_light_color = Color(0.14, 0.17, 0.24)
-		env.ambient_light_energy = 0.18
+		env.ambient_light_energy = 0.28 if not shadows_enabled() else 0.18
 		env.fog_light_color = Color(0.16, 0.2, 0.3)
 		env.fog_density = 0.00004
-		env.fog_depth_begin = 200.0
-		env.fog_depth_end = 25_000.0
+		env.fog_depth_begin = fog_begin
+		env.fog_depth_end = fog_end
 		env.fog_sky_affect = 0.18
 		env.tonemap_exposure = 0.92
 		env.glow_intensity = 0.55
@@ -49,18 +51,25 @@ static func _uses_forward_plus() -> bool:
 	)) == "forward_plus"
 
 
-static func apply_sun(sun: DirectionalLight3D, is_exposed_city: bool) -> void:
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-	sun.directional_shadow_blend_splits = true
-	sun.directional_shadow_max_distance = HUB_SHADOW_DISTANCE
-	sun.directional_shadow_split_1 = 0.08
-	sun.directional_shadow_split_2 = 0.22
-	sun.directional_shadow_split_3 = 0.55
-	sun.directional_shadow_fade_start = 0.82
-	sun.shadow_bias = 0.04
-	sun.shadow_normal_bias = 1.1
-	sun.shadow_blur = 1.2
+static func shadows_enabled() -> bool:
+	return _uses_forward_plus()
+
+
+static func apply_sun(sun: DirectionalLight3D, is_exposed_city: bool, draw_distance_m: float = -1.0) -> void:
+	sun.shadow_enabled = shadows_enabled()
+	if sun.shadow_enabled:
+		var shadow_distance := draw_distance_m if draw_distance_m > 0.0 else HUB_SHADOW_DISTANCE
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+		sun.directional_shadow_blend_splits = true
+		sun.directional_shadow_max_distance = clampf(shadow_distance * 0.28, 60.0, HUB_SHADOW_DISTANCE)
+		sun.directional_shadow_split_1 = 0.12
+		sun.directional_shadow_split_2 = 0.35
+		sun.directional_shadow_fade_start = 0.88
+		sun.shadow_bias = 0.05
+		sun.shadow_normal_bias = 1.0
+		sun.shadow_blur = 0.0
+	else:
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 
 	if is_exposed_city:
 		sun.light_color = Color(0.58, 0.68, 0.92)

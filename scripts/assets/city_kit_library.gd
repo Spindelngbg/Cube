@@ -70,7 +70,8 @@ static func spawn(
 			parent,
 			position,
 			DevBuildingLabelsScript.footprint_half_for_city_kit(kit, scale),
-			rotation_y
+			rotation_y,
+			instance
 		)
 	return instance
 

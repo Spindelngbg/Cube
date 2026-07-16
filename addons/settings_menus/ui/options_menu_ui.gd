@@ -183,6 +183,26 @@ func _build_display_tab() -> Control:
 			s.set_value("display.fps_visible", p))
 	fps_row.add_child(fps_cb)
 
+	var draw_distance := get_node_or_null("/root/DrawDistance")
+	if draw_distance != null:
+		var dd_row := _row(tab, "Synavstånd")
+		var dd_opt := OptionButton.new()
+		for label in draw_distance.PRESET_LABELS:
+			dd_opt.add_item(String(label))
+		dd_opt.selected = int(draw_distance.get_preset_index())
+		dd_opt.item_selected.connect(func(idx):
+			var s := _settings()
+			if s != null:
+				s.set_value("display.draw_distance_index", idx))
+		dd_row.add_child(dd_opt)
+
+		var dd_note := Label.new()
+		dd_note.text = "Lägre synavstånd förbättrar bildfrekvens i stora zoner som Neo-Washington."
+		dd_note.add_theme_font_size_override("font_size", 11)
+		dd_note.add_theme_color_override("font_color", theme_data.text_dim)
+		dd_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		tab.add_child(dd_note)
+
 	return tab
 
 

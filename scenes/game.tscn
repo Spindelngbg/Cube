@@ -46,17 +46,7 @@ environment = SubResource("Environment_main")
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
 light_color = Color(0.68, 0.76, 0.95, 1)
 light_energy = 0.72
-shadow_enabled = true
-directional_shadow_mode = 2
-directional_shadow_blend_splits = true
-directional_shadow_max_distance = 720.0
-directional_shadow_split_1 = 0.08
-directional_shadow_split_2 = 0.22
-directional_shadow_split_3 = 0.55
-directional_shadow_fade_start = 0.82
-shadow_bias = 0.04
-shadow_normal_bias = 1.1
-shadow_blur = 1.2
+shadow_enabled = false
 
 [node name="FillLight" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 8, 15)

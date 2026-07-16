@@ -77,7 +77,8 @@ static func spawn(parent: Node3D, name: String, position: Vector3 = Vector3.ZERO
 			parent,
 			position,
 			DevBuildingLabelsScript.footprint_half_for_space_model(name),
-			rotation_y
+			rotation_y,
+			instance
 		)
 	return instance
 

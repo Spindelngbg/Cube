@@ -1,0 +1,10 @@
+libwebrtc_native.dll — PURPOSE
+==============================
+This DLL is part of the Godot WebRTC Native GDExtension.
+
+Used by: The Cube (Spindelngbg)
+Purpose: Encrypted peer-to-peer multiplayer synchronization between game clients.
+Not used for: remote code execution, data exfiltration, or system modification.
+
+Licenses: see LICENSE.* files in this folder.
+Project: https://github.com/Spindelngbg/Cube

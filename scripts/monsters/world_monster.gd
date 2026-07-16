@@ -2,6 +2,8 @@ extends CharacterBody3D
 
 const WANDER_SPEED_MULT := 1.0
 const TURN_SPEED := 4.5
+const HYBRID_HP := 48.0
+const DEFAULT_HP := 28.0
 
 var _model_pivot: Node3D
 var _name_label: Label3D
@@ -15,6 +17,12 @@ var _anim_player: AnimationPlayer
 var _avatar_animator: AvatarAnimator
 var _moving := false
 var _rng := RandomNumberGenerator.new()
+var _hp := DEFAULT_HP
+var _alive := true
+
+
+func _ready() -> void:
+	add_to_group("world_monster")
 
 
 func setup(entry: Dictionary, spawn_pos: Vector3, bounds_center: Vector3, bounds_radius: float, seed: int) -> void:
@@ -41,9 +49,48 @@ func setup(entry: Dictionary, spawn_pos: Vector3, bounds_center: Vector3, bounds
 			push_warning("WorldMonster: okänd typ %s" % entry.get("kind", ""))
 
 	_wander_timer = _rng.randf_range(0.5, 2.0)
+	_hp = HYBRID_HP if has_meta("is_src_hybrid") else DEFAULT_HP
+
+
+func is_alive() -> bool:
+	return _alive
+
+
+func take_damage(amount: float) -> void:
+	if not _alive or amount <= 0.0:
+		return
+	if not _is_simulation_authority():
+		return
+	_hp -= amount
+	_flash_hit()
+	if _hp <= 0.0:
+		_die()
+
+
+func _flash_hit() -> void:
+	if _model_pivot == null:
+		return
+	var original := _model_pivot.scale
+	var tween := create_tween()
+	tween.tween_property(_model_pivot, "scale", original * 1.1, 0.05)
+	tween.tween_property(_model_pivot, "scale", original, 0.08)
+
+
+func _die() -> void:
+	if not _alive:
+		return
+	_alive = false
+	velocity = Vector3.ZERO
+	set_collision_layer_value(4, false)
+	var game := get_tree().get_first_node_in_group("game_director")
+	if game and game.has_method("unregister_monster"):
+		game.unregister_monster(self)
+	queue_free()
 
 
 func _physics_process(delta: float) -> void:
+	if not _alive:
+		return
 	if not _is_simulation_authority():
 		return
 	_simulate(delta)

@@ -12,12 +12,11 @@ const NpcSpawnerScript = preload("res://scripts/npcs/npc_spawner.gd")
 const HealthBarUIScript = preload("res://scripts/ui/health_bar_ui.gd")
 const InventoryUIScript = preload("res://scripts/ui/inventory_ui.gd")
 const ZezzlorSpawnerScript = preload("res://scripts/monsters/zezzlor_spawner.gd")
+const SuperZezzlorSpawnerScript = preload("res://scripts/monsters/super_zezzlor_spawner.gd")
 const GameTutorialUIScript = preload("res://scripts/ui/game_tutorial_ui.gd")
 const ZnoodUIScript = preload("res://scripts/ui/znood_ui.gd")
 const NavigationArrowUIScript = preload("res://scripts/ui/navigation_arrow_ui.gd")
 const DevWeaponToolsScript = preload("res://scripts/dev/dev_weapon_tools.gd")
-const ColonyLightingScript = preload("res://scripts/rendering/colony_lighting.gd")
-
 var players: Dictionary = {}
 var _active_spawn_id := ""
 var _online_toast: OnlinePlayersToast
@@ -34,6 +33,9 @@ var _near_weapon_shop: Node3D
 var _health_bar: PanelContainer
 var _inventory_ui: PanelContainer
 var _hybrid_bite_cooldowns: Dictionary = {}
+const HYBRID_BITE_RANGE := 1.2
+const HYBRID_BITE_COOLDOWN := 9.0
+const HYBRID_INFECTION_CHANCE := 0.32
 var _zezzlors: Array[Node3D] = []
 var _tutorial_ui: PanelContainer
 var _znood_ui: ZnoodUI
@@ -148,6 +150,12 @@ func _build_world() -> void:
 			SpawnPoints.get_position(_active_spawn_id)
 		)
 		_collect_monsters(monsters_root)
+		SuperZezzlorSpawnerScript.populate(
+			self,
+			_active_spawn_id,
+			SpawnPoints.get_position(_active_spawn_id),
+			_owdb_bridge
+		)
 		NpcSpawnerScript.populate(
 			self,
 			_active_spawn_id,
@@ -174,16 +182,8 @@ func _register_znood_pois() -> void:
 
 
 func _configure_colony_rendering() -> void:
-	_camera.far = 120_000.0
-	_camera.near = 0.05
 	var is_exposed_city := SpawnPoints.normalize_id(_active_spawn_id) == "satellite_right"
-	var env_node := get_node_or_null("WorldEnvironment") as WorldEnvironment
-	if env_node and env_node.environment:
-		ColonyLightingScript.apply_environment(env_node.environment, is_exposed_city)
-
-	var sun := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
-	if sun:
-		ColonyLightingScript.apply_sun(sun, is_exposed_city)
+	DrawDistance.apply_colony(self, is_exposed_city)
 
 	var fill := get_node_or_null("FillLight") as OmniLight3D
 	if fill and is_exposed_city:
@@ -191,6 +191,12 @@ func _configure_colony_rendering() -> void:
 		fill.light_energy = 0.06
 		fill.omni_range = 14.0
 		fill.shadow_enabled = false
+
+
+func refresh_draw_distance() -> void:
+	if _active_spawn_id == "":
+		return
+	_configure_colony_rendering()
 
 
 func _redirect_to_play_scene() -> void:
@@ -563,18 +569,19 @@ func _tick_hybrid_bites(delta: float) -> void:
 		if not monster.has_meta("is_src_hybrid") or not monster.get_meta("is_src_hybrid"):
 			continue
 		var dist := monster.global_position.distance_to(player.global_position)
-		if dist > 2.15:
+		if dist > HYBRID_BITE_RANGE:
 			continue
 		var mid: int = monster.get_instance_id()
 		if _hybrid_bite_cooldowns.has(mid):
 			continue
-		_hybrid_bite_cooldowns[mid] = 4.0
-		player.take_damage(8.0)
-		PoisonManager.apply_bite()
+		_hybrid_bite_cooldowns[mid] = HYBRID_BITE_COOLDOWN
+		player.take_damage(6.0)
+		PoisonManager.try_apply_bite(HYBRID_INFECTION_CHANCE)
 		break
 
 
 func _tick_poison(delta: float) -> void:
+	PoisonManager.tick_immunity(delta)
 	var local_id := multiplayer.get_unique_id()
 	if not players.has(local_id):
 		return
@@ -732,6 +739,12 @@ func on_npc_murdered(shooter_id: int, crime_pos: Vector3, _npc_id: String) -> vo
 func register_zezzlor(zezzlor: Node3D) -> void:
 	if zezzlor not in _zezzlors:
 		_zezzlors.append(zezzlor)
+
+
+func unregister_monster(monster: Node3D) -> void:
+	var idx := _monsters.find(monster)
+	if idx >= 0:
+		_monsters.remove_at(idx)
 
 
 func _collect_monsters(root: Node) -> void:

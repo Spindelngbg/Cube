@@ -16,6 +16,11 @@ echo Exporterar The Cube till build\TheCube.exe ...
 
 if %ERRORLEVEL%==0 (
     echo.
+    echo Kopierar sakerhets- och licensfiler till build\ ...
+    copy /Y %PROJECT%\distribution\ANTIVIRUS_NOTICE.txt %PROJECT%\build\ >nul
+    copy /Y %PROJECT%\distribution\THIRD_PARTY_NOTICES.txt %PROJECT%\build\ >nul
+    copy /Y %PROJECT%\addons\webrtc_native\ABOUT.txt %PROJECT%\build\ >nul
+    echo.
     echo Klart! Kor spelet fran:
     echo %PROJECT%\build\TheCube.exe
 ) else (

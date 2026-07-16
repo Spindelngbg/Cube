@@ -1,0 +1,47 @@
+THE CUBE — ANTIVIRUS / SECURITY NOTICE
+======================================
+Developer: Spindelngbg
+Version: 1.0.0
+Type: Godot Engine 4 game client (TheCube.exe)
+
+WHAT THIS PROGRAM IS
+--------------------
+A 3D multiplayer game. Players explore colonies, chat, and sync gameplay state
+with other players online.
+
+NETWORK ACTIVITY (EXPECTED AND LEGITIMATE)
+------------------------------------------
+- HTTPS to https://cube-production-3d68.up.railway.app
+  Account login, profiles, chat API, game metadata.
+- WSS to wss://cube-production-3d68.up.railway.app
+  WebSocket signaling for multiplayer lobby matchmaking only.
+- WebRTC peer connections between players for encrypted in-game sync.
+
+This client does NOT:
+- Download or run JavaScript, PowerShell, or batch files
+- Install drivers, services, or browser extensions
+- Mine cryptocurrency
+- Log keystrokes outside the game
+- Modify Windows registry or system folders
+
+BUNDLED NATIVE FILES
+--------------------
+libwebrtc_native*.dll — Godot WebRTC native extension (open-source WebRTC).
+Required for multiplayer. Ships beside TheCube.exe after export.
+
+LOCAL DATA
+----------
+Save files and settings are stored under the user's OS application data path
+(e.g. %APPDATA%/Godot/... on Windows).
+
+SERVER SOURCE (NOT SHIPPED TO PLAYERS)
+--------------------------------------
+The Node.js signaling server in signaling-server/ is for Railway hosting only.
+It is excluded from the Windows game export.
+
+FALSE POSITIVE REPORTS
+----------------------
+If your antivirus quarantines TheCube.exe, please report a false positive to
+your vendor and include this file. Code signing may be added in future releases.
+
+Support: https://github.com/Spindelngbg/Cube

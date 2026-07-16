@@ -9,6 +9,8 @@ const CHITIN_BASE := Color(0.08, 0.18, 0.34)
 
 
 static func build(parent: Node3D, rank_id: String = "patrol", scale_factor: float = 1.0) -> Dictionary:
+	if rank_id == "superman":
+		scale_factor *= 1.12
 	for child in parent.get_children():
 		child.queue_free()
 
@@ -31,6 +33,8 @@ static func build(parent: Node3D, rank_id: String = "patrol", scale_factor: floa
 		_apply_uniform_tint(core, rank_color.lerp(UNIFORM_BLUE, 0.45), 0.72)
 
 	var baton_socket := _ensure_baton_socket(parent, scale_factor)
+	if rank_id == "superman":
+		_attach_cape(parent, scale_factor)
 	return {"root": root, "baton_socket": baton_socket}
 
 
@@ -40,6 +44,8 @@ static func apply_corrosion_tint(root: Node, strength: float) -> void:
 
 static func _build_avatar(rank_id: String, scale_factor: float) -> AvatarData:
 	var rank_color: Color = ZezzlorLore.rank_color(rank_id)
+	if rank_id == "superman":
+		rank_color = Color(1.0, 0.84, 0.18)
 	var data := AvatarData.new()
 	data.mesh_id = "zezzlor"
 	data.body_scale = 1.02 * scale_factor
@@ -56,7 +62,7 @@ static func _build_avatar(rank_id: String, scale_factor: float) -> AvatarData:
 	data.fang_length = 0.2
 	data.claw_size = 0.55
 	data.crest_size = 0.18
-	data.glow_strength = 0.22
+	data.glow_strength = 0.55 if rank_id == "superman" else 0.22
 	data.spike_amount = 0.2
 	data.stance_width = 1.12
 	data.body_color = CHITIN_BASE.lerp(rank_color, 0.25)
@@ -68,8 +74,28 @@ static func _build_avatar(rank_id: String, scale_factor: float) -> AvatarData:
 	return data
 
 
+static func _attach_cape(parent: Node3D, scale_factor: float) -> void:
+	var cape := MeshInstance3D.new()
+	cape.name = "SuperCape"
+	var mesh := PlaneMesh.new()
+	mesh.size = Vector2(1.05 * scale_factor, 1.45 * scale_factor)
+	cape.mesh = mesh
+	cape.position = Vector3(0.0, 1.05 * scale_factor, 0.28 * scale_factor)
+	cape.rotation_degrees = Vector3(-12.0, 180.0, 0.0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.82, 0.1, 0.12)
+	mat.emission_enabled = true
+	mat.emission = Color(0.45, 0.05, 0.08)
+	mat.emission_energy_multiplier = 0.35
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	cape.material_override = mat
+	parent.add_child(cape)
+
+
 static func _arm_count_for_rank(rank_id: String) -> int:
 	match rank_id:
+		"superman":
+			return 12
 		"recruit":
 			return 8
 		"patrol":

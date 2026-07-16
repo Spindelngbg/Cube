@@ -1,3 +1,8 @@
+/**
+ * The Cube — official multiplayer signaling server (Spindelngbg).
+ * Deployed on Railway for matchmaking, chat relay, and HTTPS auth API.
+ * Not bundled in the Windows game export. Does not execute client code.
+ */
 const http = require('http');
 const WebSocket = require('ws');
 const crypto = require('crypto');

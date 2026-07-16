@@ -1,0 +1,13 @@
+THE CUBE — THIRD-PARTY COMPONENTS
+=================================
+
+Godot Engine 4 — MIT License — https://godotengine.org
+WebRTC Native GDExtension — see addons/webrtc_native/LICENSE.*
+Node signaling server (Railway deploy only, not in player build):
+  - ws (WebSocket) — https://github.com/websockets/ws
+  - pg (PostgreSQL client) — https://github.com/brianc/node-postgres
+
+Kenney 3D asset kits — CC0 — used for city and environment models.
+Settings Menus addon — see addons/settings_menus/
+
+All networking is limited to game login, chat, matchmaking, and multiplayer sync.

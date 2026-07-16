@@ -1,7 +1,9 @@
+## Multiplayer networking: WSS signaling for lobby matchmaking, WebRTC for P2P game sync.
+## Official server only (see AppIdentity). Does not execute downloaded code.
 extends Node
 
-const PRODUCTION_SIGNAL_URL := "wss://cube-production-3d68.up.railway.app"
-const LOCAL_SIGNAL_URL := "ws://localhost:9080"
+const PRODUCTION_SIGNAL_URL := AppIdentity.PRODUCTION_SIGNAL_URL
+const LOCAL_SIGNAL_URL := AppIdentity.LOCAL_SIGNAL_URL
 const DEFAULT_SIGNAL_URL := PRODUCTION_SIGNAL_URL
 const GLOBAL_LOBBY := "the-cube"
 
