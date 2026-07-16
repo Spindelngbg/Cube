@@ -1,12 +1,11 @@
 extends Node
 
-## Musstyrning för FPS-vy via scenens CameraPivot.
-## Roterar direkt i _input. Alt = fri pekare, vänsterklick = lås igen.
+## Musstyrning för FPS-vy. Siktet i mitten följer kamerans riktning.
+## Roterar direkt i _input — samma bildruta, ingen ackumulering.
 
-const DEFAULT_MOUSE_SENSITIVITY := 0.0022
+const MOUSE_SENSITIVITY := 0.0022
 const PITCH_LIMIT := 1.15
-const MOTION_SPIKE_LIMIT := 120.0
-const RAW_MOUSE_SETTING := "controls.raw_mouse_input"
+const MOTION_SPIKE_LIMIT := 80.0
 
 var _pivot: Node3D
 var _camera: Camera3D
@@ -17,49 +16,18 @@ var _shake_strength := 0.0
 var _shake_decay := 8.0
 var _shake_offset := Vector3.ZERO
 var _camera_rest_offset := Vector3.ZERO
-var _input_mode: Node
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_input_mode = get_node_or_null("/root/InputMode")
-	_connect_settings()
-	_apply_mouse_input_mode()
+	Input.set_use_accumulated_input(false)
 	var tree := get_tree()
 	if tree and not tree.scene_changed.is_connected(_on_scene_changed):
 		tree.scene_changed.connect(_on_scene_changed)
 
 
 func _on_scene_changed() -> void:
-	# Lämna aldrig CONFINED_HIDDEN/CAPTURED kvar på login/menyer.
 	deactivate()
-	_release_pointer()
-	if _input_mode and _input_mode.has_method("ui"):
-		_input_mode.ui()
-	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
-
-func _connect_settings() -> void:
-	var settings := get_node_or_null("/root/Settings")
-	if settings == null:
-		return
-	if settings.has_signal("settings_loaded") and not settings.settings_loaded.is_connected(_apply_mouse_input_mode):
-		settings.settings_loaded.connect(_apply_mouse_input_mode)
-	if settings.has_signal("setting_changed") and not settings.setting_changed.is_connected(_on_settings_changed):
-		settings.setting_changed.connect(_on_settings_changed)
-
-
-func _on_settings_changed(key: String, _value) -> void:
-	if key == RAW_MOUSE_SETTING:
-		_apply_mouse_input_mode()
-
-
-func _apply_mouse_input_mode() -> void:
-	var raw := true
-	var settings := get_node_or_null("/root/Settings")
-	if settings != null:
-		raw = bool(settings.get_value(RAW_MOUSE_SETTING, true))
-	Input.set_use_accumulated_input(not raw)
 
 
 func is_active() -> bool:
@@ -79,7 +47,7 @@ func activate(pivot: Node3D, camera: Camera3D) -> void:
 	if _active:
 		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
 		_camera.current = true
-		_enter_game_input_mode()
+		_set_input_mode_game()
 		_capture_mouse()
 
 
@@ -88,14 +56,15 @@ func deactivate() -> void:
 	_pivot = null
 	_camera = null
 	_user_cursor_free = false
-	_release_pointer()
+	_release_mouse()
+	_set_input_mode_ui()
 
 
 func notify_pointer_left_window() -> void:
 	if not is_active():
 		return
 	_user_cursor_free = true
-	_release_pointer()
+	_release_mouse()
 
 
 func get_yaw() -> float:
@@ -136,16 +105,16 @@ func request_shake(strength: float, duration_hint: float = 0.12) -> void:
 
 
 func request_recapture() -> void:
-	if is_active() and not _user_cursor_free:
+	if is_active() and not _user_cursor_free and _should_auto_capture():
 		_capture_mouse()
 
 
 func release_for_ui() -> void:
 	if not is_active():
-		_release_pointer()
+		_release_mouse()
 		return
 	_user_cursor_free = false
-	_release_pointer()
+	_release_mouse()
 
 
 func _input(event: InputEvent) -> void:
@@ -159,25 +128,31 @@ func _input(event: InputEvent) -> void:
 
 	if event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
-		if button.pressed and button.button_index == MOUSE_BUTTON_LEFT and _user_cursor_free:
-			_user_cursor_free = false
-			_capture_mouse()
+		if button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
+			if _user_cursor_free and _should_auto_capture():
+				_user_cursor_free = false
+				_capture_mouse()
+			elif Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and _should_auto_capture():
+				_capture_mouse()
 		return
 
 	if not (event is InputEventMouseMotion):
 		return
-	if _user_cursor_free or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if _user_cursor_free:
+		return
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		return
+	if not _should_auto_capture():
 		return
 	if _pivot == null or _camera == null:
 		return
 
-	var rel := (event as InputEventMouseMotion).relative
-	if absf(rel.x) > MOTION_SPIKE_LIMIT or absf(rel.y) > MOTION_SPIKE_LIMIT:
+	var motion := event as InputEventMouseMotion
+	if absf(motion.relative.x) > MOTION_SPIKE_LIMIT or absf(motion.relative.y) > MOTION_SPIKE_LIMIT:
 		return
-	var sensitivity := _get_mouse_sensitivity()
-	_pivot.rotation.y -= rel.x * sensitivity
+	_pivot.rotation.y -= motion.relative.x * MOUSE_SENSITIVITY
 	_camera.rotation.x = clampf(
-		_camera.rotation.x - rel.y * sensitivity,
+		_camera.rotation.x - motion.relative.y * MOUSE_SENSITIVITY,
 		-PITCH_LIMIT,
 		PITCH_LIMIT
 	)
@@ -188,82 +163,55 @@ func _process(delta: float) -> void:
 	if not _active:
 		return
 
-	if _is_drag_active():
-		_release_mouse()
-		return
-
-	var tree := get_tree()
-	var paused := tree.paused if tree else false
+	var paused := get_tree().paused
 	if paused and not _was_paused:
 		_release_mouse()
-	elif not paused and _was_paused and not _user_cursor_free:
+	elif not paused and _was_paused and not _user_cursor_free and _should_auto_capture():
 		_capture_mouse()
 	_was_paused = paused
-	if paused:
-		return
-
-	if not _user_cursor_free and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		if _game_allows_capture():
-			_capture_mouse()
 
 
 func _toggle_user_cursor() -> void:
 	_user_cursor_free = not _user_cursor_free
 	if _user_cursor_free:
 		_release_mouse()
-	elif _game_allows_capture():
+	elif _should_auto_capture():
 		_capture_mouse()
 
 
-func _game_allows_capture() -> bool:
-	var tree := get_tree()
-	if tree == null:
+func _should_auto_capture() -> bool:
+	if not _active:
 		return false
-	var game := tree.current_scene
+	var game := get_tree().current_scene
 	if game and game.has_method("should_capture_mouse"):
 		return bool(game.call("should_capture_mouse"))
 	return true
 
 
-func _is_drag_active() -> bool:
-	return _input_mode != null and _input_mode.has_method("is_drag_active") and _input_mode.is_drag_active()
-
-
 func _capture_mouse() -> void:
-	_set_tracking_mode(true)
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _release_mouse() -> void:
-	_set_tracking_mode(false)
-	_release_pointer()
-
-
-func _release_pointer() -> void:
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-func _set_tracking_mode(is_game: bool) -> void:
-	if _input_mode and _input_mode.has_method("set_tracking_mode"):
-		_input_mode.set_tracking_mode(is_game)
+func _set_input_mode_game() -> void:
+	var mode := get_node_or_null("/root/InputMode")
+	if mode and mode.has_method("set_tracking_mode"):
+		mode.set_tracking_mode(true)
+	elif mode and mode.has_method("game"):
+		mode.game()
 
 
-func _enter_game_input_mode() -> void:
-	if _input_mode and _input_mode.has_method("game"):
-		_input_mode.game()
-
-
-func _get_mouse_sensitivity() -> float:
-	var settings := get_node_or_null("/root/Settings")
-	if settings == null:
-		return DEFAULT_MOUSE_SENSITIVITY
-	return clampf(
-		float(settings.get_value("controls.mouse_sensitivity", DEFAULT_MOUSE_SENSITIVITY)),
-		0.0005,
-		0.01
-	)
+func _set_input_mode_ui() -> void:
+	var mode := get_node_or_null("/root/InputMode")
+	if mode and mode.has_method("set_tracking_mode"):
+		mode.set_tracking_mode(false)
+	elif mode and mode.has_method("ui"):
+		mode.ui()
 
 
 func _apply_camera_shake(delta: float) -> void:

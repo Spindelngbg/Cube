@@ -2,7 +2,7 @@ extends Node
 
 const InventoryRuntimeScript = preload("res://addons/modular_inventory_system/inventory_runtime.gd")
 
-## Håller koll på UI vs spel-läge för inventory/drag. Musläge i spel hanteras av MouseLook.
+## UI vs spel-läge. Musläge i spel ägs av MouseLook när det är aktivt.
 
 @export var startup_mode: bool = false
 @export var prevent_game_input_in_ui: bool = true
@@ -45,7 +45,6 @@ func allow_game_input() -> bool:
 	return not _is_ui_mode and not _drag_active
 
 
-## Uppdaterar bara intern flagga — MouseLook sätter inte musläge via game()/ui().
 func set_tracking_mode(is_game: bool) -> void:
 	_is_ui_mode = not is_game
 
@@ -54,29 +53,10 @@ func set_mode(is_game: bool) -> void:
 	_is_ui_mode = not is_game
 	if _mouse_look_handles_mouse():
 		return
-	_apply_mouse_mode(is_game)
-
-
-func _apply_mouse_mode(is_game: bool) -> void:
-	if _mouse_look_handles_mouse():
-		return
-	if is_game and not _game_allows_capture():
-		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		return
 	if is_game:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	else:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-
-
-func _game_allows_capture() -> bool:
-	var tree := get_tree()
-	if tree == null:
-		return false
-	var scene := tree.current_scene
-	if scene and scene.has_method("should_capture_mouse"):
-		return bool(scene.call("should_capture_mouse"))
-	return true
 
 
 func _mouse_look_handles_mouse() -> bool:
@@ -115,17 +95,13 @@ func _on_drag_end() -> void:
 
 func _notification(what: int) -> void:
 	if _mouse_look_handles_mouse():
-		# Släpp vid alt-tab — spelaren klickar för att låsa igen (MouseLook).
-		var mode := Input.get_mouse_mode()
-		if what == NOTIFICATION_WM_MOUSE_EXIT and mode != Input.MOUSE_MODE_VISIBLE:
+		if what == NOTIFICATION_WM_MOUSE_EXIT:
 			var mouse_look := get_node_or_null("/root/MouseLook")
 			if mouse_look != null and mouse_look.has_method("notify_pointer_left_window"):
 				mouse_look.notify_pointer_left_window()
-			else:
-				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		return
 	if what == NOTIFICATION_WM_MOUSE_EXIT and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	elif what == NOTIFICATION_WM_MOUSE_ENTER:
 		if not _is_ui_mode:
-			_apply_mouse_mode(true)
+			set_mode(true)
