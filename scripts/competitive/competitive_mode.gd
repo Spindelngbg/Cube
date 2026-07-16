@@ -13,7 +13,11 @@ func is_enabled() -> bool:
 
 
 func player_sync_interval_sec() -> float:
-	return 1.0 / 60.0 if is_enabled() else 1.0 / 20.0
+	return 1.0 / 30.0 if is_enabled() else 1.0 / 20.0
+
+
+func max_draw_distance_m() -> float:
+	return 400.0 if is_enabled() else -1.0
 
 
 func player_sync_move_threshold() -> float:

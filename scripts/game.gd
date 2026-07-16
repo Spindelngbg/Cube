@@ -88,7 +88,7 @@ var _near_zezzlor_hq: ZezzlorHq
 var _hud_clock: HudClockUI
 const HUD_UPDATE_INTERVAL := 0.35
 const MINIMAP_UPDATE_INTERVAL := 0.25
-const INTERACTION_SCAN_INTERVAL := 0.16
+const INTERACTION_SCAN_INTERVAL := 0.28
 const WORLD_TICK_INTERVAL := 0.2
 const ZNOOD_UI_UPDATE_INTERVAL := 0.3
 var _hud_timer := 0.0
@@ -124,6 +124,7 @@ func _boot_world() -> void:
 		return
 
 	_build_world_geometry()
+	DrawDistance.refresh_active_scenes()
 	_style_hud()
 	_setup_minimap()
 	_setup_network_map()

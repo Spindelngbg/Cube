@@ -90,7 +90,12 @@ var _zezzlor_jail_node: Node3D
 var _zezzlor_jail_spawn_id := ""
 var _water_volumes: Array[Node] = []
 var _ground_snap_remaining := 0.0
-const GROUND_SNAP_GRACE_SEC := 5.0
+var _ground_snap_cooldown := 0.0
+var _ladder_scan_timer := 0.0
+var _cached_ladder: ExteriorLadderScript
+const GROUND_SNAP_GRACE_SEC := 3.0
+const GROUND_SNAP_INTERVAL := 0.3
+const LADDER_SCAN_INTERVAL := 0.22
 const MIN_WALKABLE_FLOOR_Y := -0.05
 
 
@@ -134,7 +139,7 @@ func ensure_safe_ground() -> void:
 		candidates.append(_spawn_anchor)
 	candidates.append(global_position)
 	# Spiral-sök efter fri punkt om vi sitter i vägg/mark.
-	for ring in range(1, 6):
+	for ring in range(1, 4):
 		var radius := float(ring) * 1.6
 		for step in range(8):
 			var angle := float(step) * TAU / 8.0
@@ -462,7 +467,12 @@ func _physics_process(delta: float) -> void:
 
 	if _ground_snap_remaining > 0.0:
 		_ground_snap_remaining = maxf(0.0, _ground_snap_remaining - delta)
-		if not is_on_floor() or global_position.y < MIN_WALKABLE_FLOOR_Y + 0.2:
+		_ground_snap_cooldown = maxf(0.0, _ground_snap_cooldown - delta)
+		if (
+			(not is_on_floor() or global_position.y < MIN_WALKABLE_FLOOR_Y + 0.2)
+			and _ground_snap_cooldown <= 0.0
+		):
+			_ground_snap_cooldown = GROUND_SNAP_INTERVAL
 			ensure_safe_ground()
 
 	# Nödlösning: under mark / långt under spawn → knuffa upp till säkert golv.
@@ -489,7 +499,11 @@ func _physics_process(delta: float) -> void:
 	var direction := _get_flat_move_direction(input_dir)
 	var pre_move_pos := global_position
 
-	var ladder := _get_active_ladder()
+	_ladder_scan_timer += delta
+	if _ladder_scan_timer >= LADDER_SCAN_INTERVAL:
+		_ladder_scan_timer = 0.0
+		_cached_ladder = _scan_active_ladder()
+	var ladder := _cached_ladder
 	var was_on_floor := is_on_floor()
 	if ladder != null and ladder.apply_climb(self, delta):
 		_peak_fall_speed = 0.0
@@ -951,7 +965,7 @@ func get_facing_yaw() -> float:
 	return rotation.y
 
 
-func _get_active_ladder() -> ExteriorLadderScript:
+func _scan_active_ladder() -> ExteriorLadderScript:
 	for node in get_tree().get_nodes_in_group("exterior_ladder"):
 		if node is ExteriorLadderScript and (node as ExteriorLadderScript).has_player(self):
 			return node as ExteriorLadderScript

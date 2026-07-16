@@ -19,7 +19,7 @@ func _ready() -> void:
 	var settings := get_node_or_null("/root/Settings")
 	if settings == null:
 		return
-	settings.set_default(SETTING_KEY, 1)
+	settings.set_default(SETTING_KEY, 0)
 	settings.set_default(SHADOWS_KEY, true)
 	settings.set_default(SSAO_GLOW_KEY, true)
 	settings.set_default(RENDER_SCALE_KEY, 1.0)
@@ -47,7 +47,15 @@ func get_preset_index() -> int:
 
 
 func get_distance_m() -> float:
-	return PRESETS_M[get_preset_index()]
+	var distance_m := PRESETS_M[get_preset_index()]
+	if not ColonyLightingScript._uses_forward_plus():
+		distance_m = minf(distance_m, 350.0)
+	var competitive := get_node_or_null("/root/CompetitiveMode")
+	if competitive != null and competitive.has_method("max_draw_distance_m"):
+		var cap := float(competitive.max_draw_distance_m())
+		if cap > 0.0:
+			distance_m = minf(distance_m, cap)
+	return distance_m
 
 
 func apply_colony(game_root: Node3D, is_exposed_city: bool) -> void:

@@ -30,10 +30,10 @@ var _defaults: Dictionary = {
 	"display.resolution_index": 0,   # index into Settings.RESOLUTIONS
 	"display.vsync": true,
 	"display.fps_visible": false,
-	"display.draw_distance_index": 1,
+	"display.draw_distance_index": 0,
 	"display.shadows_enabled": true,
 	"display.ssao_glow_enabled": true,
-	"display.render_scale": 1.0,
+	"display.render_scale": 0.85,
 	"a11y.font_scale": 1.0,
 	"a11y.colorblind_filter": "none",  # none | protanopia | deuteranopia | tritanopia
 	"a11y.reduce_motion": false,

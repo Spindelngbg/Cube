@@ -35,6 +35,8 @@ var _eye: MeshInstance3D
 var _eye_mat: StandardMaterial3D
 var _name_label: Label3D
 var _wheels: Array[Node3D] = []
+var _sync_accum := 0.0
+const SYNC_INTERVAL := 0.1
 
 
 func setup(config: Dictionary) -> void:
@@ -78,7 +80,10 @@ func _physics_process(delta: float) -> void:
 	global_position.y = _roam_center.y
 
 	if multiplayer.multiplayer_peer != null:
-		_sync_motion.rpc(global_position, rotation.y, _state, _get_eye_yaw())
+		_sync_accum += delta
+		if _sync_accum >= SYNC_INTERVAL:
+			_sync_accum = 0.0
+			_sync_motion.rpc(global_position, rotation.y, _state, _get_eye_yaw())
 
 
 func _tick_patrol(delta: float) -> void:
