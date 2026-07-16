@@ -13,6 +13,7 @@ const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision
 const ARRIVAL_HUB_RADIUS_M := 140.0
 const WALL_THICKNESS_M := 80.0
 const FLOOR_THICKNESS_M := 2.0
+const SPAWN_PAD_SIZE := Vector3(14.0, 1.0, 14.0)
 
 
 static func build(parent: Node3D, spawn_id: String) -> Node3D:
@@ -32,6 +33,7 @@ static func build(parent: Node3D, spawn_id: String) -> Node3D:
 	if id == "satellite_right":
 		StoryWorldBuilder.build(root, id)
 	_mount_elevator_shaft(root, size_m, id)
+	_build_play_spawn_pad(root, id)
 
 	var spawn_pos := SpawnPoints.get_position(id)
 	var theme := ColonyCityTheme.for_spawn(id)
@@ -122,11 +124,7 @@ static func _build_arrival_hub(root: Node3D, entry: Dictionary, spawn_id: String
 	# Öppen spawn-yta i centrum — solid rum flyttat så spelaren inte fastnar i geometri.
 	SpaceKitLibrary.spawn(platform, "template-floor-detail-a", Vector3(0, 0, 0))
 	SpaceKitLibrary.spawn(platform, "room-small", Vector3(18.0, 0.0, -14.0))
-	WorldCollisionBuilderScript.attach_box(
-		platform,
-		Vector3(30.0, 0.5, 30.0),
-		Vector3(0.0, 0.25, 0.0)
-	)
+	# Golvkollision hanteras av PlaySpawnPad (samma centrum) — undvik dubbla plattor.
 	_add_arrival_pickup(platform, Vector3(-3.0, 0.0, -2.0))
 
 	if spawn_id != "satellite_right":
@@ -247,6 +245,40 @@ static func _surface_material(color: Color) -> StandardMaterial3D:
 	mat.roughness = 0.92
 	mat.metallic = 0.05
 	return mat
+
+
+static func _build_play_spawn_pad(root: Node3D, spawn_id: String) -> void:
+	var play := SpawnPoints.get_play_spawn_position(spawn_id)
+	var pad := StaticBody3D.new()
+	pad.name = "PlaySpawnPad"
+	pad.position = Vector3(play.x, 0.0, play.z)
+	pad.collision_layer = WorldCollisionBuilderScript.WORLD_COLLISION_LAYER
+	pad.collision_mask = 0
+	root.add_child(pad)
+
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = SPAWN_PAD_SIZE
+	shape.shape = box
+	shape.position = Vector3(
+		0.0,
+		SpawnPoints.SPAWN_PAD_SURFACE_Y - SPAWN_PAD_SIZE.y * 0.5,
+		0.0
+	)
+	pad.add_child(shape)
+
+	var mesh_node := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(SPAWN_PAD_SIZE.x - 1.0, 0.16, SPAWN_PAD_SIZE.z - 1.0)
+	mesh_node.mesh = mesh
+	mesh_node.position = Vector3(0.0, SpawnPoints.SPAWN_PAD_SURFACE_Y - 0.08, 0.0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.22, 0.78, 0.42, 0.85)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.metallic = 0.15
+	mat.roughness = 0.72
+	mesh_node.material_override = mat
+	pad.add_child(mesh_node)
 
 
 static func _add_beacon_pillar(parent: Node3D, base: Vector3, size_m: float, spawn_id: String) -> void:

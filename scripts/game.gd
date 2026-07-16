@@ -629,6 +629,19 @@ func _is_shifted_spawn_usable(feet_pos: Vector3) -> bool:
 	return PlayerScript.is_shifted_spawn_usable(space, feet_pos)
 
 
+func _snap_spawn_to_floor(feet_pos: Vector3) -> Vector3:
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	if space == null:
+		feet_pos.y = maxf(feet_pos.y, SpawnPoints.SPAWN_FOOT_Y)
+		return feet_pos
+	var floor_y := PlayerScript.find_highest_floor_y(space, feet_pos, feet_pos.y)
+	if floor_y > PlayerScript.MIN_WALKABLE_FLOOR_Y:
+		feet_pos.y = PlayerScript._feet_y_on_floor(floor_y)
+	else:
+		feet_pos.y = SpawnPoints.SPAWN_FOOT_Y
+	return feet_pos
+
+
 func get_camera_pivot() -> Node3D:
 	return _camera_pivot
 
@@ -1402,7 +1415,7 @@ func _spawn_player(peer_id: int) -> void:
 	var spawn_pos := _resolve_player_spawn_position(peer_id)
 	if not _is_shifted_spawn_usable(spawn_pos):
 		spawn_pos = SpawnPoints.get_shifted_play_spawn(colony_id)
-	spawn_pos.y = maxf(spawn_pos.y, SpawnPoints.SPAWN_FOOT_Y)
+	spawn_pos = _snap_spawn_to_floor(spawn_pos)
 
 	var player := PLAYER_SCENE.instantiate()
 	player.name = str(peer_id)

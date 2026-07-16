@@ -169,7 +169,11 @@ func _try_place_on_floor(space: PhysicsDirectSpaceState3D, xz_pos: Vector3) -> V
 	var floor_y := find_highest_floor_y(space, xz_pos, anchor_y, [get_rid()])
 	if floor_y == -INF:
 		return Vector3.INF
-	return Vector3(xz_pos.x, floor_y + 0.12, xz_pos.z)
+	return Vector3(xz_pos.x, _feet_y_on_floor(floor_y), xz_pos.z)
+
+
+static func _feet_y_on_floor(floor_y: float) -> float:
+	return maxf(floor_y + 0.02, SpawnPoints.SPAWN_FOOT_Y)
 
 
 ## Hitta högsta gångbara golv under en XZ-punkt (undvik platta under vägar).
@@ -230,10 +234,11 @@ static func is_shifted_spawn_usable(
 	feet_pos: Vector3,
 	exclude: Array[RID] = []
 ) -> bool:
-	if probe_feet_blocked(space, feet_pos, exclude):
-		return false
 	var floor_y := find_highest_floor_y(space, feet_pos, feet_pos.y, exclude)
-	return floor_y > MIN_WALKABLE_FLOOR_Y
+	if floor_y <= MIN_WALKABLE_FLOOR_Y:
+		return false
+	var grounded := Vector3(feet_pos.x, _feet_y_on_floor(floor_y), feet_pos.z)
+	return not probe_feet_blocked(space, grounded, exclude)
 
 
 func _capsule_is_blocked(space: PhysicsDirectSpaceState3D, feet_pos: Vector3) -> bool:

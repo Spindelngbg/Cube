@@ -6,6 +6,7 @@ const CriminalBossCatalogScript = preload("res://scripts/story/criminal_boss_cat
 const CriminalBossLoreScript = preload("res://scripts/story/criminal_boss_lore.gd")
 const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
 const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
+const NpcDialogueBarkScript = preload("res://scripts/audio/npc_dialogue_bark.gd")
 
 const TALK_RESPECT_BOSS := 8
 const TALK_RESPECT_HENCHMAN := 2

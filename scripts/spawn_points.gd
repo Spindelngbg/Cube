@@ -126,8 +126,10 @@ static func get_cube_id(spawn_id: String) -> String:
 	return str(DATA.get(id, {}).get("cube_id", ""))
 
 
+## Yta på garanterad spawn-platta (byggs i varje koloni).
+const SPAWN_PAD_SURFACE_Y := 0.55
 ## Spelarens fötter över golvytan (världs-Y). Påverkar INTE världsgeometrins origin.
-const SPAWN_FOOT_Y := 1.15
+const SPAWN_FOOT_Y := SPAWN_PAD_SURFACE_Y + 0.12
 
 
 static func get_position(spawn_id: String) -> Vector3:

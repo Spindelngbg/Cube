@@ -54,14 +54,14 @@ static func attach_box(root: Node3D, size: Vector3, position: Vector3) -> Static
 static func attach_city_kit_collision(instance: Node3D, kit: String, model_name: String = "") -> void:
 	if instance == null or not should_collide_city_kit(kit, model_name):
 		return
-	var scale_uniform := maxf(maxf(instance.scale.x, instance.scale.y), instance.scale.z)
-	scale_uniform = maxf(scale_uniform, 0.001)
+	var scale_uniform := _uniform_scale(instance)
 	var half := DevBuildingLabelsScript.footprint_half_for_city_kit(kit, scale_uniform)
 	var height := _fallback_height(kit, model_name, scale_uniform)
-	var size := Vector3(half.x * 2.0, height, half.z * 2.0)
+	var world_size := Vector3(half.x * 2.0, height, half.z * 2.0)
 	if kit == "building" and model_name.begins_with("wall"):
-		size = Vector3(scale_uniform * 2.0, scale_uniform * 2.0, scale_uniform * 0.4)
-	attach_box(instance, size, Vector3(0.0, size.y * 0.5, 0.0))
+		world_size = Vector3(scale_uniform * 2.0, scale_uniform * 2.0, scale_uniform * 0.4)
+	var local_size := _local_size_for_scaled_parent(world_size, instance)
+	attach_box(instance, local_size, Vector3(0.0, local_size.y * 0.5, 0.0))
 
 
 static func attach_space_kit_collision(instance: Node3D, model_name: String) -> void:
@@ -78,6 +78,19 @@ static func attach_space_kit_collision(instance: Node3D, model_name: String) -> 
 		return
 	var height := 3.6 if model_name.begins_with("room-") else 3.0
 	attach_box(instance, Vector3(half.x * 2.0, height, half.z * 2.0), Vector3(0.0, height * 0.5, 0.0))
+
+
+static func _uniform_scale(node: Node3D) -> float:
+	if node == null:
+		return 1.0
+	return maxf(maxf(node.scale.x, node.scale.y), node.scale.z)
+
+
+static func _local_size_for_scaled_parent(world_size: Vector3, parent: Node3D) -> Vector3:
+	var scale := _uniform_scale(parent)
+	if scale <= 0.001:
+		return world_size
+	return world_size / scale
 
 
 static func _min_collision_height(kit: String, model_name: String) -> float:
