@@ -1,8 +1,6 @@
 extends Node
 
-## Musstyrning för FPS-vy. Siktet i mitten följer kamerans riktning.
-## Viktigt: titta/rotera ENDAST när musen är CAPTURED — annars "åker siktet iväg"
-## från crosshair när markören är fri (UI/chatt).
+## Musstyrning för FPS-vy. Enda ägare av musläge under spel (InputMode styr bara flaggor).
 
 const MOUSE_SENSITIVITY := 0.0022
 const PITCH_LIMIT := 1.15
@@ -89,18 +87,15 @@ func _input(event: InputEvent) -> void:
 	if not is_active() or get_tree().paused:
 		return
 
-	# Klick i spelet tar tillbaka siktet (om UI inte blockerar).
 	if event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
-		if button.pressed and button.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
+		if button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
 			if _should_auto_capture() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 				_capture_mouse()
 		return
 
 	if not (event is InputEventMouseMotion):
 		return
-	# Endast när musen är låst till fönstret — annars roterar kameran medan
-	# markören vandrar bort från crosshair i mitten.
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	if not _want_capture or not _should_auto_capture():
@@ -109,7 +104,6 @@ func _input(event: InputEvent) -> void:
 		return
 
 	var motion := event as InputEventMouseMotion
-	# Ignorera spikar (t.ex. efter capture/alt-tab).
 	if absf(motion.relative.x) > 80.0 or absf(motion.relative.y) > 80.0:
 		return
 	if _pivot == null or _camera == null:
@@ -128,6 +122,12 @@ func _process(delta: float) -> void:
 	_apply_camera_shake(delta)
 	if not _active:
 		return
+
+	if _is_drag_active():
+		if _want_capture:
+			_release_mouse()
+		return
+
 	var paused := get_tree().paused
 	if paused and not _was_paused:
 		_release_mouse()
@@ -144,13 +144,15 @@ func _process(delta: float) -> void:
 			_capture_mouse()
 		else:
 			_release_mouse()
-	elif want and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		# Tappad capture (alt-tab / fönsterkant) — lås igen så fort spelet tillåter det.
-		_capture_mouse()
 
 
 func _should_auto_capture() -> bool:
 	if not _active:
+		return false
+	if _is_drag_active():
+		return false
+	var input_mode := get_node_or_null("/root/InputMode")
+	if input_mode and input_mode.has_method("allow_game_input") and not input_mode.allow_game_input():
 		return false
 	var game := get_tree().current_scene
 	if game and game.has_method("should_capture_mouse"):
@@ -158,32 +160,30 @@ func _should_auto_capture() -> bool:
 	return true
 
 
+func _is_drag_active() -> bool:
+	var input_mode := get_node_or_null("/root/InputMode")
+	return input_mode != null and input_mode.has_method("is_drag_active") and input_mode.is_drag_active()
+
+
 func _capture_mouse() -> void:
 	_want_capture = true
-	_set_input_mode_game()
+	_set_tracking_mode(true)
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		# Hoppa över 1–2 frames så att capture-hoppet inte vrider kameran.
 		_ignore_look_frames = 2
 
 
 func _release_mouse() -> void:
 	_want_capture = false
-	_set_input_mode_ui()
+	_set_tracking_mode(false)
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-func _set_input_mode_game() -> void:
-	var mode = get_node_or_null("/root/InputMode")
-	if mode and mode.has_method("game"):
-		mode.game()
-
-
-func _set_input_mode_ui() -> void:
-	var mode = get_node_or_null("/root/InputMode")
-	if mode and mode.has_method("ui"):
-		mode.ui()
+func _set_tracking_mode(is_game: bool) -> void:
+	var mode := get_node_or_null("/root/InputMode")
+	if mode and mode.has_method("set_tracking_mode"):
+		mode.set_tracking_mode(is_game)
 
 
 func _apply_camera_shake(delta: float) -> void:
