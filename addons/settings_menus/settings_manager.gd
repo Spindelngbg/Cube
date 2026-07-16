@@ -50,7 +50,7 @@ const COLORBLIND_FILTERS: Array = ["none", "protanopia", "deuteranopia", "tritan
 # to this list to avoid exposing internal "ui_*" bindings.
 var rebindable_actions: PackedStringArray = PackedStringArray([
 	"move_left", "move_right", "move_forward", "move_back",
-	"interact", "pause", "fire", "reload", "toggle_journal",
+	"interact", "pause", "fire", "punch", "reload", "toggle_journal",
 ])
 
 var _data: Dictionary = {}

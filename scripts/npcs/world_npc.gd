@@ -304,6 +304,35 @@ func take_damage(amount: float) -> void:
 	take_corrosive_slime(amount, -1)
 
 
+func take_melee_hit(amount: float, _attacker_id: int = -1) -> void:
+	if _dead or amount <= 0.0:
+		return
+	if multiplayer.multiplayer_peer == null:
+		_apply_melee_hit_local(amount)
+		return
+	_apply_melee_hit.rpc(amount)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _apply_melee_hit(amount: float) -> void:
+	if not _is_simulation_authority():
+		return
+	_apply_melee_hit_local(amount)
+
+
+func _apply_melee_hit_local(amount: float) -> void:
+	if _dead or amount <= 0.0:
+		return
+	if _is_zezzlor:
+		_flash_corrosion_hit()
+		return
+	_health = maxf(0.0, _health - amount)
+	_flash_corrosion_hit()
+	_broadcast_health()
+	if _health <= 0.0:
+		_die(-1)
+
+
 @rpc("any_peer", "call_local", "reliable")
 func _apply_corrosive_slime(amount: float, shooter_id: int) -> void:
 	if not _is_simulation_authority():

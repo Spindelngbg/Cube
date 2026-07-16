@@ -12,6 +12,7 @@ const AVENUE_NAMES := {
 	-2: "Independence Ave",
 }
 const STREET_PREFIX := "Neo-Washington"
+const STREET_LAMP_SIDE_OFFSET := 3.25
 
 
 static func build(parent: Node3D, spawn_pos: Vector3, spawn_id: String = "satellite_right") -> Node3D:
@@ -359,7 +360,8 @@ static func _add_light_pole(
 	color: Color,
 	height: float,
 	energy: float,
-	range_m: float
+	range_m: float,
+	tilt_toward: Vector3 = Vector3.ZERO
 ) -> void:
 	var pole := MeshInstance3D.new()
 	var pole_mesh := BoxMesh.new()
@@ -372,9 +374,38 @@ static func _add_light_pole(
 	pole.material_override = pole_mat
 	parent.add_child(pole)
 
+	var head_pos := base + Vector3(0.0, height + 0.08, 0.0)
+	var fixture := MeshInstance3D.new()
+	var fixture_mesh := BoxMesh.new()
+	fixture_mesh.size = Vector3(0.42, 0.14, 0.28)
+	fixture.mesh = fixture_mesh
+	fixture.position = head_pos
+	var fixture_mat := StandardMaterial3D.new()
+	fixture_mat.albedo_color = Color(0.2, 0.22, 0.26)
+	fixture_mat.metallic = 0.62
+	fixture_mat.emission_enabled = true
+	fixture_mat.emission = color
+	fixture_mat.emission_energy_multiplier = 0.55
+	fixture.material_override = fixture_mat
+	parent.add_child(fixture)
+
+	var shade := MeshInstance3D.new()
+	var shade_mesh := BoxMesh.new()
+	shade_mesh.size = Vector3(0.36, 0.06, 0.34)
+	shade.mesh = shade_mesh
+	shade.position = head_pos + Vector3(0.0, 0.1, 0.0)
+	var shade_mat := StandardMaterial3D.new()
+	shade_mat.albedo_color = Color(0.12, 0.13, 0.16)
+	shade_mat.metallic = 0.48
+	shade.material_override = shade_mat
+	parent.add_child(shade)
+
 	var lamp := SpotLight3D.new()
-	lamp.position = base + Vector3(0.0, height + 0.1, 0.0)
-	lamp.rotation_degrees = Vector3(-90, 0, 0)
+	lamp.position = head_pos + Vector3(0.0, 0.04, 0.0)
+	if tilt_toward.length_squared() > 0.001:
+		lamp.look_at(head_pos + tilt_toward.normalized(), Vector3.UP)
+	else:
+		lamp.rotation_degrees = Vector3(-90, 0, 0)
 	lamp.light_color = color
 	lamp.light_energy = energy
 	lamp.spot_range = range_m
@@ -383,18 +414,40 @@ static func _add_light_pole(
 	parent.add_child(lamp)
 
 
+static func _street_lamp_side_offsets(rotation_y: float) -> Array[Vector3]:
+	var along_x := absf(rotation_y) < 0.1 or absf(absf(rotation_y) - PI) < 0.1
+	if along_x:
+		return [
+			Vector3(0.0, 0.0, STREET_LAMP_SIDE_OFFSET),
+			Vector3(0.0, 0.0, -STREET_LAMP_SIDE_OFFSET),
+		]
+	return [
+		Vector3(STREET_LAMP_SIDE_OFFSET, 0.0, 0.0),
+		Vector3(-STREET_LAMP_SIDE_OFFSET, 0.0, 0.0),
+	]
+
+
 static func _add_street_lamp(
 	parent: Node3D,
 	pos: Vector3,
 	theme: Dictionary,
-	rotation_y: float
+	rotation_y: float,
+	side_offset: Vector3
 ) -> void:
 	var street_color: Color = theme.get("street_light", Color(0.82, 0.9, 1.0))
 	var lamp_root := Node3D.new()
 	lamp_root.position = pos
 	lamp_root.rotation.y = rotation_y
 	parent.add_child(lamp_root)
-	_add_light_pole(lamp_root, Vector3.ZERO, street_color, 4.6, 1.05, 13.0)
+	_add_light_pole(
+		lamp_root,
+		Vector3.ZERO,
+		street_color,
+		4.6,
+		1.05,
+		13.0,
+		-side_offset
+	)
 
 
 static func _spawn_road_strip(
@@ -415,7 +468,8 @@ static func _spawn_road_strip(
 			pos.z += offset
 		CityKitLibrary.spawn(parent, "roads", "road-straight", pos, rotation_y)
 		if i % 2 == 0:
-			_add_street_lamp(parent, pos + Vector3(0.0, 0.0, 0.0), theme, rotation_y)
+			for side_offset in _street_lamp_side_offsets(rotation_y):
+				_add_street_lamp(parent, pos + side_offset, theme, rotation_y, side_offset)
 
 
 static func _cell_origin(cell: Vector2i) -> Vector3:

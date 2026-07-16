@@ -24,5 +24,5 @@ static func place(parent: Node3D, entry: Dictionary) -> ZezzlorCheckpoint:
 	checkpoint.position = entry.get("pos", Vector3.ZERO)
 	checkpoint.rotation.y = float(entry.get("rotation_y", 0.0))
 	parent.add_child(checkpoint)
-	checkpoint.setup_checkpoint(entry.get("size", Vector3(8.0, 3.2, 0.35)))
+	checkpoint.setup_checkpoint(entry.get("size", Vector3(18.0, 4.8, 1.2)))
 	return checkpoint

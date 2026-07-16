@@ -9,6 +9,8 @@ const SLIME_PROJECTILE_SCENE := preload("res://scenes/combat/slime_projectile.ts
 const SlimeBlasterClass = preload("res://scripts/combat/slime_blaster.gd")
 const ZnoodDeviceScript = preload("res://scripts/access/znood_device.gd")
 const HumanAvatarBuilderScript = preload("res://scripts/human_avatar_builder.gd")
+const FirstPersonPunchViewScript = preload("res://scripts/combat/first_person_punch_view.gd")
+const BoxingPunchScript = preload("res://scripts/combat/boxing_punch.gd")
 
 const FIRST_PERSON_FALLBACK_EYE := Vector3(0.0, 1.62, 0.08)
 
@@ -30,6 +32,9 @@ var _is_dead := false
 var _spawn_anchor := Vector3.ZERO
 var _human_animator: HumanAvatarAnimator
 var _avatar_model: Node3D
+var _fp_punch: FirstPersonPunchView
+var _punch_cooldown := 0.0
+var _stuck_frames := 0
 var _last_sync_pos := Vector3.ZERO
 
 
@@ -48,6 +53,27 @@ func _ready() -> void:
 			_announce_player.rpc(_player_username)
 	else:
 		name_label.text = "..."
+	if is_multiplayer_authority():
+		call_deferred("snap_to_floor")
+
+
+func snap_to_floor() -> void:
+	if not is_inside_tree():
+		return
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return
+	var from := global_position + Vector3(0.0, 2.5, 0.0)
+	var to := global_position + Vector3(0.0, -8.0, 0.0)
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	query.exclude = [get_rid()]
+	var hit := space.intersect_ray(query)
+	if hit.is_empty():
+		global_position.y = maxf(global_position.y, 1.0)
+		return
+	global_position.y = float(hit.position.y) + 1.0
+	velocity.y = 0.0
 
 
 func _setup_name_label() -> void:
@@ -72,6 +98,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_damage_cooldown = maxf(0.0, _damage_cooldown - delta)
+	_punch_cooldown = maxf(0.0, _punch_cooldown - delta)
 	_slime_blaster.tick(delta)
 	_handle_combat_input()
 
@@ -81,21 +108,22 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 
 	if Input.is_action_just_pressed("jump") and is_on_floor():
-		velocity.y = JUMP_VELOCITY
+		if _stuck_frames >= 6:
+			_unstuck_nudge()
+		else:
+			velocity.y = JUMP_VELOCITY
 
 	var move_speed := SPRINT_SPEED if Input.is_action_pressed("sprint") else MOVE_SPEED
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var direction := Vector3.ZERO
-	if MouseLook.is_active():
-		direction = MouseLook.get_flat_direction(input_dir)
-	else:
-		direction = Vector3(input_dir.x, 0.0, input_dir.y).normalized()
+	var direction := _get_flat_move_direction(input_dir)
+	var pre_move_pos := global_position
 
 	if direction != Vector3.ZERO:
 		velocity.x = direction.x * move_speed
 		velocity.z = direction.z * move_speed
-		if MouseLook.is_active():
-			rotation.y = MouseLook.get_yaw()
+		var yaw_source := _get_camera_yaw_source()
+		if yaw_source >= 0.0:
+			rotation.y = yaw_source
 		else:
 			var target_yaw := atan2(direction.x, direction.z)
 			rotation.y = lerp_angle(rotation.y, target_yaw, TURN_SPEED * delta)
@@ -104,6 +132,10 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0, move_speed)
 
 	move_and_slide()
+	if direction != Vector3.ZERO and is_on_floor() and pre_move_pos.distance_to(global_position) < 0.004:
+		_stuck_frames += 1
+	else:
+		_stuck_frames = 0
 	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
 	if _human_animator:
 		_human_animator.set_moving(horizontal_speed > 0.35)
@@ -171,6 +203,9 @@ func _apply_avatar(data: AvatarData) -> void:
 	_avatar_model = model
 	_human_animator = HumanAvatarAnimator.ensure_on(avatar_pivot)
 	_human_animator.bind(model)
+	if is_multiplayer_authority():
+		_fp_punch = FirstPersonPunchViewScript.ensure_on(self)
+		_fp_punch.apply_avatar_colors(data.body_color, data.accent_color)
 	_refresh_first_person_visibility()
 	_last_sync_pos = position
 	_avatar_synced = true
@@ -262,6 +297,8 @@ func _die() -> void:
 
 func _respawn() -> void:
 	global_position = _spawn_anchor
+	snap_to_floor()
+	_stuck_frames = 0
 	_is_dead = false
 	_health = _max_health
 	_damage_cooldown = 0.0
@@ -284,9 +321,52 @@ func get_znood() -> ZnoodDevice:
 
 
 func get_facing_yaw() -> float:
+	var yaw_source := _get_camera_yaw_source()
+	if yaw_source >= 0.0:
+		return yaw_source
+	return rotation.y
+
+
+func _get_flat_move_direction(input_dir: Vector2) -> Vector3:
+	if input_dir == Vector2.ZERO:
+		return Vector3.ZERO
+	if MouseLook.is_active():
+		return MouseLook.get_flat_direction(input_dir)
+	var pivot := _get_camera_pivot()
+	if pivot != null:
+		var direction := pivot.global_transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)
+		direction.y = 0.0
+		if direction.length_squared() > 0.0001:
+			return direction.normalized()
+	return Vector3(input_dir.x, 0.0, input_dir.y).normalized()
+
+
+func _get_camera_yaw_source() -> float:
 	if MouseLook.is_active():
 		return MouseLook.get_yaw()
-	return rotation.y
+	var pivot := _get_camera_pivot()
+	if pivot != null:
+		return pivot.rotation.y
+	return -1.0
+
+
+func _get_camera_pivot() -> Node3D:
+	var game := get_tree().current_scene
+	if game and game.has_method("get_camera_pivot"):
+		return game.call("get_camera_pivot") as Node3D
+	if game and game.has_node("CameraPivot"):
+		return game.get_node("CameraPivot") as Node3D
+	return null
+
+
+func _unstuck_nudge() -> void:
+	var forward := _get_flat_move_direction(Vector2(0.0, 1.0))
+	if forward == Vector3.ZERO:
+		forward = Vector3(-global_transform.basis.z.x, 0.0, -global_transform.basis.z.z).normalized()
+	global_position += Vector3(0.0, 0.45, 0.0) + forward * 1.4
+	velocity = Vector3.ZERO
+	_stuck_frames = 0
+	snap_to_floor()
 
 
 func stamp_znood_at(door: Node) -> void:
@@ -311,12 +391,51 @@ func _sync_znood_stamp(target: Vector3) -> void:
 func _handle_combat_input() -> void:
 	if get_tree().paused or not MouseLook.is_active():
 		return
+	if Input.is_action_just_pressed("punch"):
+		_try_punch()
 	if not WeaponManager.can_use_slimeshooter():
 		return
 	if Input.is_action_just_pressed("reload"):
 		_slime_blaster.try_reload()
 	if Input.is_action_just_pressed("fire"):
 		_try_fire_slime()
+
+
+func _try_punch() -> void:
+	if _punch_cooldown > 0.0 or _is_dead:
+		return
+	_punch_cooldown = BoxingPunchScript.PUNCH_COOLDOWN
+	if _human_animator:
+		_human_animator.trigger_punch()
+	if _fp_punch:
+		_fp_punch.trigger_punch()
+	_sync_punch.rpc()
+	get_tree().create_timer(BoxingPunchScript.HIT_DELAY_SEC).timeout.connect(
+		_apply_punch_hit,
+		CONNECT_ONE_SHOT
+	)
+
+
+func _apply_punch_hit() -> void:
+	if not is_multiplayer_authority() or _is_dead:
+		return
+	var origin := MouseLook.get_aim_origin(global_position)
+	var direction := MouseLook.get_aim_direction()
+	var target := BoxingPunchScript.resolve_target(
+		get_world_3d().direct_space_state,
+		origin,
+		direction,
+		get_rid()
+	)
+	BoxingPunchScript.apply_hit(target, multiplayer.get_unique_id())
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _sync_punch() -> void:
+	if is_multiplayer_authority():
+		return
+	if _human_animator:
+		_human_animator.trigger_punch()
 
 
 func _try_fire_slime() -> void:

@@ -118,8 +118,6 @@ func _display_current() -> void:
 		_pages.size(),
 		not _completed
 	)
-	MouseLook.deactivate()
-
 
 func _restore_mouse_look() -> void:
 	if get_tree() == null or get_tree().paused:

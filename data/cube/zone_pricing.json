@@ -19,6 +19,27 @@
 		"NATIONALMALLEN": 7500,
 		"PARKBÄLTE": 3000
 	},
+	"rental": {
+		"default_price": 50,
+		"non_rentable_zones": [
+			"KAPITOLPLAZA",
+			"SRC_LAB",
+			"PRESIDENTKORRIDOR",
+			"MONUMENTKÄRNA",
+			"MINNESPLATS_VÄST",
+			"NATIONALMALLEN"
+		],
+		"prices_by_zone_type": {
+			"BOSTADSKVARTER": 40,
+			"INDUSTRIKAJ": 30,
+			"VATTENFRONT": 45,
+			"TRANSITNAV": 55,
+			"KONTORSGRID": 60,
+			"FEDERALT_KVARTER": 75,
+			"AMBASSADNÄSET": 65,
+			"PARKBÄLTE": 50
+		}
+	},
 	"nft": {
 		"enabled": true,
 		"claim_endpoint": "/zones/{zone_id}/nft-claim",

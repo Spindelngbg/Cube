@@ -146,18 +146,18 @@ func _build_geometry(block_size: Vector3, _leaf_axis: Vector3, _open_angle_deg: 
 	_reader_area.name = "ZnoodReader"
 	_reader_area.collision_layer = 0
 	_reader_area.collision_mask = 1
-	_reader_area.position = Vector3(0.0, block_size.y * 0.55, block_size.z * 0.5 + 0.35)
+	_reader_area.position = Vector3(0.0, 1.35, block_size.z * 0.5 + 0.22)
 	add_child(_reader_area)
 	var reader_shape := CollisionShape3D.new()
 	var reader_box := BoxShape3D.new()
-	reader_box.size = Vector3(1.4, 1.8, 1.2)
+	reader_box.size = Vector3(1.0, 1.1, 0.85)
 	reader_shape.shape = reader_box
 	_reader_area.add_child(reader_shape)
 
 	var panel := MeshInstance3D.new()
 	panel.name = "ReaderPanel"
 	var panel_mesh := BoxMesh.new()
-	panel_mesh.size = Vector3(0.55, 0.75, 0.08)
+	panel_mesh.size = Vector3(0.48, 0.62, 0.08)
 	panel.mesh = panel_mesh
 	panel.position = Vector3(0.0, 0.0, 0.0)
 	var panel_mat := StandardMaterial3D.new()
@@ -170,8 +170,8 @@ func _build_geometry(block_size: Vector3, _leaf_axis: Vector3, _open_angle_deg: 
 	_reader_area.add_child(panel)
 
 	_status_label = Label3D.new()
-	_status_label.font_size = 24
-	_status_label.position = Vector3(0.0, 0.55, 0.12)
+	_status_label.font_size = 20
+	_status_label.position = Vector3(0.0, 0.42, 0.1)
 	_status_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_reader_area.add_child(_status_label)
 	_update_status_label()

@@ -92,6 +92,17 @@ func _process(_delta: float) -> void:
 	elif not paused and _was_paused:
 		_capture_mouse()
 	_was_paused = paused
+	if not paused and _should_auto_capture():
+		_capture_mouse()
+
+
+func _should_auto_capture() -> bool:
+	if not _active:
+		return false
+	var game := get_tree().current_scene
+	if game and game.has_method("should_capture_mouse"):
+		return bool(game.call("should_capture_mouse"))
+	return true
 
 
 func _capture_mouse() -> void:

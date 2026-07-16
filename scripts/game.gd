@@ -229,7 +229,7 @@ func _update_hud_text() -> void:
 	var local_id := multiplayer.get_unique_id()
 	if not players.has(local_id):
 		hint.text = (
-			"%s | %s | Vänsterklick = slem | R = ladda om"
+			"%s | %s | Vänsterklick = slem | Högerklick = boxas | R = ladda om"
 			% [SpawnPoints.get_colony_label(_active_spawn_id), SpawnPoints.get_extent_label()]
 		)
 		return
@@ -360,6 +360,7 @@ func _setup_pause_menu() -> void:
 	_pause_menu.main_menu_scene_path = "res://scenes/login.tscn"
 	_pause_menu.main_menu_pressed.connect(func() -> void: Network.stop())
 	_pause_menu.quit_pressed.connect(func() -> void: Network.stop())
+	_pause_menu.resumed.connect(_on_pause_resumed)
 	add_child(_pause_menu)
 
 
@@ -421,7 +422,16 @@ func should_capture_mouse() -> bool:
 		return false
 	if _inventory_ui and _inventory_ui.visible:
 		return false
+	if _quest_journal and _quest_journal.visible:
+		return false
+	if _tutorial_ui and _tutorial_ui.has_method("is_open") and _tutorial_ui.is_open():
+		return false
 	return true
+
+
+func _on_pause_resumed() -> void:
+	if _camera_pivot and _camera:
+		MouseLook.activate(_camera_pivot, _camera)
 
 
 func is_inventory_open() -> bool:
@@ -775,6 +785,8 @@ func _spawn_player(peer_id: int) -> void:
 	players[peer_id] = player
 	$Players.add_child(player, true)
 	if peer_id == multiplayer.get_unique_id():
+		if player.has_method("snap_to_floor"):
+			player.snap_to_floor()
 		player.set_spawn_anchor(player.position)
 		if _health_bar and _health_bar.has_method("bind_player"):
 			_health_bar.bind_player(player)

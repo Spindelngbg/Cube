@@ -3,27 +3,32 @@ extends RefCounted
 
 ## Zezzlor-kontrollpunkter runt spawn i Koloni 4.
 ## Ju närmare spawn (0,0,0) desto fler grindar.
+## Grindarna ligger tvärs över vägstråk (40 m-rutnät) så man måste stämpla Znood.
 
 const SPAWN := Vector3.ZERO
+
+const GATE_STANDARD := Vector3(18.0, 4.8, 1.2)
+const GATE_TIGHT := Vector3(16.0, 4.8, 1.2)
+const GATE_WIDE := Vector3(22.0, 5.0, 1.4)
 
 
 static func get_placements() -> Array:
 	return [
-		# Ring 1 — tätast, 10–22 m från spawn
-		_gate("zezzlor_cp_spawn_w", Vector3(-10.0, 0.0, 0.0), -PI * 0.5, Vector3(10.0, 3.2, 0.35)),
-		_gate("zezzlor_cp_spawn_n", Vector3(0.0, 0.0, -18.0), 0.0, Vector3(8.0, 3.2, 0.35)),
-		_gate("zezzlor_cp_spawn_s", Vector3(0.0, 0.0, 22.0), PI, Vector3(8.0, 3.2, 0.35)),
-		_gate("zezzlor_cp_spawn_sw", Vector3(-18.0, 0.0, 14.0), -PI * 0.5, Vector3(8.0, 3.2, 0.35)),
-		_gate("zezzlor_cp_spawn_ne", Vector3(14.0, 0.0, -10.0), 0.0, Vector3(6.0, 3.2, 0.35)),
-		# Ring 2 — runt Kapitolplazan, ~35–50 m
-		_gate("zezzlor_cp_kapitol_w", Vector3(-5.0, 0.0, 20.0), -PI * 0.5, Vector3(12.0, 3.2, 0.35)),
-		_gate("zezzlor_cp_kapitol_n", Vector3(20.0, 0.0, -5.0), 0.0, Vector3(10.0, 3.2, 0.35)),
-		_gate("zezzlor_cp_kapitol_s", Vector3(20.0, 0.0, 45.0), PI, Vector3(10.0, 3.2, 0.35)),
-		# Ring 3 — ytterligare ut, ~60–80 m
-		_gate("zezzlor_cp_mall", Vector3(-55.0, 0.0, 20.0), -PI * 0.5, Vector3(14.0, 3.2, 0.35)),
-		_gate("zezzlor_cp_transit", Vector3(65.0, 0.0, 20.0), PI * 0.5, Vector3(12.0, 3.2, 0.35)),
+		# Ring 1 — tätast runt spawn, ~20 m ut på vägarna
+		_gate("zezzlor_cp_spawn_w", Vector3(-20.0, 0.0, 0.0), PI * 0.5, GATE_STANDARD),
+		_gate("zezzlor_cp_spawn_e", Vector3(20.0, 0.0, 0.0), -PI * 0.5, GATE_STANDARD),
+		_gate("zezzlor_cp_spawn_n", Vector3(0.0, 0.0, -20.0), 0.0, GATE_TIGHT),
+		_gate("zezzlor_cp_spawn_s", Vector3(0.0, 0.0, 20.0), PI, GATE_TIGHT),
+		_gate("zezzlor_cp_spawn_nw", Vector3(-20.0, 0.0, -20.0), 0.0, GATE_TIGHT),
+		# Ring 2 — runt Kapitolplazan, ~40 m
+		_gate("zezzlor_cp_kapitol_w", Vector3(-40.0, 0.0, 20.0), PI * 0.5, GATE_WIDE),
+		_gate("zezzlor_cp_kapitol_n", Vector3(20.0, 0.0, -40.0), 0.0, GATE_STANDARD),
+		_gate("zezzlor_cp_kapitol_s", Vector3(20.0, 0.0, 40.0), PI, GATE_STANDARD),
+		# Ring 3 — ytterligare ut längs Mallen och transit
+		_gate("zezzlor_cp_mall", Vector3(-60.0, 0.0, 0.0), PI * 0.5, GATE_WIDE),
+		_gate("zezzlor_cp_transit", Vector3(60.0, 0.0, 0.0), -PI * 0.5, GATE_WIDE),
 		# Ring 4 — enstaka långt ut
-		_gate("zezzlor_cp_federal", Vector3(-100.0, 0.0, -60.0), 0.0, Vector3(10.0, 3.2, 0.35)),
+		_gate("zezzlor_cp_federal", Vector3(-80.0, 0.0, -40.0), 0.0, GATE_WIDE),
 	]
 
 

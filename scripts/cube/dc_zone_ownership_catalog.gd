@@ -71,6 +71,46 @@ static func get_zone_display_name(zone_id: String, entry: Dictionary = {}) -> St
 	return zone_id
 
 
+static func get_rental_price(zone_id: String) -> int:
+	var pricing := load_pricing()
+	var spec := get_dc_zone_spec(zone_id)
+	var zone_type := str(spec.get("zone_type", ""))
+	var rental_cfg: Dictionary = pricing.get("rental", {})
+	if zone_type in rental_cfg.get("non_rentable_zones", []):
+		return -1
+	var prices: Dictionary = rental_cfg.get("prices_by_zone_type", {})
+	return int(prices.get(zone_type, rental_cfg.get("default_price", 50)))
+
+
+static func is_rentable(zone_id: String, entry: Dictionary = {}) -> bool:
+	if zone_id == "":
+		return false
+	var ownership := str(entry.get("ownership", "public"))
+	if ownership in ["foundation", "reserved", "owned"]:
+		return false
+	var pricing := load_pricing()
+	var spec := get_dc_zone_spec(zone_id)
+	var zone_type := str(spec.get("zone_type", ""))
+	var rental_cfg: Dictionary = pricing.get("rental", {})
+	if zone_type in pricing.get("non_purchasable_zones", []):
+		return false
+	if zone_type in rental_cfg.get("non_rentable_zones", []):
+		return false
+	if bool(entry.get("governance_locked", false)):
+		return false
+	return get_rental_price(zone_id) > 0
+
+
+static func zone_id_to_building_spawn(zone_id: String, spawn_id: String) -> Vector3:
+	var cell := zone_id_to_dc_cell(zone_id)
+	var local := Vector3(
+		float(cell.x) * DcZoneCatalogScript.BLOCK_M + DcZoneCatalogScript.BLOCK_M * 0.5,
+		0.5,
+		float(cell.y) * DcZoneCatalogScript.BLOCK_M + DcZoneCatalogScript.BLOCK_M * 0.5
+	)
+	return SpawnPoints.get_position(spawn_id) + local
+
+
 static func get_purchase_price(zone_id: String) -> int:
 	var pricing := load_pricing()
 	var spec := get_dc_zone_spec(zone_id)
