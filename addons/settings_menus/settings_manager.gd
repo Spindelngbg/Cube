@@ -55,17 +55,36 @@ const COLORBLIND_FILTERS: Array = ["none", "protanopia", "deuteranopia", "tritan
 var rebindable_actions: PackedStringArray = PackedStringArray([
 	"move_left", "move_right", "move_forward", "move_back",
 	"interact", "pause", "fire", "punch", "reload", "toggle_journal",
+	"toggle_inventory", "toggle_map", "toggle_tutorial", "toggle_znood",
+	"toggle_cursor", "sprint", "jump",
 ])
 
 var _data: Dictionary = {}
 var _captured_default_binds: Dictionary = {}
+var _boot_finished := false
+var _fps_layer: CanvasLayer
+var _fps_label: Label
+var _fps_accum := 0.0
 
 
 func _ready() -> void:
 	_capture_default_binds()
 	load_settings()
+	_normalize_loaded_values()
 	apply_all()
+	call_deferred("_finish_boot")
+
+
+func _finish_boot() -> void:
+	# Display/window changes are safest once the scene tree is up.
+	apply_display()
+	_refresh_scene_consumers()
+	_boot_finished = true
 	settings_loaded.emit()
+
+
+func has_finished_loading() -> bool:
+	return _boot_finished
 
 
 # ---- public API -----------------------------------------------------------
@@ -86,8 +105,9 @@ func get_value(key: String, fallback = null):
 
 ## Set a setting and persist. Triggers `apply_*` for the affected category.
 func set_value(key: String, value) -> void:
-	var old = _data.get(key, _defaults.get(key, null))
-	if typeof(old) == typeof(value) and old == value:
+	value = _coerce_setting_value(key, value)
+	var old = _coerce_setting_value(key, _data.get(key, _defaults.get(key, null)))
+	if old == value:
 		return
 	_data[key] = value
 	setting_changed.emit(key, value)
@@ -217,11 +237,37 @@ func _apply_display_post_mode(mode: int) -> void:
 # ---- accessibility --------------------------------------------------------
 
 func apply_accessibility() -> void:
-	# Font scale is applied at the project Theme level. Themes expose font_size
-	# overrides; this autoload just exposes the value and a helper for theme
-	# rebuilding. UI code should call get_value("a11y.font_scale") when
-	# initializing labels/buttons.
+	# Font scale is applied by menus/HUD via apply_font_scale_to_node().
 	pass
+
+
+func apply_fps_visibility() -> void:
+	var show_fps := bool(get_value("display.fps_visible", false))
+	_ensure_fps_overlay()
+	if _fps_layer:
+		_fps_layer.visible = show_fps
+	if _fps_label:
+		_fps_label.visible = show_fps
+	set_process(show_fps)
+
+
+func apply_font_scale_to_node(root: Node) -> void:
+	if root == null:
+		return
+	var scale := get_font_scale()
+	if is_equal_approx(scale, 1.0):
+		return
+	_scale_fonts_recursive(root, scale)
+
+
+func _scale_fonts_recursive(node: Node, scale: float) -> void:
+	if node is Label or node is Button:
+		var ctl := node as Control
+		var fs := int(ctl.get_theme_font_size("font_size"))
+		if fs > 0:
+			ctl.add_theme_font_size_override("font_size", maxi(8, int(round(fs * scale))))
+	for child in node.get_children():
+		_scale_fonts_recursive(child, scale)
 
 
 func get_font_scale() -> float:
@@ -350,6 +396,7 @@ func apply_all() -> void:
 	apply_display()
 	apply_accessibility()
 	apply_keybinds()
+	apply_fps_visibility()
 
 
 func _apply_one(key: String, _value) -> void:
@@ -358,18 +405,84 @@ func _apply_one(key: String, _value) -> void:
 	elif key.begins_with("audio."):
 		var bus := key.substr(6)
 		_apply_audio_one(bus)
+	elif key == "display.fps_visible":
+		apply_fps_visibility()
 	elif key.begins_with("display."):
 		apply_display()
+		_refresh_scene_consumers()
 	elif key.begins_with("a11y."):
 		apply_accessibility()
 	elif key == "keybinds":
 		apply_keybinds()
 
 
+func _process(delta: float) -> void:
+	if not is_processing():
+		return
+	_fps_accum += delta
+	if _fps_accum < 0.25 or _fps_label == null:
+		return
+	_fps_accum = 0.0
+	_fps_label.text = "%d FPS" % Engine.get_frames_per_second()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		save_settings()
+
+
+func _exit_tree() -> void:
+	save_settings()
+
+
 func _apply_defaults_for_missing() -> void:
 	for k in _defaults.keys():
 		if not _data.has(k):
 			_data[k] = _defaults[k]
+
+
+func _normalize_loaded_values() -> void:
+	for key in _data.keys():
+		_data[key] = _coerce_setting_value(String(key), _data[key])
+
+
+func _coerce_setting_value(key: String, value):
+	match key:
+		"display.window_mode", "display.resolution_index", "display.draw_distance_index":
+			return clampi(int(value), 0, 999)
+		"display.render_scale":
+			return clampf(float(value), 0.5, 1.0)
+		"display.vsync", "display.fps_visible", "display.shadows_enabled", "display.ssao_glow_enabled", "audio.footsteps_enabled", "a11y.reduce_motion":
+			return bool(value)
+		"audio.master", "audio.music", "audio.sfx", "a11y.font_scale":
+			return float(value)
+		"a11y.colorblind_filter":
+			var filter := String(value)
+			return filter if filter in COLORBLIND_FILTERS else "none"
+	return value
+
+
+func _refresh_scene_consumers() -> void:
+	var draw_distance := get_node_or_null("/root/DrawDistance")
+	if draw_distance != null and draw_distance.has_method("refresh_active_scenes"):
+		draw_distance.refresh_active_scenes()
+
+
+func _ensure_fps_overlay() -> void:
+	if _fps_layer != null:
+		return
+	_fps_layer = CanvasLayer.new()
+	_fps_layer.layer = 128
+	_fps_layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_fps_layer)
+	_fps_label = Label.new()
+	_fps_label.position = Vector2(10, 8)
+	_fps_label.add_theme_font_size_override("font_size", 14)
+	_fps_label.add_theme_color_override("font_color", Color(0.82, 0.95, 1.0, 0.92))
+	_fps_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.75))
+	_fps_label.add_theme_constant_override("shadow_offset_x", 1)
+	_fps_label.add_theme_constant_override("shadow_offset_y", 1)
+	_fps_layer.add_child(_fps_label)
 
 
 # Limited input-event serialization: keyboard, mouse button, joypad button.

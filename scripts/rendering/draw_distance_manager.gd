@@ -19,7 +19,7 @@ func _ready() -> void:
 	var settings := get_node_or_null("/root/Settings")
 	if settings == null:
 		return
-	settings.set_default(SETTING_KEY, 0)
+	settings.set_default(SETTING_KEY, 1)
 	settings.set_default(SHADOWS_KEY, true)
 	settings.set_default(SSAO_GLOW_KEY, true)
 	settings.set_default(RENDER_SCALE_KEY, 1.0)
@@ -29,6 +29,14 @@ func _ready() -> void:
 		settings.settings_loaded.connect(_on_settings_loaded)
 	if settings.has_signal("settings_reset"):
 		settings.settings_reset.connect(_on_settings_loaded)
+	call_deferred("_sync_with_settings")
+
+
+func _sync_with_settings() -> void:
+	var settings := get_node_or_null("/root/Settings")
+	if settings != null and settings.has_method("has_finished_loading") and not settings.has_finished_loading():
+		return
+	_on_settings_loaded()
 
 
 func get_preset_index() -> int:

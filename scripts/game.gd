@@ -116,6 +116,7 @@ func _ready() -> void:
 
 
 func _boot_world() -> void:
+	_connect_settings_refresh()
 	_hide_legacy_floor()
 	if not _resolve_spawn_context():
 		SceneTransition.mark_spawn_loading_ready("Kunde inte ladda spawn — tryck Fortsätt.")
@@ -510,6 +511,24 @@ func _style_hud() -> void:
 	GameplayHudThemeScript.wrap_label_in_panel(hint)
 	hint.offset_right = 1180.0
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var ui := get_node_or_null("UI")
+	if ui != null and Settings.has_method("apply_font_scale_to_node"):
+		Settings.apply_font_scale_to_node(ui)
+
+
+func _connect_settings_refresh() -> void:
+	if not Settings.has_signal("settings_loaded"):
+		return
+	if not Settings.settings_loaded.is_connected(_on_persisted_settings_ready):
+		Settings.settings_loaded.connect(_on_persisted_settings_ready)
+	if Settings.has_method("has_finished_loading") and Settings.has_finished_loading():
+		_on_persisted_settings_ready()
+
+
+func _on_persisted_settings_ready() -> void:
+	if _active_spawn_id != "":
+		_configure_colony_rendering()
+	_style_hud()
 
 
 func _setup_pause_menu() -> void:
