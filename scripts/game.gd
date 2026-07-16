@@ -96,6 +96,7 @@ var _minimap_timer := 0.0
 var _interaction_timer := 0.0
 var _world_tick_timer := 0.0
 var _znood_ui_timer := 0.0
+var _mouse_capture_allowed := true
 
 @onready var _minimap: MinimapPanel = %Minimap
 @onready var _owdb_bridge: Node = %WorldState
@@ -157,6 +158,7 @@ func _boot_world() -> void:
 
 
 func _process(delta: float) -> void:
+	_refresh_mouse_capture_cache()
 	_follow_local_player_camera(delta)
 	_hud_timer += delta
 	if _hud_timer >= HUD_UPDATE_INTERVAL:
@@ -652,7 +654,15 @@ func get_camera() -> Camera3D:
 	return _camera
 
 
+func _refresh_mouse_capture_cache() -> void:
+	_mouse_capture_allowed = _compute_mouse_capture_allowed()
+
+
 func should_capture_mouse() -> bool:
+	return _mouse_capture_allowed
+
+
+func _compute_mouse_capture_allowed() -> bool:
 	if _pause_menu and _pause_menu.visible:
 		return false
 	var znood_mgr := RuntimeGlobals.znood()

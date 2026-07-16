@@ -1,10 +1,11 @@
 extends Node
 
 ## Musstyrning för FPS-vy. Enda ägare av musläge under spel.
-## Alt = visa/flytta muspekaren. Rör musen i spelvyn = lås sikt (utan extra klick).
+## Alt = visa/flytta muspekaren. Vänsterklick = lås sikt igen efter manuell unlock.
 
 const MOUSE_SENSITIVITY := 0.0022
 const PITCH_LIMIT := 1.15
+const MOTION_SPIKE_LIMIT := 120.0
 
 var _pivot: Node3D
 var _camera: Camera3D
@@ -12,15 +13,20 @@ var _active := false
 var _was_paused := false
 var _want_capture := true
 var _user_cursor_free := false
-var _ignore_look_frames := 0
+var _look_enabled := false
+var _pending_look := Vector2.ZERO
 var _shake_strength := 0.0
 var _shake_decay := 8.0
 var _shake_offset := Vector3.ZERO
 var _camera_rest_offset := Vector3.ZERO
+var _input_mode: Node
+var _viewport_xform: Transform2D = Transform2D.IDENTITY
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	Input.set_use_accumulated_input(false)
+	_input_mode = get_node_or_null("/root/InputMode")
 
 
 func is_active() -> bool:
@@ -38,9 +44,11 @@ func activate(pivot: Node3D, camera: Camera3D) -> void:
 	_was_paused = false
 	_user_cursor_free = false
 	_want_capture = true
+	_pending_look = Vector2.ZERO
 	if _pivot and _camera:
 		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
 	_capture_mouse()
+	_refresh_look_enabled()
 
 
 func deactivate() -> void:
@@ -49,6 +57,8 @@ func deactivate() -> void:
 	_camera = null
 	_user_cursor_free = false
 	_want_capture = false
+	_look_enabled = false
+	_pending_look = Vector2.ZERO
 	_release_mouse()
 
 
@@ -110,33 +120,18 @@ func _input(event: InputEvent) -> void:
 
 	if not (event is InputEventMouseMotion):
 		return
-
-	var motion := event as InputEventMouseMotion
-	if _should_auto_capture() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		_capture_mouse(false)
-
-	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		return
-	if not _want_capture or not _should_auto_capture():
-		return
-	if _ignore_look_frames > 0:
-		return
-	if absf(motion.relative.x) > 120.0 or absf(motion.relative.y) > 120.0:
-		return
-	if _pivot == null or _camera == null:
+	if not _look_enabled:
 		return
 
-	_pivot.rotation.y -= motion.relative.x * MOUSE_SENSITIVITY
-	_camera.rotation.x = clampf(
-		_camera.rotation.x - motion.relative.y * MOUSE_SENSITIVITY,
-		-PITCH_LIMIT,
-		PITCH_LIMIT
-	)
+	var motion := (event as InputEventMouseMotion).xformed_by(_viewport_xform)
+	_pending_look += motion.relative
 
 
 func _process(delta: float) -> void:
-	if _ignore_look_frames > 0:
-		_ignore_look_frames -= 1
+	var tree := get_tree()
+	if tree and tree.root:
+		_viewport_xform = tree.root.get_final_transform()
+
 	_apply_camera_shake(delta)
 	if not _active:
 		return
@@ -144,9 +139,11 @@ func _process(delta: float) -> void:
 	if _is_drag_active():
 		if _want_capture:
 			_release_mouse()
+		_pending_look = Vector2.ZERO
+		_refresh_look_enabled()
 		return
 
-	var paused := get_tree().paused
+	var paused := tree.paused if tree else false
 	if paused and not _was_paused:
 		_release_mouse()
 	elif not paused and _was_paused:
@@ -154,6 +151,8 @@ func _process(delta: float) -> void:
 		request_recapture()
 	_was_paused = paused
 	if paused:
+		_pending_look = Vector2.ZERO
+		_refresh_look_enabled()
 		return
 
 	var want := _should_auto_capture()
@@ -164,15 +163,50 @@ func _process(delta: float) -> void:
 		else:
 			_release_mouse()
 
+	_refresh_look_enabled()
+	_apply_pending_look()
+
+
+func _apply_pending_look() -> void:
+	if _pending_look == Vector2.ZERO:
+		return
+	if not _look_enabled or _pivot == null or _camera == null:
+		_pending_look = Vector2.ZERO
+		return
+
+	var rel := _pending_look
+	_pending_look = Vector2.ZERO
+	if absf(rel.x) > MOTION_SPIKE_LIMIT or absf(rel.y) > MOTION_SPIKE_LIMIT:
+		return
+
+	_pivot.rotation.y -= rel.x * MOUSE_SENSITIVITY
+	_camera.rotation.x = clampf(
+		_camera.rotation.x - rel.y * MOUSE_SENSITIVITY,
+		-PITCH_LIMIT,
+		PITCH_LIMIT
+	)
+
+
+func _refresh_look_enabled() -> void:
+	_look_enabled = (
+		_active
+		and not _user_cursor_free
+		and _want_capture
+		and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+		and _should_auto_capture()
+	)
+
 
 func _toggle_user_cursor() -> void:
 	if not is_active():
 		return
 	_user_cursor_free = not _user_cursor_free
 	if _user_cursor_free:
+		_pending_look = Vector2.ZERO
 		_release_mouse()
 	elif _game_allows_capture():
 		_capture_mouse()
+	_refresh_look_enabled()
 
 
 func _should_auto_capture() -> bool:
@@ -180,8 +214,7 @@ func _should_auto_capture() -> bool:
 		return false
 	if _is_drag_active():
 		return false
-	var input_mode := get_node_or_null("/root/InputMode")
-	if input_mode and input_mode.has_method("allow_game_input") and not input_mode.allow_game_input():
+	if _input_mode and _input_mode.has_method("allow_game_input") and not _input_mode.allow_game_input():
 		return false
 	return _game_allows_capture()
 
@@ -197,30 +230,28 @@ func _game_allows_capture() -> bool:
 
 
 func _is_drag_active() -> bool:
-	var input_mode := get_node_or_null("/root/InputMode")
-	return input_mode != null and input_mode.has_method("is_drag_active") and input_mode.is_drag_active()
+	return _input_mode != null and _input_mode.has_method("is_drag_active") and _input_mode.is_drag_active()
 
 
-func _capture_mouse(reset_look_frames: bool = true) -> void:
+func _capture_mouse() -> void:
 	_want_capture = true
+	_pending_look = Vector2.ZERO
 	_set_tracking_mode(true)
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		if reset_look_frames:
-			_ignore_look_frames = 1
 
 
 func _release_mouse() -> void:
 	_want_capture = false
+	_pending_look = Vector2.ZERO
 	_set_tracking_mode(false)
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _set_tracking_mode(is_game: bool) -> void:
-	var mode := get_node_or_null("/root/InputMode")
-	if mode and mode.has_method("set_tracking_mode"):
-		mode.set_tracking_mode(is_game)
+	if _input_mode and _input_mode.has_method("set_tracking_mode"):
+		_input_mode.set_tracking_mode(is_game)
 
 
 func _apply_camera_shake(delta: float) -> void:
