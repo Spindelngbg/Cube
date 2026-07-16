@@ -280,6 +280,33 @@ func _build_controls_tab() -> Control:
 	raw_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tab.add_child(raw_note)
 
+	var sens_row := _row(tab, "Muskänslighet")
+	var sens_slider := HSlider.new()
+	sens_slider.min_value = 0.0008
+	sens_slider.max_value = 0.006
+	sens_slider.step = 0.0001
+	sens_slider.value = float(settings.get_value("controls.mouse_sensitivity", 0.0022))
+	sens_slider.custom_minimum_size = Vector2(280, 0)
+	sens_row.add_child(sens_slider)
+	var sens_value := Label.new()
+	sens_value.text = "%.4f" % sens_slider.value
+	sens_value.add_theme_font_size_override("font_size", theme_data.body_font_size)
+	sens_value.add_theme_color_override("font_color", theme_data.text_dim)
+	sens_value.custom_minimum_size = Vector2(60, 0)
+	sens_row.add_child(sens_value)
+	sens_slider.value_changed.connect(func(v: float) -> void:
+		var s := _settings()
+		if s != null:
+			s.set_value("controls.mouse_sensitivity", v)
+		sens_value.text = "%.4f" % v)
+
+	var sens_note := Label.new()
+	sens_note.text = "Sikten uppdateras direkt på musrörelse. Höj känsligheten om sikten känns trög."
+	sens_note.add_theme_font_size_override("font_size", 11)
+	sens_note.add_theme_color_override("font_color", theme_data.text_dim)
+	sens_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(sens_note)
+
 	var hint := Label.new()
 	hint.text = "Klicka en bindning för att ändra. Tryck tangent, musknapp eller gamepad-knapp."
 	hint.add_theme_font_size_override("font_size", theme_data.body_font_size)
