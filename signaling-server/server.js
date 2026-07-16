@@ -82,7 +82,35 @@ function getServerStats() {
 	};
 }
 
+function requestPathname(req) {
+	return (req.url || '').split('?')[0];
+}
+
+function handleHealthRequest(req, res) {
+	if (req.method !== 'GET') {
+		return false;
+	}
+	const pathname = requestPathname(req);
+	if (pathname !== '/health' && pathname !== '/health/') {
+		return false;
+	}
+	res.writeHead(200, {
+		'Content-Type': 'application/json',
+		'Access-Control-Allow-Origin': '*',
+	});
+	res.end(JSON.stringify({
+		ok: true,
+		listening: true,
+		uptime: process.uptime(),
+	}));
+	return true;
+}
+
 const server = http.createServer(async (req, res) => {
+	if (handleHealthRequest(req, res)) {
+		return;
+	}
+
 	try {
 		if (await handleAdminRequest(req, res, getServerStats)) {
 			return;
@@ -100,20 +128,7 @@ const server = http.createServer(async (req, res) => {
 		return;
 	}
 
-	if (req.method === 'GET' && req.url === '/health') {
-		res.writeHead(200, {
-			'Content-Type': 'application/json',
-			'Access-Control-Allow-Origin': '*',
-		});
-		res.end(JSON.stringify({
-			ok: true,
-			listening: true,
-			uptime: process.uptime(),
-		}));
-		return;
-	}
-
-	if (req.method === 'GET' && req.url === '/health/storage') {
+	if (req.method === 'GET' && requestPathname(req) === '/health/storage') {
 		res.writeHead(200, {
 			'Content-Type': 'application/json',
 			'Access-Control-Allow-Origin': '*',

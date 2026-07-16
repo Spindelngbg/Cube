@@ -4,7 +4,7 @@ dockerfilePath = "Dockerfile"
 watchPatterns = ["signaling-server/**", "package.json", "Dockerfile"]
 
 [deploy]
-startCommand = "npm start"
+startCommand = "node signaling-server/server.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

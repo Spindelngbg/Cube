@@ -10,4 +10,4 @@ COPY signaling-server ./signaling-server
 ENV NODE_ENV=production
 ENV DATA_DIR=/web
 
-CMD ["npm", "start"]
+CMD ["node", "signaling-server/server.js"]
