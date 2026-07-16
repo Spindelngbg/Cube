@@ -132,8 +132,9 @@ const SPAWN_FOOT_Y := 1.15
 
 static func get_position(spawn_id: String) -> Vector3:
 	var id := ensure_colony_id(spawn_id)
-	var entry := DATA.get(id, {})
-	var norm: Vector2 = entry.get("spawn_norm", Vector2(0.5, 0.5))
+	var entry: Dictionary = DATA.get(id, {})
+	var norm_raw: Variant = entry.get("spawn_norm", Vector2(0.5, 0.5))
+	var norm: Vector2 = norm_raw as Vector2 if norm_raw is Vector2 else Vector2(0.5, 0.5)
 	# Y=0 = kubens golvyta. Byggnader/stad byggs relativt denna origin.
 	return Vector3(
 		clampf(norm.x, 0.0, 1.0) * SATELLITE_EXTENT_M,

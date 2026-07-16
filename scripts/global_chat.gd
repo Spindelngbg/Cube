@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+const ChatCheatCommandsScript = preload("res://scripts/chat_cheat_commands.gd")
 const VISITOR_PREFIX := "Besökare_"
 const RECONNECT_DELAY := 2.0
 
@@ -380,7 +381,7 @@ func _send_chat_message() -> void:
 	var text := input_field.text.strip_edges()
 	if text.is_empty():
 		return
-	var cheat_result := ChatCheatCommands.try_execute(get_tree(), text, _current_username())
+	var cheat_result: String = ChatCheatCommandsScript.try_execute(get_tree(), text, _current_username())
 	if cheat_result != "":
 		input_field.text = ""
 		_append_system(cheat_result)

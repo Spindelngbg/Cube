@@ -1,4 +1,10 @@
+@warning_ignore("inference_on_variant", "untyped_declaration")
 extends Node
+
+const FALLBACK_MESH_IDS: PackedStringArray = [
+	"character-a", "character-b", "character-c",
+	"character-d", "character-e", "character-f",
+]
 
 signal characters_loaded()
 signal character_selected()
@@ -168,9 +174,9 @@ func fetch_active_for_username(username: String, callback: Callable) -> void:
 		if typeof(parsed) != TYPE_DICTIONARY or not (parsed as Dictionary).get("ok", false):
 			callback.call(false, AvatarData.new(), "")
 			return
-		var data := parsed as Dictionary
-		var avatar_dict: Dictionary = data.get("avatar", {})
-		if typeof(avatar_dict) != TYPE_DICTIONARY or avatar_dict.is_empty():
+		var data: Dictionary = parsed as Dictionary
+		var avatar_dict: Dictionary = _as_dict(data, "avatar")
+		if avatar_dict.is_empty():
 			callback.call(false, AvatarData.new(), "")
 			return
 		callback.call(true, AvatarData.from_dict(avatar_dict), str(data.get("characterName", "")))
@@ -269,7 +275,7 @@ func _on_request_completed(
 		operation_failed.emit("Ogiltigt svar från servern")
 		return
 
-	var data := parsed as Dictionary
+	var data: Dictionary = parsed as Dictionary
 	if not data.get("ok", false):
 		operation_failed.emit(str(data.get("error", "Något gick fel")))
 		return
@@ -280,7 +286,7 @@ func _on_request_completed(
 			_emit_progress("list_done", "%d karaktärer hittades" % characters.size())
 			characters_loaded.emit()
 		"create":
-			var created: Dictionary = data.get("character", {})
+			var created: Dictionary = _as_dict(data, "character")
 			if not created.is_empty():
 				characters.append(created)
 				active_character_id = str(data.get("activeId", created.get("id", "")))
@@ -291,17 +297,17 @@ func _on_request_completed(
 			_emit_progress("create_done", "Karaktär skapad: %s" % active_character_name)
 			characters_loaded.emit()
 		"select":
-			var selected: Dictionary = data.get("character", {})
+			var selected: Dictionary = _as_dict(data, "character")
 			if not selected.is_empty():
 				_apply_active_character(selected)
 			character_selected.emit()
 		"save":
-			var saved: Dictionary = data.get("character", {})
+			var saved: Dictionary = _as_dict(data, "character")
 			if not saved.is_empty():
 				_apply_active_character(saved)
 			character_saved.emit()
 		"delete":
-			characters = data.get("characters", [])
+			characters = _as_array(data, "characters")
 			active_character_id = str(data.get("activeId", ""))
 			if active_character_id != "":
 				for entry in characters:
@@ -314,7 +320,7 @@ func _on_request_completed(
 			_list_synced = true
 			characters_loaded.emit()
 		"nest_complete":
-			var completed: Dictionary = data.get("character", {})
+			var completed: Dictionary = _as_dict(data, "character")
 			if not completed.is_empty():
 				_apply_active_character(completed)
 				for i in characters.size():
@@ -323,7 +329,7 @@ func _on_request_completed(
 						break
 			nest_intro_completed.emit()
 		"set_home_spawn", "redeem_secret_code":
-			var home_character: Dictionary = data.get("character", {})
+			var home_character: Dictionary = _as_dict(data, "character")
 			if not home_character.is_empty():
 				_apply_active_character(home_character)
 				for i in characters.size():
@@ -334,7 +340,7 @@ func _on_request_completed(
 
 
 func _apply_character_list(data: Dictionary) -> void:
-	characters = data.get("characters", [])
+	characters = _as_array(data, "characters")
 	active_character_id = str(data.get("activeId", ""))
 	unlimited_slots = bool(data.get("unlimited", false))
 	var limit_value: Variant = data.get("limit")
@@ -360,8 +366,8 @@ func character_avatar_configured(entry: Dictionary) -> bool:
 		return true
 	if bool(entry.get("homeSpawnLocked", false)) or bool(entry.get("nestVisited", false)):
 		return true
-	var created_at := str(entry.get("createdAt", ""))
-	var updated_at := str(entry.get("updatedAt", ""))
+	var created_at: String = str(entry.get("createdAt", ""))
+	var updated_at: String = str(entry.get("updatedAt", ""))
 	if created_at != "" and updated_at != "" and updated_at != created_at:
 		return true
 	return false
@@ -373,15 +379,29 @@ func active_needs_avatar_setup() -> bool:
 	return not active_avatar_configured
 
 
+func _pick_mesh_id(character_id: String) -> String:
+	var seed: int = absi(hash("%s_%s" % [character_id, Auth.username]))
+	return FALLBACK_MESH_IDS[seed % FALLBACK_MESH_IDS.size()]
+
+
 func _fallback_avatar_for_character(character_id: String) -> AvatarData:
-	var data := AvatarData.new()
-	var mesh_ids := HumanCharacterLibrary.list_mesh_ids()
-	if mesh_ids.is_empty():
-		data.mesh_id = "character-a"
-	else:
-		var seed := absi(hash("%s_%s" % [character_id, Auth.username]))
-		data.mesh_id = mesh_ids[seed % mesh_ids.size()]
+	var data: AvatarData = AvatarData.new()
+	data.mesh_id = _pick_mesh_id(character_id)
 	return data
+
+
+func _as_dict(source: Dictionary, key: String) -> Dictionary:
+	var raw: Variant = source.get(key)
+	if typeof(raw) == TYPE_DICTIONARY:
+		return raw as Dictionary
+	return {}
+
+
+func _as_array(source: Dictionary, key: String) -> Array:
+	var raw: Variant = source.get(key)
+	if typeof(raw) == TYPE_ARRAY:
+		return raw as Array
+	return []
 
 
 func _apply_active_character(entry: Dictionary) -> void:
@@ -394,17 +414,12 @@ func _apply_active_character(entry: Dictionary) -> void:
 	active_nest_visited = bool(entry.get("nestVisited", false))
 	active_avatar_configured = character_avatar_configured(entry)
 
-	var avatar_dict: Dictionary = entry.get("avatar", {})
-	if typeof(avatar_dict) != TYPE_DICTIONARY:
-		avatar_dict = {}
+	var avatar_dict: Dictionary = _as_dict(entry, "avatar")
 
 	if not avatar_dict.is_empty():
-		var avatar_data := AvatarData.from_dict(avatar_dict)
+		var avatar_data: AvatarData = AvatarData.from_dict(avatar_dict)
 		if not avatar_dict.has("mesh_id") or str(avatar_dict.get("mesh_id", "")).strip_edges() == "":
-			var mesh_ids := HumanCharacterLibrary.list_mesh_ids()
-			if not mesh_ids.is_empty():
-				var seed := absi(hash("%s_%s" % [active_character_id, Auth.username]))
-				avatar_data.mesh_id = mesh_ids[seed % mesh_ids.size()]
+			avatar_data.mesh_id = _pick_mesh_id(active_character_id)
 		set_avatar(avatar_data)
 	elif active_avatar_configured:
 		set_avatar(_fallback_avatar_for_character(active_character_id))

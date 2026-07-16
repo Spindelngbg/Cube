@@ -3,6 +3,7 @@ extends Control
 enum Tab { LOGIN, REGISTER, GUEST }
 
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+const CharacterFlowScript = preload("res://scripts/character_flow.gd")
 
 @onready var login_panel: VBoxContainer = %LoginPanel
 @onready var register_panel: VBoxContainer = %RegisterPanel
@@ -278,7 +279,7 @@ func _enter_account_flow() -> void:
 			"Öppnar karaktärsval...",
 			"Steg 6/6 · %d sparad%s karaktär%s" % [count, "e" if count != 1 else "", "er" if count != 1 else ""]
 		)
-		_go_to_scene(CharacterFlow.login_scene_after_characters_loaded())
+		_go_to_scene(CharacterFlowScript.login_scene_after_characters_loaded())
 
 
 func _go_to_scene(path: String) -> void:

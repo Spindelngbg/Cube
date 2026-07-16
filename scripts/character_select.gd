@@ -1,5 +1,7 @@
 extends Control
 
+const CharacterFlowScript = preload("res://scripts/character_flow.gd")
+
 @onready var status_label: Label = %StatusLabel
 @onready var slots_label: Label = %SlotsLabel
 @onready var character_list: VBoxContainer = %CharacterList
@@ -92,7 +94,7 @@ func _make_character_row(character_id: String, character_name: String, is_active
 	name_label.text = "%s%s" % [character_name, "  ★" if is_active else ""]
 	name_col.add_child(name_label)
 
-	var status := CharacterFlow.character_status(_character_entry(character_id))
+	var status := CharacterFlowScript.character_status(_character_entry(character_id))
 	if status != "":
 		var status_label := Label.new()
 		SpiderTheme.style_subtitle(status_label)
@@ -148,11 +150,11 @@ func _on_play_pressed() -> void:
 	if needs_avatar_setup_for_selected():
 		_entering = false
 		_refresh_ui()
-		CharacterFlow.open_avatar_editor(self)
+		CharacterFlowScript.open_avatar_editor(self)
 		return
-	if CharacterFlow.destination_scene_path() == CharacterFlow.GAME_SCENE:
+	if CharacterFlowScript.destination_scene_path() == CharacterFlowScript.GAME_SCENE:
 		_set_status("Ansluter till din koloni...")
-	var result: Dictionary = await CharacterFlow.continue_as(self)
+	var result: Dictionary = await CharacterFlowScript.continue_as(self)
 	_entering = false
 	if not result.ok:
 		_refresh_ui()
@@ -167,7 +169,7 @@ func _on_edit_pressed() -> void:
 		_set_status("Väljer karaktär...")
 		Profile.select_character(_selected_id)
 		await Profile.character_selected
-	CharacterFlow.open_avatar_editor(self)
+	CharacterFlowScript.open_avatar_editor(self)
 
 
 func needs_avatar_setup_for_selected() -> bool:

@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const CheatStateScript = preload("res://scripts/cheat_state.gd")
+
 const MOVE_SPEED := 5.0
 const SPRINT_SPEED := 8.5
 const JUMP_VELOCITY := 6.5
@@ -616,7 +618,7 @@ func _rpc_apply_zezzlor_laser_hit(amount: float) -> void:
 
 
 func take_damage(amount: float) -> void:
-	if CheatState.god_mode:
+	if CheatStateScript.god_mode:
 		return
 	if _is_dead or _damage_cooldown > 0.0 or amount <= 0.0:
 		return
