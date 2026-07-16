@@ -6,6 +6,7 @@ extends CanvasLayer
 # process modes accordingly. Resume / Options / Main Menu / Quit.
 
 signal resumed
+signal pause_started
 signal main_menu_pressed
 signal quit_pressed
 
@@ -47,6 +48,7 @@ func toggle() -> void:
 func pause() -> void:
 	get_tree().paused = true
 	visible = true
+	pause_started.emit()
 	# If Options was left open from a prior session (external resume() without
 	# closing the sub-panel first), route focus into Options instead of the
 	# hidden Resume button.

@@ -352,10 +352,6 @@ func _follow_local_player_camera(_delta: float) -> void:
 	if not players.has(local_id):
 		return
 	var player: Node3D = players[local_id]
-	if player.has_node("FirstPersonCameraRig"):
-		if _camera:
-			_camera.current = false
-		return
 	if player.has_method("is_piloting_vehicle") and player.is_piloting_vehicle():
 		var vehicle: Node3D = player.get_piloting_vehicle()
 		player.global_position = vehicle.global_position
@@ -541,7 +537,12 @@ func _setup_pause_menu() -> void:
 	_pause_menu.main_menu_pressed.connect(func() -> void: Network.stop())
 	_pause_menu.quit_pressed.connect(func() -> void: Network.stop())
 	_pause_menu.resumed.connect(_on_pause_resumed)
+	_pause_menu.pause_started.connect(_on_pause_started)
 	add_child(_pause_menu)
+
+
+func _on_pause_started() -> void:
+	MouseLook.release_for_ui()
 
 
 func _setup_hud_clock() -> void:
@@ -674,26 +675,7 @@ func get_camera_pivot() -> Node3D:
 
 
 func get_camera() -> Camera3D:
-	var local_player := get_local_player()
-	if local_player != null:
-		var rig := local_player.get_node_or_null("FirstPersonCameraRig") as Node3D
-		if rig != null and rig.has_method("get_camera"):
-			var rig_camera: Camera3D = rig.call("get_camera")
-			if rig_camera != null:
-				return rig_camera
 	return _camera
-
-
-func _setup_local_player_camera(player: Node3D) -> void:
-	if _camera:
-		_camera.current = false
-	var rig := player.get_node_or_null("FirstPersonCameraRig")
-	if rig != null:
-		if rig.has_method("import_look_state") and _camera_pivot and _camera:
-			rig.call("import_look_state", _camera_pivot.rotation.y, _camera.rotation.x)
-		MouseLook.register_rig(rig)
-	elif _camera_pivot and _camera:
-		MouseLook.activate(_camera_pivot, _camera)
 
 
 func _refresh_mouse_capture_cache() -> void:
@@ -1486,7 +1468,7 @@ func _spawn_player(peer_id: int) -> void:
 	if peer_id == multiplayer.get_unique_id():
 		player.set_spawn_anchor(spawn_pos)
 		_align_player_to_floor.call_deferred(player)
-		call_deferred("_setup_local_player_camera", player)
+
 		if player.has_signal("died") and not player.died.is_connected(_on_local_player_died):
 			player.died.connect(_on_local_player_died)
 		if _health_bar and _health_bar.has_method("bind_player"):

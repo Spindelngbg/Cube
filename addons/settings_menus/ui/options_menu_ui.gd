@@ -274,7 +274,7 @@ func _build_controls_tab() -> Control:
 	raw_row.add_child(raw_cb)
 
 	var raw_note := Label.new()
-	raw_note.text = "På = varje musrörelse räknas direkt. Av = Godot slår ihop rörelser per bildruta. Sikt styrs av kameran på spelaren."
+	raw_note.text = "På = varje musrörelse räknas direkt (rekommenderas). Av = Godot slår ihop rörelser per bildruta."
 	raw_note.add_theme_font_size_override("font_size", 11)
 	raw_note.add_theme_color_override("font_color", theme_data.text_dim)
 	raw_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

@@ -64,7 +64,7 @@ func _apply_mouse_mode(is_game: bool) -> void:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		return
 	if is_game:
-		Input.set_mouse_mode(Input.MOUSE_MODE_CONFINED_HIDDEN)
+		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	else:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
@@ -116,7 +116,8 @@ func _on_drag_end() -> void:
 func _notification(what: int) -> void:
 	if _mouse_look_handles_mouse():
 		# Släpp vid alt-tab — spelaren klickar för att låsa igen (MouseLook).
-		if what == NOTIFICATION_WM_MOUSE_EXIT and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		var mode := Input.get_mouse_mode()
+		if what == NOTIFICATION_WM_MOUSE_EXIT and mode != Input.MOUSE_MODE_VISIBLE:
 			var mouse_look := get_node_or_null("/root/MouseLook")
 			if mouse_look != null and mouse_look.has_method("notify_pointer_left_window"):
 				mouse_look.notify_pointer_left_window()

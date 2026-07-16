@@ -1,22 +1,23 @@
 extends Node
 
-## Koordinerar mus/sikt. Spelvärlden använder FirstPersonCameraRig på lokal spelare.
-## Äldre scener (emergence/nest) faller tillbaka på fri pivot i scenen.
+## Musstyrning för FPS-vy via scenens CameraPivot.
+## Roterar direkt i _input. Alt = fri pekare, vänsterklick = lås igen.
 
-const PITCH_LIMIT := 1.15
-const MOTION_SPIKE_LIMIT := 500.0
 const DEFAULT_MOUSE_SENSITIVITY := 0.0022
+const PITCH_LIMIT := 1.15
+const MOTION_SPIKE_LIMIT := 120.0
 const RAW_MOUSE_SETTING := "controls.raw_mouse_input"
 
-var _rig: Node3D
 var _pivot: Node3D
 var _camera: Camera3D
-var _legacy_active := false
-var _input_mode: Node
+var _active := false
+var _was_paused := false
+var _user_cursor_free := false
 var _shake_strength := 0.0
 var _shake_decay := 8.0
 var _shake_offset := Vector3.ZERO
 var _camera_rest_offset := Vector3.ZERO
+var _input_mode: Node
 
 
 func _ready() -> void:
@@ -24,6 +25,18 @@ func _ready() -> void:
 	_input_mode = get_node_or_null("/root/InputMode")
 	_connect_settings()
 	_apply_mouse_input_mode()
+	var tree := get_tree()
+	if tree and not tree.scene_changed.is_connected(_on_scene_changed):
+		tree.scene_changed.connect(_on_scene_changed)
+
+
+func _on_scene_changed() -> void:
+	# Lämna aldrig CONFINED_HIDDEN/CAPTURED kvar på login/menyer.
+	deactivate()
+	_release_pointer()
+	if _input_mode and _input_mode.has_method("ui"):
+		_input_mode.ui()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 
 func _connect_settings() -> void:
@@ -50,100 +63,71 @@ func _apply_mouse_input_mode() -> void:
 
 
 func is_active() -> bool:
-	if _rig != null and _rig.has_method("is_look_enabled"):
-		return bool(_rig.call("is_look_enabled"))
-	return _legacy_active and _pivot != null and _camera != null
+	return _active and _pivot != null and _camera != null
 
 
 func is_cursor_user_free() -> bool:
-	if _rig != null and _rig.has_method("is_cursor_free"):
-		return bool(_rig.call("is_cursor_free"))
-	return false
-
-
-func register_rig(rig: Node3D) -> void:
-	_rig = rig
-	_legacy_active = false
-	_pivot = null
-	_camera = null
-	_enter_game_input_mode()
-	if _rig.has_method("set_look_enabled"):
-		_rig.call("set_look_enabled", true)
-
-
-func unregister_rig(rig: Node3D) -> void:
-	if _rig != rig:
-		return
-	if _rig.has_method("set_look_enabled"):
-		_rig.call("set_look_enabled", false)
-	_rig = null
+	return _user_cursor_free
 
 
 func activate(pivot: Node3D, camera: Camera3D) -> void:
-	if _try_activate_local_rig():
-		return
-	_activate_legacy(pivot, camera)
+	_pivot = pivot
+	_camera = camera
+	_active = pivot != null and camera != null
+	_was_paused = false
+	_user_cursor_free = false
+	if _active:
+		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
+		_camera.current = true
+		_enter_game_input_mode()
+		_capture_mouse()
 
 
 func deactivate() -> void:
-	if _rig != null:
-		if _rig.has_method("set_look_enabled"):
-			_rig.call("set_look_enabled", false)
-		return
-	_legacy_active = false
+	_active = false
 	_pivot = null
 	_camera = null
+	_user_cursor_free = false
 	_release_pointer()
 
 
 func notify_pointer_left_window() -> void:
-	if _rig != null and _rig.has_method("set_cursor_free"):
-		_rig.call("set_cursor_free", true)
+	if not is_active():
 		return
+	_user_cursor_free = true
 	_release_pointer()
 
 
 func get_yaw() -> float:
-	if _rig != null and _rig.has_method("get_yaw"):
-		return float(_rig.call("get_yaw"))
 	if _pivot:
 		return _pivot.rotation.y
 	return 0.0
 
 
 func get_flat_direction(input_dir: Vector2) -> Vector3:
-	if _rig != null and _rig.has_method("get_flat_direction"):
-		return _rig.call("get_flat_direction", input_dir)
-	if _legacy_active and input_dir != Vector2.ZERO and _pivot:
-		var basis := _pivot.global_transform.basis
-		var direction := basis * Vector3(input_dir.x, 0.0, input_dir.y)
-		direction.y = 0.0
-		if direction.length_squared() < 0.0001:
-			return Vector3.ZERO
-		return direction.normalized()
-	return Vector3.ZERO
+	if not is_active() or input_dir == Vector2.ZERO:
+		return Vector3.ZERO
+	var basis := _pivot.global_transform.basis
+	var direction := basis * Vector3(input_dir.x, 0.0, input_dir.y)
+	direction.y = 0.0
+	if direction.length_squared() < 0.0001:
+		return Vector3.ZERO
+	return direction.normalized()
 
 
 func get_aim_direction() -> Vector3:
-	if _rig != null and _rig.has_method("get_aim_direction"):
-		return _rig.call("get_aim_direction")
-	if _legacy_active and _camera:
-		return -_camera.global_transform.basis.z.normalized()
-	return Vector3.FORWARD
+	if not is_active() or _camera == null:
+		return Vector3.FORWARD
+	return -_camera.global_transform.basis.z.normalized()
 
 
 func get_aim_origin(fallback_position: Vector3) -> Vector3:
-	if _rig != null and _rig.has_method("get_aim_origin"):
-		return _rig.call("get_aim_origin", fallback_position)
-	if _legacy_active and _camera:
-		return _camera.global_position + get_aim_direction() * 0.65
-	return fallback_position + Vector3(0.0, 1.45, 0.0)
+	if not is_active() or _camera == null:
+		return fallback_position + Vector3(0.0, 1.45, 0.0)
+	return _camera.global_position + get_aim_direction() * 0.65
 
 
 func request_shake(strength: float, duration_hint: float = 0.12) -> void:
-	if _rig != null and _rig.has_method("request_shake"):
-		_rig.call("request_shake", strength, duration_hint)
-		return
 	var settings := get_node_or_null("/root/Settings")
 	if settings != null and bool(settings.get_value("a11y.reduce_motion", false)):
 		strength *= 0.35
@@ -152,65 +136,37 @@ func request_shake(strength: float, duration_hint: float = 0.12) -> void:
 
 
 func request_recapture() -> void:
-	if _rig != null and _rig.has_method("set_cursor_free"):
-		_rig.call("set_cursor_free", false)
+	if is_active() and not _user_cursor_free:
+		_capture_mouse()
+
+
+func release_for_ui() -> void:
+	if not is_active():
+		_release_pointer()
 		return
-	if _legacy_active:
-		_lock_pointer()
-
-
-func _try_activate_local_rig() -> bool:
-	var tree := get_tree()
-	if tree == null:
-		return false
-	var game := tree.get_first_node_in_group("game_director")
-	if game == null or not game.has_method("get_local_player"):
-		return false
-	var player: Node = game.get_local_player()
-	if player == null:
-		return false
-	var rig := player.get_node_or_null("FirstPersonCameraRig")
-	if rig == null:
-		return false
-	register_rig(rig)
-	return true
-
-
-func _activate_legacy(pivot: Node3D, camera: Camera3D) -> void:
-	_rig = null
-	_pivot = pivot
-	_camera = camera
-	_legacy_active = pivot != null and camera != null
-	if _legacy_active:
-		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
-		_enter_game_input_mode()
-		_lock_pointer()
-
-
-func _enter_game_input_mode() -> void:
-	if _input_mode and _input_mode.has_method("game"):
-		_input_mode.game()
-	elif _input_mode and _input_mode.has_method("set_tracking_mode"):
-		_input_mode.set_tracking_mode(true)
+	_user_cursor_free = false
+	_release_pointer()
 
 
 func _input(event: InputEvent) -> void:
-	if _rig != null:
-		return
-	if not _legacy_active or get_tree().paused:
+	if not is_active() or get_tree().paused:
 		return
 
 	if event.is_action_pressed("toggle_cursor"):
-		if Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
-			_lock_pointer()
-		else:
-			_release_pointer()
+		_toggle_user_cursor()
 		get_viewport().set_input_as_handled()
+		return
+
+	if event is InputEventMouseButton:
+		var button := event as InputEventMouseButton
+		if button.pressed and button.button_index == MOUSE_BUTTON_LEFT and _user_cursor_free:
+			_user_cursor_free = false
+			_capture_mouse()
 		return
 
 	if not (event is InputEventMouseMotion):
 		return
-	if Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
+	if _user_cursor_free or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	if _pivot == null or _camera == null:
 		return
@@ -225,29 +181,78 @@ func _input(event: InputEvent) -> void:
 		-PITCH_LIMIT,
 		PITCH_LIMIT
 	)
-	_warp_pointer_center()
 
 
 func _process(delta: float) -> void:
-	if _rig != null:
+	_apply_camera_shake(delta)
+	if not _active:
 		return
-	_apply_legacy_shake(delta)
+
+	if _is_drag_active():
+		_release_mouse()
+		return
+
+	var tree := get_tree()
+	var paused := tree.paused if tree else false
+	if paused and not _was_paused:
+		_release_mouse()
+	elif not paused and _was_paused and not _user_cursor_free:
+		_capture_mouse()
+	_was_paused = paused
+	if paused:
+		return
+
+	if not _user_cursor_free and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		if _game_allows_capture():
+			_capture_mouse()
 
 
-func _apply_legacy_shake(delta: float) -> void:
-	if _camera == null:
-		return
-	if _shake_strength <= 0.001:
-		_camera.position = _camera_rest_offset
-		return
-	_shake_strength = maxf(0.0, _shake_strength - _shake_decay * delta)
-	var amount := _shake_strength
-	_shake_offset = Vector3(
-		randf_range(-amount, amount),
-		randf_range(-amount * 0.6, amount * 0.6),
-		randf_range(-amount * 0.25, amount * 0.25)
-	)
-	_camera.position = _camera_rest_offset + _shake_offset
+func _toggle_user_cursor() -> void:
+	_user_cursor_free = not _user_cursor_free
+	if _user_cursor_free:
+		_release_mouse()
+	elif _game_allows_capture():
+		_capture_mouse()
+
+
+func _game_allows_capture() -> bool:
+	var tree := get_tree()
+	if tree == null:
+		return false
+	var game := tree.current_scene
+	if game and game.has_method("should_capture_mouse"):
+		return bool(game.call("should_capture_mouse"))
+	return true
+
+
+func _is_drag_active() -> bool:
+	return _input_mode != null and _input_mode.has_method("is_drag_active") and _input_mode.is_drag_active()
+
+
+func _capture_mouse() -> void:
+	_set_tracking_mode(true)
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _release_mouse() -> void:
+	_set_tracking_mode(false)
+	_release_pointer()
+
+
+func _release_pointer() -> void:
+	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func _set_tracking_mode(is_game: bool) -> void:
+	if _input_mode and _input_mode.has_method("set_tracking_mode"):
+		_input_mode.set_tracking_mode(is_game)
+
+
+func _enter_game_input_mode() -> void:
+	if _input_mode and _input_mode.has_method("game"):
+		_input_mode.game()
 
 
 func _get_mouse_sensitivity() -> float:
@@ -261,20 +266,17 @@ func _get_mouse_sensitivity() -> float:
 	)
 
 
-func _lock_pointer() -> void:
-	Input.set_use_accumulated_input(false)
-	Input.mouse_mode = Input.MOUSE_MODE_CONFINED_HIDDEN
-	call_deferred("_warp_pointer_center")
-
-
-func _release_pointer() -> void:
-	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-
-
-func _warp_pointer_center() -> void:
-	var viewport := get_viewport()
-	if viewport == null:
+func _apply_camera_shake(delta: float) -> void:
+	if _camera == null:
 		return
-	var rect := viewport.get_visible_rect()
-	Input.warp_mouse(rect.position + rect.size * 0.5)
+	if _shake_strength <= 0.001:
+		_camera.position = _camera_rest_offset
+		return
+	_shake_strength = maxf(0.0, _shake_strength - _shake_decay * delta)
+	var amount := _shake_strength
+	_shake_offset = Vector3(
+		randf_range(-amount, amount),
+		randf_range(-amount * 0.6, amount * 0.6),
+		randf_range(-amount * 0.25, amount * 0.25)
+	)
+	_camera.position = _camera_rest_offset + _shake_offset

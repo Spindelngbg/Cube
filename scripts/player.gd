@@ -34,7 +34,6 @@ const ProceduralSfxScript = preload("res://scripts/audio/procedural_sfx.gd")
 const PlayerDamageGruntLibraryScript = preload("res://scripts/audio/player_damage_grunt_library.gd")
 const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
-const FirstPersonCameraRigScript = preload("res://scripts/camera/first_person_camera_rig.gd")
 
 const FIRST_PERSON_FALLBACK_EYE := Vector3(0.0, 1.62, 0.08)
 
@@ -114,24 +113,7 @@ func _ready() -> void:
 	if is_multiplayer_authority():
 		_footsteps = PlayerFootstepsScript.ensure_on(self)
 		_ground_snap_remaining = GROUND_SNAP_GRACE_SEC
-		_setup_first_person_camera_rig()
 		call_deferred("ensure_safe_ground")
-
-
-func _exit_tree() -> void:
-	if not is_multiplayer_authority():
-		return
-	var rig := get_node_or_null("FirstPersonCameraRig")
-	if rig != null:
-		MouseLook.unregister_rig(rig)
-
-
-func _setup_first_person_camera_rig() -> void:
-	if get_node_or_null("FirstPersonCameraRig") != null:
-		return
-	var rig := FirstPersonCameraRigScript.new()
-	rig.name = "FirstPersonCameraRig"
-	add_child(rig)
 
 
 ## Placera fötterna på närmaste golv och knuffa ut ur solid geometri.
