@@ -1,0 +1,31 @@
+[gd_scene load_steps=4 format=3 uid="uid://cube_world_monster"]
+
+[ext_resource type="Script" path="res://scripts/monsters/world_monster.gd" id="1_monster"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_monster"]
+radius = 0.55
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_debug"]
+radius = 0.55
+height = 1.8
+
+[node name="WorldMonster" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_monster")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+shape = SubResource("CapsuleShape3D_monster")
+
+[node name="ModelPivot" type="Node3D" parent="."]
+
+[node name="NameLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 0)
+text = "Monster"
+font_size = 28
+outline_size = 6
+modulate = Color(0.9, 0.35, 0.4, 1)
+billboard = 1
+no_depth_test = true

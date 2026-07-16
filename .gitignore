@@ -3,9 +3,12 @@
 export/
 build/
 assets/downloads/
+assets/models/nature-kit-temp/
 assets/**/*.import
 *.translation
 signaling-server/node_modules/
+node_modules/
+tmp_*.json
 gh_*.txt
 *.uid
 ~*

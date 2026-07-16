@@ -1,6 +1,8 @@
 class_name CubeCityBuilder
 extends RefCounted
 
+const DevBuildingLabelsScript = preload("res://scripts/dev/dev_building_labels.gd")
+
 const DISTRICT_SIZE_M := (
 	CubeConstants.PROTOTYPE_BLOCK_COUNT * CubeConstants.PROTOTYPE_METERS_PER_BLOCK
 )
@@ -14,6 +16,7 @@ const INDUSTRIAL_BUILDINGS := ["building-a", "building-b", "building-c", "buildi
 
 
 static func build(parent: Node3D) -> Node3D:
+	DevBuildingLabelsScript.reset()
 	var root := Node3D.new()
 	root.name = "CubeCity"
 	parent.add_child(root)

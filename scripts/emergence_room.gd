@@ -1,19 +1,34 @@
 extends Node3D
 
+const Lore = preload("res://scripts/story/shawshank_lore.gd")
+const StoryInteractableScript = preload("res://scripts/story/story_interactable.gd")
+const StoryToastUIScript = preload("res://scripts/ui/story_toast_ui.gd")
+
 const MOVE_SPEED := 4.0
 const ROOM_SIZE := Vector3(40, 18, 40)
-const LEFT_TUNNEL_VISUAL_M := 28.0
+const ELEVATOR_RED := Color(1.0, 0.04, 0.08)
+const HUB_COLOR := Color(0.92, 0.9, 0.85)
+const DOOR_OPEN_SPEED := 3.5
+const RIDE_HEIGHT_M := 14.0
+const CAB_SIZE := Vector3(2.6, 2.8, 2.4)
+
+const ELEVATOR_SPECS := [
+	{"id": "satellite_left", "pos": Vector3(-8.0, 0.0, 2.0), "yaw": PI * 0.5},
+	{"id": "satellite_top_a", "pos": Vector3(-2.5, 0.0, -7.0), "yaw": 0.0},
+	{"id": "satellite_top_b", "pos": Vector3(2.5, 0.0, -7.0), "yaw": 0.0},
+	{"id": "satellite_right", "pos": Vector3(8.0, 0.0, 2.0), "yaw": -PI * 0.5},
+]
 
 const MARKER_COLORS := {
-	"satellite_left": Color(0.2, 0.45, 0.95),
-	"satellite_top_a": Color(0.95, 0.75, 0.15),
-	"satellite_top_b": Color(0.95, 0.55, 0.1),
-	"satellite_right": Color(0.85, 0.25, 0.35),
+	"satellite_left": ELEVATOR_RED,
+	"satellite_top_a": ELEVATOR_RED,
+	"satellite_top_b": ELEVATOR_RED,
+	"satellite_right": ELEVATOR_RED,
 }
 
 @onready var player: CharacterBody3D = $Player
 @onready var camera_pivot: Node3D = $CameraPivot
-@onready var hint_label: Label = $UI/HintLabel
+var _hint_label: Label
 @onready var secret_panel: PanelContainer = $UI/SecretPanel
 @onready var secret_input: LineEdit = $UI/SecretPanel/VBox/CodeInput
 @onready var secret_button: Button = $UI/SecretPanel/VBox/RedeemButton
@@ -35,13 +50,18 @@ var _ride_start := Vector3.ZERO
 var _ride_end := Vector3.ZERO
 var _transitioning := false
 var _near_elevator_id := ""
+var _inside_elevator_id := ""
+var _connect_watchdog: SceneTreeTimer
 
 
 func _ready() -> void:
+	_hint_label = get_node_or_null("UI/HintLabel") as Label
+	_setup_environment()
 	_build_room()
 	_build_main_cube_preview()
 	_build_elevators()
 	_build_wayfinding()
+	_build_story_clues()
 	_build_player()
 	_style_ui()
 	_hide_confirm()
@@ -54,15 +74,31 @@ func _ready() -> void:
 	Network.world_ready.connect(_on_world_ready)
 	Network.connection_failed.connect(_on_connection_failed)
 
+	MouseLook.activate(camera_pivot, camera_pivot.get_node("Camera3D") as Camera3D)
+	secret_input.release_focus()
+
 	if Profile.has_home_spawn():
-		_enter_world()
+		call_deferred("_redirect_to_play_scene")
 		return
 
-	hint_label.text = (
-		"Följ de färgade markörerna på golvet (WASD). "
-		+ "Blå=vänster tunnel, Gula=trappor norrut, Röd=höger korridor. "
-		+ "Stå i markören och tryck [E] för att åka hiss."
+	if not Profile.needs_home_selection():
+		call_deferred("_redirect_to_play_scene")
+		return
+
+	_set_hint(
+		"Fyra hissar runt dig — Hiss 1–4 leder till Koloni 1–4 (%s). "
+		% SpawnPoints.get_extent_label()
+		+ "I kolonin får du en snabbguide (H) om zoner, Mydrillium och markörer. "
+		+ "Läs SRC-memot vid väggen. Gå nära en hiss, gå in och tryck [E]."
 	)
+
+
+func _redirect_to_play_scene() -> void:
+	get_tree().change_scene_to_file(GameFlow.play_scene_path())
+
+
+func _exit_tree() -> void:
+	MouseLook.deactivate()
 
 
 func _physics_process(delta: float) -> void:
@@ -73,36 +109,62 @@ func _physics_process(delta: float) -> void:
 		_process_elevator_ride(delta)
 		return
 
+	if not player.is_on_floor():
+		player.velocity.y -= 18.0 * delta
+	else:
+		player.velocity.y = 0.0
+
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var direction := (camera_pivot.global_transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
-	direction.y = 0
+	var direction := Vector3.ZERO
+	if MouseLook.is_active():
+		direction = MouseLook.get_flat_direction(input_dir)
+	elif input_dir != Vector2.ZERO:
+		direction = (camera_pivot.global_transform.basis * Vector3(input_dir.x, 0, input_dir.y))
+		direction.y = 0.0
+		direction = direction.normalized()
 
 	if direction != Vector3.ZERO:
 		player.velocity.x = direction.x * MOVE_SPEED
 		player.velocity.z = direction.z * MOVE_SPEED
-		player.rotation.y = atan2(direction.x, direction.z)
+		if MouseLook.is_active():
+			player.rotation.y = MouseLook.get_yaw()
+		else:
+			player.rotation.y = atan2(direction.x, direction.z)
 	else:
 		player.velocity.x = move_toward(player.velocity.x, 0, MOVE_SPEED)
 		player.velocity.z = move_toward(player.velocity.z, 0, MOVE_SPEED)
 
 	player.move_and_slide()
 	camera_pivot.global_position = player.global_position + Vector3(0, 1.4, 0)
-	_update_elevator_proximity()
+	_update_elevators(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _transitioning or _in_elevator_ride:
 		return
-	if event.is_action_pressed("interact") and _near_elevator_id != "":
-		_start_elevator_ride(_near_elevator_id)
+	if event.is_action_pressed("interact"):
+		for node in get_tree().get_nodes_in_group("story_interactable"):
+			if node.has_method("is_player_nearby") and node.is_player_nearby():
+				node.trigger()
+				return
+	if event.is_action_pressed("interact") and _inside_elevator_id != "":
+		_start_elevator_ride(_inside_elevator_id)
 
 
 func _build_player() -> void:
+	player.position = Vector3(0.0, 1.0, 3.5)
+	player.velocity = Vector3.ZERO
 	var body := player.get_node_or_null("Body") as MeshInstance3D
 	if body:
 		body.visible = false
-	SpiderAlienBuilder.build(player_avatar, Profile.get_avatar())
-	player_avatar.scale = Vector3.ONE * 0.85
+	var collision := player.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if collision:
+		collision.position = Vector3(0.0, 1.0, 0.0)
+	var model := HumanAvatarBuilder.build(player_avatar, Profile.get_avatar())
+	if model:
+		var animator := HumanAvatarAnimator.ensure_on(player_avatar, true)
+		animator.bind(model)
+	camera_pivot.global_position = player.global_position + Vector3(0, 1.4, 0)
 
 
 func _build_room() -> void:
@@ -127,9 +189,24 @@ func _build_room() -> void:
 
 	var sun := DirectionalLight3D.new()
 	sun.light_color = Color(1.0, 0.95, 0.82)
-	sun.light_energy = 2.0
-	sun.rotation_degrees = Vector3(-55, 25, 0)
+	sun.light_energy = 2.4
+	sun.shadow_enabled = true
+	sun.rotation_degrees = Vector3(-50, 30, 0)
 	$Room.add_child(sun)
+
+	var fill := OmniLight3D.new()
+	fill.position = Vector3(0, 10, 0)
+	fill.light_color = Color(1.0, 0.96, 0.88)
+	fill.light_energy = 1.8
+	fill.omni_range = 45.0
+	$Room.add_child(fill)
+
+	var ceiling_fill := OmniLight3D.new()
+	ceiling_fill.position = Vector3(0, ROOM_SIZE.y - 1.0, 0)
+	ceiling_fill.light_color = Color(1.0, 0.98, 0.92)
+	ceiling_fill.light_energy = 2.5
+	ceiling_fill.omni_range = 38.0
+	$Room.add_child(ceiling_fill)
 
 
 func _build_main_cube_preview() -> void:
@@ -141,7 +218,7 @@ func _build_main_cube_preview() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.55, 0.58, 0.62)
 	mat.metallic = 0.35
-	_add_box(core, Vector3(8, 8, 8), Vector3.ZERO, mat)
+	_add_procedural_box(core, Vector3(8, 8, 8), Vector3.ZERO, mat)
 
 	var mark := Label3D.new()
 	mark.text = "Huvudkub"
@@ -152,230 +229,216 @@ func _build_main_cube_preview() -> void:
 
 
 func _build_elevators() -> void:
-	var specs := [
-		{
-			"id": "satellite_left",
-			"pos": Vector3(-17, 0, -5),
-			"label": "Vänster 10 km",
-			"lobby_offset": Vector3(1.5, 0, 0),
-		},
-		{
-			"id": "satellite_top_a",
-			"pos": Vector3(-7, 0, -17),
-			"label": "Topp A",
-			"lobby_offset": Vector3(0, 0, 1.5),
-		},
-		{
-			"id": "satellite_top_b",
-			"pos": Vector3(7, 0, -17),
-			"label": "Topp B",
-			"lobby_offset": Vector3(0, 0, 1.5),
-		},
-		{
-			"id": "satellite_right",
-			"pos": Vector3(17, 0, 5),
-			"label": "Höger",
-			"lobby_offset": Vector3(-1.5, 0, 0),
-		},
-	]
+	for spec in ELEVATOR_SPECS:
+		_build_elevator_unit(spec)
 
-	for spec in specs:
-		_build_elevator_port(spec)
+
+func _build_story_clues() -> void:
+	var board := Label3D.new()
+	board.text = (
+		"LÄCKT ANSLAG — %s\nProjekt Redemption: robot + spindel + människa\nMisslyckad synk = hybridzombie\n[E] Läs hela memot"
+		% Lore.COMPANY_NAME
+	)
+	board.font_size = 42
+	board.modulate = Color(0.95, 0.25, 0.2)
+	board.position = Vector3(-12.0, 3.2, -10.0)
+	board.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	$Room.add_child(board)
+
+	var area := StoryInteractableScript.new()
+	area.interact_id = "src_leaked_memo"
+	area.prompt_text = "Läs läckt SRC-memo [E]"
+	area.position = Vector3(-12.0, 1.5, -10.0)
+	$Room.add_child(area)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(3.5, 3.0, 2.5)
+	shape.shape = box
+	area.add_child(shape)
+
+	$UI.add_child(StoryToastUIScript.new())
 
 
 func _build_wayfinding() -> void:
-	var hub := Vector3(0, 0.02, 0)
-	_add_floor_marker(hub, Color(0.92, 0.9, 0.85), 3.5, "START")
+	var hub := Vector3(0, 0.02, 2.0)
+	_add_floor_marker(hub, HUB_COLOR, 2.8, "START")
 
-	var guides := [
-		{"id": "satellite_left", "from": hub, "to": Vector3(-17, 0.02, -5), "label": "← VÄNSTER TUNNEL"},
-		{"id": "satellite_top_a", "from": hub, "to": Vector3(-7, 0.02, -17), "label": "↑ TRAPPOR A"},
-		{"id": "satellite_top_b", "from": hub, "to": Vector3(7, 0.02, -17), "label": "↑ TRAPPOR B"},
-		{"id": "satellite_right", "from": hub, "to": Vector3(17, 0.02, 5), "label": "HÖGER KORRIDOR →"},
-	]
-	for guide in guides:
-		var spawn_id := str(guide.id)
-		var color: Color = MARKER_COLORS.get(spawn_id, Color.WHITE)
-		_add_path_strip(guide.from, guide.to, color)
-		_add_floor_marker(guide.to, color, 5.0, str(guide.label))
-		_add_beacon(guide.to + Vector3(0, 0.1, 0), color)
+	for spec in ELEVATOR_SPECS:
+		var spawn_id := str(spec.id)
+		var dest: Vector3 = spec.pos + Vector3(0, 0.02, 0)
+		var elevator_label := SpawnPoints.get_elevator_label(spawn_id)
+		_add_path_strip(hub, dest, ELEVATOR_RED)
+		_add_floor_marker(dest, ELEVATOR_RED, 3.2, elevator_label)
+		_add_beacon(dest + Vector3(0, 0.1, 0), ELEVATOR_RED)
 
 
-func _build_elevator_port(spec: Dictionary) -> void:
+func _build_elevator_unit(spec: Dictionary) -> void:
 	var spawn_id := str(spec.id)
 	var entry := SpawnPoints.get_entry(spawn_id)
-	var color: Color = MARKER_COLORS.get(spawn_id, Color.WHITE)
+	var elevator_label := SpawnPoints.get_elevator_label(spawn_id)
+	var color := ELEVATOR_RED
+
 	var root := Node3D.new()
 	root.name = "Elevator_%s" % spawn_id
 	root.position = spec.pos
+	root.rotation.y = float(spec.get("yaw", 0.0))
 	$Elevators.add_child(root)
 
-	var mount := str(entry.get("elevator_mount", ""))
-	_build_portal_frame(root, mount, color)
-	_build_shaft_for_mount(root, mount, entry, color)
+	var shaft_mat := _frame_material(color.darkened(0.15))
+	_add_procedural_box(root, Vector3(CAB_SIZE.x + 0.5, CAB_SIZE.y + 1.0, 0.25), Vector3(0, CAB_SIZE.y * 0.5, -1.35), shaft_mat)
+	_add_procedural_box(root, Vector3(0.2, CAB_SIZE.y + 1.0, CAB_SIZE.z + 0.6), Vector3(-CAB_SIZE.x * 0.5 - 0.1, CAB_SIZE.y * 0.5, 0), shaft_mat)
+	_add_procedural_box(root, Vector3(0.2, CAB_SIZE.y + 1.0, CAB_SIZE.z + 0.6), Vector3(CAB_SIZE.x * 0.5 + 0.1, CAB_SIZE.y * 0.5, 0), shaft_mat)
+	_add_procedural_box(root, Vector3(CAB_SIZE.x + 0.5, 0.25, CAB_SIZE.z + 0.6), Vector3(0, CAB_SIZE.y + 0.12, 0), shaft_mat)
 
 	var car := Node3D.new()
 	car.name = "Car"
 	root.add_child(car)
-	_add_procedural_box(car, Vector3(2.4, 0.12, 2.4), Vector3(0, 0.06, 0), _marker_material(color, 0.35))
-	_add_procedural_box(car, Vector3(0.15, 2.2, 2.5), Vector3(0, 1.2, -1.25), _frame_material(color.darkened(0.25)))
-	_add_procedural_box(car, Vector3(0.15, 2.2, 2.5), Vector3(0, 1.2, 1.25), _frame_material(color.darkened(0.25)))
+
+	var floor_mat := _marker_material(color, 1.2)
+	var wall_mat := _frame_material(color)
+	_add_procedural_box(car, Vector3(CAB_SIZE.x, 0.12, CAB_SIZE.z), Vector3(0, 0.06, 0), floor_mat)
+	_add_procedural_box(car, Vector3(0.12, CAB_SIZE.y, CAB_SIZE.z), Vector3(-CAB_SIZE.x * 0.5 + 0.06, CAB_SIZE.y * 0.5, 0), wall_mat)
+	_add_procedural_box(car, Vector3(0.12, CAB_SIZE.y, CAB_SIZE.z), Vector3(CAB_SIZE.x * 0.5 - 0.06, CAB_SIZE.y * 0.5, 0), wall_mat)
+	_add_procedural_box(car, Vector3(CAB_SIZE.x, CAB_SIZE.y, 0.12), Vector3(0, CAB_SIZE.y * 0.5, -CAB_SIZE.z * 0.5 + 0.06), wall_mat)
+
+	var left_door := MeshInstance3D.new()
+	left_door.name = "LeftDoor"
+	var left_mesh := BoxMesh.new()
+	left_mesh.size = Vector3(1.15, CAB_SIZE.y - 0.1, 0.14)
+	left_door.mesh = left_mesh
+	left_door.material_override = _marker_material(Color(0.85, 0.02, 0.05), 2.0)
+	left_door.position = Vector3(-0.58, CAB_SIZE.y * 0.5, CAB_SIZE.z * 0.5)
+	car.add_child(left_door)
+
+	var right_door := MeshInstance3D.new()
+	right_door.name = "RightDoor"
+	var right_mesh := BoxMesh.new()
+	right_mesh.size = Vector3(1.15, CAB_SIZE.y - 0.1, 0.14)
+	right_door.mesh = right_mesh
+	right_door.material_override = _marker_material(Color(0.85, 0.02, 0.05), 2.0)
+	right_door.position = Vector3(0.58, CAB_SIZE.y * 0.5, CAB_SIZE.z * 0.5)
+	car.add_child(right_door)
+
+	var cab_light := OmniLight3D.new()
+	cab_light.light_color = Color(1.0, 0.35, 0.3)
+	cab_light.light_energy = 1.4
+	cab_light.position = Vector3(0, CAB_SIZE.y - 0.2, 0)
+	car.add_child(cab_light)
 
 	var lobby_zone := Area3D.new()
 	lobby_zone.name = "LobbyZone"
-	lobby_zone.position = spec.get("lobby_offset", Vector3.ZERO)
+	lobby_zone.position = Vector3(0, 1.4, 2.2)
 	var lobby_shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(5.5, 3.5, 5.5)
-	lobby_shape.shape = box
+	var lobby_box := BoxShape3D.new()
+	lobby_box.size = Vector3(4.5, 3.2, 4.5)
+	lobby_shape.shape = lobby_box
 	lobby_zone.add_child(lobby_shape)
 	root.add_child(lobby_zone)
 
-	var label := Label3D.new()
-	var length_text := ""
-	if mount == "left":
-		length_text = "\n10 km tunnel"
-	label.text = "%s%s\n[E] Till %s" % [spec.label, length_text, SpawnPoints.get_spawn_name(spawn_id)]
-	label.font_size = 52
-	label.modulate = color.darkened(0.55)
-	label.outline_modulate = Color(1, 1, 1, 0.9)
-	label.position = Vector3(0, 3.2, 0)
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	root.add_child(label)
+	var cab_zone := Area3D.new()
+	cab_zone.name = "CabZone"
+	cab_zone.position = Vector3(0, 1.2, 0.2)
+	var cab_shape := CollisionShape3D.new()
+	var cab_box := BoxShape3D.new()
+	cab_box.size = Vector3(CAB_SIZE.x - 0.2, CAB_SIZE.y - 0.2, CAB_SIZE.z - 0.2)
+	cab_shape.shape = cab_box
+	cab_zone.add_child(cab_shape)
+	car.add_child(cab_zone)
+
+	var panel := Label3D.new()
+	panel.text = "%s\n%s\n[E] inne i hissen" % [elevator_label, SpawnPoints.get_extent_label()]
+	panel.font_size = 52
+	panel.modulate = Color(1.0, 0.2, 0.22)
+	panel.outline_modulate = Color(1, 1, 1, 1)
+	panel.position = Vector3(0, CAB_SIZE.y + 1.2, 1.8)
+	panel.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	root.add_child(panel)
 
 	_elevators[spawn_id] = {
 		"car": car,
+		"left_door": left_door,
+		"right_door": right_door,
 		"lobby_zone": lobby_zone,
+		"cab_zone": cab_zone,
+		"door_open": 0.0,
 		"entry": entry,
+		"elevator_label": elevator_label,
 	}
 
 
-func _build_portal_frame(root: Node3D, mount: String, color: Color) -> void:
-	var frame_mat := _frame_material(color)
-	match mount:
-		"left":
-			_add_procedural_box(root, Vector3(0.35, 4.5, 4.0), Vector3(-0.2, 2.25, 0), frame_mat)
-			_add_procedural_box(root, Vector3(0.35, 4.5, 4.0), Vector3(0.2, 2.25, 0), frame_mat)
-			_add_procedural_box(root, Vector3(0.5, 0.5, 4.2), Vector3(0, 4.5, 0), frame_mat)
-		"top":
-			_add_procedural_box(root, Vector3(4.0, 0.35, 0.35), Vector3(0, 0.2, -0.2), frame_mat)
-			_add_procedural_box(root, Vector3(4.0, 0.35, 0.35), Vector3(0, 0.2, 0.2), frame_mat)
-			_add_procedural_box(root, Vector3(4.2, 0.5, 0.5), Vector3(0, 0.45, 0), frame_mat)
-		"right":
-			_add_procedural_box(root, Vector3(0.35, 4.5, 4.0), Vector3(0.2, 2.25, 0), frame_mat)
-			_add_procedural_box(root, Vector3(0.35, 4.5, 4.0), Vector3(-0.2, 2.25, 0), frame_mat)
-			_add_procedural_box(root, Vector3(0.5, 0.5, 4.2), Vector3(0, 4.5, 0), frame_mat)
-
-
-func _build_shaft_for_mount(root: Node3D, mount: String, _entry: Dictionary, color: Color) -> void:
-	var tunnel_mat := _tunnel_material(color)
-	var stripe_mat := _marker_material(color, 1.4)
-	match mount:
-		"left":
-			_add_procedural_box(
-				root,
-				Vector3(LEFT_TUNNEL_VISUAL_M, 3.2, 3.6),
-				Vector3(-LEFT_TUNNEL_VISUAL_M * 0.5 - 1.0, 1.6, 0),
-				tunnel_mat
-			)
-			for i in 6:
-				var z_off := -1.2 + i * 0.48
-				_add_procedural_box(
-					root,
-					Vector3(LEFT_TUNNEL_VISUAL_M - 2.0, 0.12, 0.35),
-					Vector3(-LEFT_TUNNEL_VISUAL_M * 0.5, 0.3, z_off),
-					stripe_mat
-				)
-			_add_shaft_label(root, "10 km TUNNEL", Vector3(-LEFT_TUNNEL_VISUAL_M * 0.5, 3.8, 0), color)
-			for i in 4:
-				SpaceKitLibrary.spawn(root, "corridor-wide", Vector3(-3.0 - i * 4.0, 0, 0), PI * 0.5)
-		"top":
-			for step in 10:
-				var rise := float(step) * 0.55
-				var depth := -2.5 - float(step) * 1.4
-				_add_procedural_box(
-					root,
-					Vector3(3.2, 0.28, 1.6),
-					Vector3(0, rise + 0.14, depth),
-					tunnel_mat
-				)
-				_add_procedural_box(
-					root,
-					Vector3(3.0, 0.08, 0.25),
-					Vector3(0, rise + 0.32, depth - 0.5),
-					stripe_mat
-				)
-			_add_shaft_label(root, "TRAPPA UPP", Vector3(0, 5.5, -8), color)
-			for i in 5:
-				SpaceKitLibrary.spawn(root, "stairs", Vector3(0, i * 1.1, -2.0 - i * 1.6))
-		"right":
-			_add_procedural_box(
-				root,
-				Vector3(20.0, 3.0, 3.2),
-				Vector3(11.0, 1.5, 0),
-				tunnel_mat
-			)
-			for i in 5:
-				_add_procedural_box(
-					root,
-					Vector3(18.0, 0.1, 0.3),
-					Vector3(3.0 + i * 3.2, 0.25, 0),
-					stripe_mat
-				)
-			_add_shaft_label(root, "KORRIDOR", Vector3(10.0, 3.5, 0), color)
-			for i in 4:
-				SpaceKitLibrary.spawn(root, "corridor", Vector3(3.0 + i * 4.0, 0, 0), -PI * 0.5)
-
-
-func _update_elevator_proximity() -> void:
+func _update_elevators(delta: float) -> void:
 	_near_elevator_id = ""
+	_inside_elevator_id = ""
+	var hint_set := false
+
 	for spawn_id in _elevators.keys():
 		var data: Dictionary = _elevators[spawn_id]
-		var zone := data.lobby_zone as Area3D
-		if zone and zone.overlaps_body(player):
-			_near_elevator_id = spawn_id
-			var entry: Dictionary = data.entry
-			var mount := str(entry.get("elevator_mount", ""))
-			var extra := ""
-			if mount == "left":
-				extra = " (10 km)"
-			hint_label.text = (
-				"%s%s — tryck [E]. Enda förbindelse till en 30×30×30 km satellitkub."
-				% [SpawnPoints.get_spawn_name(spawn_id), extra]
-			)
-			return
+		var lobby := data.lobby_zone as Area3D
+		var cab := data.cab_zone as Area3D
+		var near := lobby != null and lobby.overlaps_body(player)
+		var inside := cab != null and cab.overlaps_body(player)
 
-	if not confirm_panel.visible:
-		hint_label.text = (
-			"Följ färgstråken på golvet. Blå vänster, gul norr (trappor), röd höger. "
-			+ "Stå på den stora färgade plattan och tryck [E]."
+		var target_open := 1.0 if near or inside else 0.0
+		data.door_open = move_toward(float(data.door_open), target_open, delta * DOOR_OPEN_SPEED)
+		_apply_door_pose(data)
+
+		if inside:
+			_inside_elevator_id = spawn_id
+		if near or inside:
+			_near_elevator_id = spawn_id
+			if not confirm_panel.visible:
+				if inside and float(data.door_open) > 0.75:
+					_set_hint(
+						"%s — %s. Tryck [E] för att åka upp till kolonin."
+						% [str(data.elevator_label), SpawnPoints.get_extent_label()]
+					)
+				else:
+					_set_hint(
+						"%s — dörren öppnar. Gå in i hissen och tryck [E]."
+						% str(data.elevator_label)
+					)
+				hint_set = true
+
+	if not hint_set and not confirm_panel.visible:
+		_set_hint(
+			"Fyra hissar — Hiss 1–4 leder till Koloni 1–4 (vardera %s). "
+			% SpawnPoints.get_extent_label()
+			+ "Gå nära en hiss — dörren öppnas automatiskt."
 		)
+
+
+func _apply_door_pose(data: Dictionary) -> void:
+	var open_amt: float = float(data.door_open)
+	var slide := open_amt * 0.85
+	var left: MeshInstance3D = data.left_door as MeshInstance3D
+	var right: MeshInstance3D = data.right_door as MeshInstance3D
+	if left:
+		left.position.x = -0.58 - slide
+	if right:
+		right.position.x = 0.58 + slide
 
 
 func _start_elevator_ride(spawn_id: String) -> void:
 	if not SpawnPoints.is_valid(spawn_id):
 		return
+	var data: Dictionary = _elevators.get(spawn_id, {})
+	if data.is_empty() or float(data.get("door_open", 0.0)) < 0.6:
+		return
 
-	var entry := SpawnPoints.get_entry(spawn_id)
 	_in_elevator_ride = true
 	_active_spawn_id = spawn_id
-	_ride_car = _elevators[spawn_id].car as Node3D
+	_ride_car = data.car as Node3D
 	_ride_timer = 0.0
-	_ride_duration = float(entry.get("ride_duration", 3.2))
+	_ride_duration = 4.5
 	_ride_start = _ride_car.position
-	_ride_end = _ride_target_for_entry(entry)
+	_ride_end = Vector3(0.0, RIDE_HEIGHT_M, 0.0)
 	player.velocity = Vector3.ZERO
-	hint_label.text = "Hissen åker mot %s..." % SpawnPoints.get_spawn_name(spawn_id)
-
-
-func _ride_target_for_entry(entry: Dictionary) -> Vector3:
-	match str(entry.get("ride_axis", "")):
-		"horizontal_neg":
-			return Vector3(-LEFT_TUNNEL_VISUAL_M, 0.0, 0.0)
-		"horizontal_pos":
-			return Vector3(18.0, 0.0, 0.0)
-		_:
-			return Vector3(0.0, 12.0, 0.0)
+	data.door_open = 0.0
+	_apply_door_pose(data)
+	_set_hint(
+		"Hissen åker upp mot %s (%s)..."
+		% [str(data.elevator_label), SpawnPoints.get_extent_label()]
+	)
 
 
 func _process_elevator_ride(delta: float) -> void:
@@ -391,12 +454,15 @@ func _process_elevator_ride(delta: float) -> void:
 
 
 func _show_confirm(spawn_id: String) -> void:
-	confirm_title.text = "Bo i %s?" % SpawnPoints.get_spawn_name(spawn_id)
+	MouseLook.deactivate()
+	var colony := SpawnPoints.get_colony_label(spawn_id)
+	confirm_title.text = "Bo i %s?" % colony
 	confirm_body.text = (
-		"%s\n\nSatellitkub: 30×30×30 km.\n"
-		+ "Enda förbindelsen till huvudkuben är hissarna.\n"
-		+ "Detta blir ditt permanenta hem — även om du blir hemlös senare."
-		% SpawnPoints.get_description(spawn_id)
+		"%s är en kolonikub på %s.\n\n"
+		+ "%s\n\n"
+		+ "Enda vägen tillbaka till huvudkuben är hissarna i ljusrummet.\n"
+		+ "Detta blir ditt permanenta hem."
+		% [colony, SpawnPoints.get_extent_label(), SpawnPoints.get_description(spawn_id)]
 	)
 	confirm_panel.visible = true
 
@@ -404,6 +470,8 @@ func _show_confirm(spawn_id: String) -> void:
 func _hide_confirm() -> void:
 	confirm_panel.visible = false
 	_active_spawn_id = ""
+	if not _transitioning:
+		MouseLook.activate(camera_pivot, camera_pivot.get_node("Camera3D") as Camera3D)
 
 
 func _on_confirm_home_pressed() -> void:
@@ -412,7 +480,7 @@ func _on_confirm_home_pressed() -> void:
 	_transitioning = true
 	confirm_button.disabled = true
 	cancel_button.disabled = true
-	hint_label.text = "Registrerar ditt hem i satellitkuben..."
+	_set_hint("Registrerar ditt hem i kolonin...")
 	Profile.set_home_spawn(_active_spawn_id, "elevator")
 
 
@@ -420,7 +488,7 @@ func _on_cancel_confirm_pressed() -> void:
 	if _ride_car:
 		_ride_car.position = Vector3.ZERO
 	_hide_confirm()
-	player.position = Vector3(0, 0.6, 4)
+	player.position = Vector3(0, 1.0, 3.5)
 
 
 func _on_secret_pressed() -> void:
@@ -439,7 +507,7 @@ func _on_secret_pressed() -> void:
 func _on_home_spawn_set(spawn_id: String) -> void:
 	_hide_confirm()
 	secret_status.text = "Hem: %s (%s)" % [SpawnPoints.get_spawn_name(spawn_id), SpawnPoints.get_cube_id(spawn_id)]
-	hint_label.text = "Ditt hem i satellitkuben är låst. Går in..."
+	_set_hint("Ditt hem i kolonin är låst. Går in...")
 	_enter_world()
 
 
@@ -449,29 +517,101 @@ func _on_profile_error(message: String) -> void:
 	cancel_button.disabled = false
 	secret_button.disabled = false
 	secret_status.text = message
-	hint_label.text = message
+	_set_hint(message)
 
 
 func _enter_world() -> void:
+	_transitioning = true
+	_set_hint("Ansluter till din koloni — väntar på servern...")
+	_start_connect_watchdog()
 	Network.connect_to_world()
 
 
 func _on_world_ready() -> void:
+	_stop_connect_watchdog()
+	_set_hint("Går in i världen...")
 	get_tree().change_scene_to_file("res://scenes/game.tscn")
 
 
 func _on_connection_failed(reason: String) -> void:
+	_stop_connect_watchdog()
 	_transitioning = false
-	hint_label.text = "Anslutning misslyckades: %s" % reason
+	_set_hint("Anslutning misslyckades: %s — försök igen." % reason)
+
+
+func _start_connect_watchdog() -> void:
+	_stop_connect_watchdog()
+	_connect_watchdog = get_tree().create_timer(28.0)
+	_connect_watchdog.timeout.connect(_on_connect_watchdog_timeout, CONNECT_ONE_SHOT)
+
+
+func _stop_connect_watchdog() -> void:
+	if _connect_watchdog != null and is_instance_valid(_connect_watchdog):
+		if _connect_watchdog.timeout.is_connected(_on_connect_watchdog_timeout):
+			_connect_watchdog.timeout.disconnect(_on_connect_watchdog_timeout)
+	_connect_watchdog = null
+
+
+func _on_connect_watchdog_timeout() -> void:
+	if not _transitioning:
+		return
+	Network.stop()
+	_transitioning = false
+	_set_hint("Servern svarade inte i tid — stå kvar och försök igen via hissen.")
 
 
 func _style_ui() -> void:
 	SpiderTheme.apply_to(secret_panel)
 	SpiderTheme.apply_to(confirm_panel)
-	SpiderTheme.style_status(hint_label)
-	SpiderTheme.wrap_label_in_panel(hint_label)
-	hint_label.offset_right = 900.0
-	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var hint := _resolve_hint_label()
+	if hint == null:
+		return
+	SpiderTheme.style_status(hint)
+	SpiderTheme.wrap_label_in_panel(hint)
+	_hint_label = hint
+	hint.offset_right = 900.0
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+func _resolve_hint_label() -> Label:
+	if _hint_label != null and is_instance_valid(_hint_label):
+		return _hint_label
+	_hint_label = get_node_or_null("UI/HintLabel") as Label
+	if _hint_label != null:
+		return _hint_label
+	var ui := get_node_or_null("UI")
+	if ui == null:
+		return null
+	for child in ui.get_children():
+		if child is Label:
+			_hint_label = child as Label
+			return _hint_label
+		if child is PanelContainer:
+			for sub in child.get_children():
+				if sub is Label:
+					_hint_label = sub as Label
+					return _hint_label
+	return null
+
+
+func _set_hint(text: String) -> void:
+	var hint := _resolve_hint_label()
+	if hint:
+		hint.text = text
+
+
+func _setup_environment() -> void:
+	var world_env := $WorldEnvironment as WorldEnvironment
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.82, 0.8, 0.76)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(1.0, 0.97, 0.9)
+	env.ambient_light_energy = 1.35
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 1.2
+	env.sdfgi_enabled = false
+	world_env.environment = env
 
 
 func _add_floor_marker(pos: Vector3, color: Color, radius: float, text: String) -> void:
@@ -521,8 +661,8 @@ func _add_beacon(pos: Vector3, color: Color) -> void:
 
 	var light := OmniLight3D.new()
 	light.light_color = color
-	light.light_energy = 2.2
-	light.omni_range = 9.0
+	light.light_energy = 3.5
+	light.omni_range = 11.0
 	light.position = pos + Vector3(0, 4.5, 0)
 	$Room.add_child(light)
 
@@ -553,29 +693,29 @@ func _marker_material(color: Color, emission_strength: float) -> StandardMateria
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.emission_enabled = true
-	mat.emission = color
+	mat.emission = color.lightened(0.08)
 	mat.emission_energy_multiplier = emission_strength
-	mat.roughness = 0.35
+	mat.roughness = 0.25
 	return mat
 
 
 func _frame_material(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color.darkened(0.15)
+	mat.albedo_color = color.darkened(0.08)
 	mat.emission_enabled = true
 	mat.emission = color
-	mat.emission_energy_multiplier = 0.6
-	mat.metallic = 0.2
+	mat.emission_energy_multiplier = 1.4
+	mat.metallic = 0.15
 	return mat
 
 
 func _tunnel_material(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color.darkened(0.55)
+	mat.albedo_color = color.darkened(0.2)
 	mat.emission_enabled = true
-	mat.emission = color.darkened(0.2)
-	mat.emission_energy_multiplier = 0.35
-	mat.roughness = 0.7
+	mat.emission = color
+	mat.emission_energy_multiplier = 0.9
+	mat.roughness = 0.55
 	return mat
 
 

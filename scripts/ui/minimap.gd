@@ -1,13 +1,13 @@
 class_name MinimapPanel
 extends PanelContainer
 
-const MAP_PADDING := 10.0
-
 var _world_size := 30.0
 var _spawn_id := ""
 var _players: Dictionary = {}
+var _monsters: Array[Node3D] = []
 var _local_peer_id := 0
 var _canvas: Control
+var _map_input_enabled := false
 
 
 func _ready() -> void:
@@ -16,102 +16,84 @@ func _ready() -> void:
 
 	_canvas = Control.new()
 	_canvas.name = "MapCanvas"
-	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_canvas)
 	_canvas.draw.connect(_on_canvas_draw)
+	_canvas.gui_input.connect(_on_canvas_input)
+
+	var znood := RuntimeGlobals.znood()
+	if znood:
+		znood.map_picker_changed.connect(_on_map_picker_changed)
+		znood.waypoint_changed.connect(func(_a, _b) -> void: _canvas.queue_redraw())
+		znood.backup_pings_changed.connect(func() -> void: _canvas.queue_redraw())
+		znood.search_results_changed.connect(func(_r) -> void: _canvas.queue_redraw())
 
 
-func setup(spawn_id: String, world_size: float = SpawnPoints.PROTOTYPE_SIZE_M) -> void:
+func setup(spawn_id: String, world_size: float = SpawnPoints.get_extent_m()) -> void:
 	_spawn_id = SpawnPoints.normalize_id(spawn_id)
 	_world_size = maxf(world_size, 1.0)
 	_canvas.queue_redraw()
 
 
-func update_players(players: Dictionary, local_peer_id: int) -> void:
+func update_players(players: Dictionary, local_peer_id: int, monsters: Array = []) -> void:
 	_players = players
 	_local_peer_id = local_peer_id
+	_monsters.clear()
+	for entry in monsters:
+		if entry is Node3D and is_instance_valid(entry):
+			_monsters.append(entry)
+	_canvas.queue_redraw()
+
+
+func _on_map_picker_changed(active: bool) -> void:
+	_map_input_enabled = active
+	_canvas.mouse_filter = Control.MOUSE_FILTER_STOP if active else Control.MOUSE_FILTER_IGNORE
 	_canvas.queue_redraw()
 
 
 func _on_canvas_draw() -> void:
-	var rect := _canvas.get_rect()
-	var inner := Rect2(
-		MAP_PADDING,
-		MAP_PADDING,
-		rect.size.x - MAP_PADDING * 2.0,
-		rect.size.y - MAP_PADDING * 2.0
+	var inner := WorldMapDrawer.inner_rect(_canvas.get_rect())
+	var znood := RuntimeGlobals.znood()
+	WorldMapDrawer.draw(
+		_canvas,
+		inner,
+		_spawn_id,
+		_players,
+		_local_peer_id,
+		_monsters,
+		znood.get_visible_pois() if znood else [],
+		znood.waypoint if znood else Vector3.ZERO,
+		znood.has_waypoint if znood else false,
+		znood.get_backup_pings_for_local() if znood else [],
+		znood.get_blink_alpha() if znood else 1.0
 	)
-	if inner.size.x <= 4.0 or inner.size.y <= 4.0:
+	if _map_input_enabled:
+		_canvas.draw_string(
+			ThemeDB.fallback_font,
+			inner.position + Vector2(inner.size.x * 0.5 - 48, inner.position.y + 18),
+			"Klicka vägpunkt",
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			10,
+			Color(0.55, 0.9, 1.0, 0.85)
+		)
+
+
+func _on_canvas_input(event: InputEvent) -> void:
+	if not _map_input_enabled:
 		return
-
-	_canvas.draw_rect(inner, Color(0.05, 0.06, 0.08, 0.92), true)
-	_canvas.draw_rect(inner, Color(SpiderTheme.BLOOD.r, SpiderTheme.BLOOD.g, SpiderTheme.BLOOD.b, 0.55), false, 2.0)
-
-	var grid_step := inner.size.x / 6.0
-	for i in range(1, 6):
-		var x := inner.position.x + grid_step * i
-		var y := inner.position.y + grid_step * i
-		_canvas.draw_line(Vector2(x, inner.position.y), Vector2(x, inner.end.y), Color(1, 1, 1, 0.05), 1.0)
-		_canvas.draw_line(Vector2(inner.position.x, y), Vector2(inner.end.x, y), Color(1, 1, 1, 0.05), 1.0)
-
-	var elevator_pos := _elevator_map_position()
-	var elev_px := _world_to_map(elevator_pos, inner)
-	_canvas.draw_rect(Rect2(elev_px - Vector2(5, 5), Vector2(10, 10)), Color(0.95, 0.75, 0.2, 0.9), true)
-	_canvas.draw_string(
-		ThemeDB.fallback_font,
-		inner.position + Vector2(4, 14),
-		"N",
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		11,
-		Color(1, 1, 1, 0.35)
-	)
-
-	var title := SpawnPoints.get_spawn_name(_spawn_id)
-	if title == "":
-		title = "Karta"
-	_canvas.draw_string(
-		ThemeDB.fallback_font,
-		inner.position + Vector2(4, inner.size.y - 6),
-		title,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		10,
-		Color(SpiderTheme.BONE.r, SpiderTheme.BONE.g, SpiderTheme.BONE.b, 0.7)
-	)
-
-	for peer_id in _players.keys():
-		var player: Node3D = _players[peer_id]
-		if player == null or not is_instance_valid(player):
-			continue
-		var px := _world_to_map(player.global_position, inner)
-		var is_local := int(peer_id) == _local_peer_id
-		var radius := 4.5 if is_local else 3.5
-		var color := SpiderTheme.VENOM if is_local else SpiderTheme.BLOOD_BRIGHT
-		_canvas.draw_circle(px, radius + 1.5, Color(0, 0, 0, 0.45))
-		_canvas.draw_circle(px, radius, color)
-
-
-func _elevator_map_position() -> Vector3:
-	var entry := SpawnPoints.get_entry(_spawn_id)
-	var mount := str(entry.get("elevator_mount", "left"))
-	var half := _world_size * 0.5
-	match mount:
-		"left":
-			return Vector3(1.2, 0, half)
-		"right":
-			return Vector3(_world_size - 1.2, 0, half)
-		"top":
-			return Vector3(half, 0, 1.2)
-		_:
-			return Vector3(half, 0, half)
-
-
-func _world_to_map(world_pos: Vector3, inner: Rect2) -> Vector2:
-	var nx := clampf(world_pos.x / _world_size, 0.0, 1.0)
-	var nz := clampf(world_pos.z / _world_size, 0.0, 1.0)
-	return Vector2(
-		inner.position.x + nx * inner.size.x,
-		inner.position.y + nz * inner.size.y
-	)
+	if event is InputEventMouseButton:
+		var mouse := event as InputEventMouseButton
+		if mouse.button_index == MOUSE_BUTTON_LEFT and mouse.pressed:
+			var world_pos := WorldMapDrawer.map_click_to_world(
+				mouse.position,
+				_canvas.get_rect(),
+				_spawn_id,
+				_players,
+				_local_peer_id
+			)
+			if world_pos != Vector3.ZERO:
+				var znood := RuntimeGlobals.znood()
+				if znood:
+					znood.set_waypoint(world_pos)
+				accept_event()

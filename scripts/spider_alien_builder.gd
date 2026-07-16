@@ -90,6 +90,7 @@ static func _build_skeleton(root: Node3D, data: AvatarData) -> void:
 	_build_biped_leg(hips, data, body_mat, true)
 	_build_biped_leg(hips, data, body_mat, false)
 	_build_spider_legs(hips, data, body_mat, accent_mat)
+	_apply_hero_pose(hips, data)
 
 
 static func _build_eyes(head: Node3D, data: AvatarData, glow_mat: StandardMaterial3D) -> void:
@@ -500,6 +501,16 @@ static func _spikes_on(node: Node3D, data: AvatarData, mat: StandardMaterial3D, 
 			Vector3(0.03, 0.16 + data.spike_amount * 0.12, 0.03),
 			mat
 		)
+
+
+static func _apply_hero_pose(hips: Node3D, data: AvatarData) -> void:
+	var rng := _spike_rng(data)
+	hips.rotation.x = deg_to_rad(-4.5 - data.body_scale * 1.2)
+	hips.rotation.z = deg_to_rad(rng.randf_range(-2.2, 2.2))
+
+	var head_pivot := hips.get_node_or_null("HeadPivot") as Node3D
+	if head_pivot:
+		head_pivot.rotation.x = deg_to_rad(-6.0 - data.mandible_length * 2.5)
 
 
 static func _spike_rng(data: AvatarData) -> RandomNumberGenerator:

@@ -25,7 +25,9 @@ layout_mode = 2
 theme_override_constants/separation = 10
 
 [node name="Header" type="HBoxContainer" parent="ChatPanel/VBox"]
+unique_name_in_owner = true
 layout_mode = 2
+theme_override_constants/separation = 6
 
 [node name="ChatTitle" type="Label" parent="ChatPanel/VBox/Header"]
 unique_name_in_owner = true

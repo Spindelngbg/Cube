@@ -30,9 +30,9 @@
 		"owned"
 	],
 	"nft": {
-		"enabled": false,
+		"enabled": true,
 		"metadata_uri_template": "https://cube-production-3d68.up.railway.app/api/zones/{zone_id}",
-		"notes": "Zoner märkta reserved är avsedda för framtida NFT-försäljning utanför spelet."
+		"notes": "Köp med Mydrillium i spelet. NFT-claim överför äganderätten från in-game köpare till NFT-innehavaren."
 	},
 	"governance": {
 		"enabled": true,

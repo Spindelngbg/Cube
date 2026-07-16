@@ -1,0 +1,31 @@
+[gd_scene load_steps=5 format=3 uid="uid://cube_slime_projectile"]
+
+[ext_resource type="Script" path="res://scripts/combat/slime_projectile.gd" id="1_slime"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_slime"]
+radius = 0.45
+
+[sub_resource type="SphereMesh" id="SphereMesh_slime"]
+radius = 0.38
+height = 0.76
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_slime"]
+transparency = 1
+albedo_color = Color(0.22, 0.92, 0.28, 0.82)
+roughness = 0.15
+metallic = 0.0
+emission_enabled = true
+emission = Color(0.35, 1, 0.42, 1)
+emission_energy_multiplier = 0.65
+
+[node name="SlimeProjectile" type="Area3D"]
+collision_layer = 8
+collision_mask = 7
+script = ExtResource("1_slime")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_slime")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_slime")
+surface_material_override/0 = SubResource("StandardMaterial3D_slime")

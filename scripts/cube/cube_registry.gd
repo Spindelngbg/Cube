@@ -135,7 +135,9 @@ func can_player_build_in_zone(zone_id: String) -> bool:
 		return false
 	if ownership == "owned":
 		var owner := str(zone.get("owner_account", ""))
-		return Auth.is_logged_in and Auth.username == owner
+		if Auth.is_logged_in and Auth.username == owner:
+			return true
+		return false
 
 	if bool(zone.get("open_build", false)):
 		return true

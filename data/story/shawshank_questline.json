@@ -1,0 +1,47 @@
+{
+	"quests": {
+		"operation_redemption": {
+			"title": "Operation Redemption",
+			"company": "Shawshank Redemption Corp.",
+			"tagline": "Vi återlöser framtiden — en hybrid i taget.",
+			"steps": [
+				{
+					"id": "read_memo",
+					"title": "Läckt internt memo",
+					"objective": "Läs det läckta memot i ljusrummet",
+					"briefing": "Ett anonymt memo varnar för Shawshank Redemption Corp. och deras hemliga hybridprogram."
+				},
+				{
+					"id": "reach_koloni_4",
+					"title": "Spåren leder österut",
+					"objective": "Ta dig till Koloni 4",
+					"briefing": "Alla vittnesmål pekar mot Koloni 4 — där SRC:s fältlabb ska ligga gömt nära spawn."
+				},
+				{
+					"id": "find_annex",
+					"title": "Hitta SRC Annex",
+					"objective": "Hitta Shawshank Annex nära spawn",
+					"briefing": "En röd företagsskylt markerar annexet. Gå dit och tryck [E] vid ingången."
+				},
+				{
+					"id": "collect_evidence",
+					"title": "Samla bevis",
+					"objective": "Ladda ner 3 bevisfiler från SRC-terminaler (0/3)",
+					"briefing": "Terminalerna innehåller loggar om Projekt Redemption: robot + spindel + människa = zombie."
+				},
+				{
+					"id": "witness_hybrids",
+					"title": "Vittna om hybriderna",
+					"objective": "Kom nära minst 2 SRC-hybridzombies",
+					"briefing": "Fältproven vandrar runt tornen. De är inte längre helt levande — eller helt maskiner."
+				},
+				{
+					"id": "sabotage_console",
+					"title": "Stoppa läckan",
+					"objective": "Sabotera huvudkonsolen i SRC-labbet",
+					"briefing": "Ladda upp bevisen och slå sönder synkroniseringen innan nästa batch skickas ut."
+				}
+			]
+		}
+	}
+}

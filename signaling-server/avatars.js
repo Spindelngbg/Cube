@@ -127,10 +127,7 @@ function ensureUserRecord(data, username) {
 
 function migrateCharacter(character) {
 	if (character.nestVisited === undefined) {
-		character.nestVisited = true;
-	}
-	if (character.homeSpawnId === undefined) {
-		character.homeSpawnId = '';
+		character.nestVisited = false;
 	}
 	if (character.homeSpawnLocked === undefined) {
 		character.homeSpawnLocked = false;
@@ -138,10 +135,20 @@ function migrateCharacter(character) {
 	if (character.homeSpawnMethod === undefined) {
 		character.homeSpawnMethod = '';
 	}
+	if (!character.homeSpawnLocked) {
+		character.homeSpawnId = '';
+		character.homeSpawnMethod = '';
+	} else if (character.homeSpawnId === undefined) {
+		character.homeSpawnId = '';
+	}
 	if (character.homeSpawnId) {
 		const normalized = normalizeSpawnId(character.homeSpawnId);
 		if (normalized) {
 			character.homeSpawnId = normalized;
+		} else {
+			character.homeSpawnId = '';
+			character.homeSpawnLocked = false;
+			character.homeSpawnMethod = '';
 		}
 	}
 	return character;

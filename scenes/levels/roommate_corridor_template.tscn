@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://cube_roommate_template"]
+
+[ext_resource type="Script" path="res://addons/roommate/nodes/root.gd" id="1_root"]
+[ext_resource type="Script" path="res://addons/roommate/nodes/space.gd" id="2_space"]
+
+[node name="RoommateCorridorTemplate" type="Node3D"]
+
+[node name="RoommateRoot" type="Node3D" parent="."]
+script = ExtResource("1_root")
+block_size = 1.0
+generate_on_ready = true
+create_mesh_container_if_missing = true
+index_mesh = true
+
+[node name="Corridor" type="Node3D" parent="RoommateRoot"]
+script = ExtResource("2_space")
+size = Vector3(8, 3, 3)

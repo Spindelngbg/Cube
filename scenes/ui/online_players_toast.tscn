@@ -1,0 +1,48 @@
+[gd_scene load_steps=2 format=3 uid="uid://cube_online_players_toast"]
+
+[ext_resource type="Script" path="res://scripts/ui/online_players_toast.gd" id="1_toast"]
+
+[node name="OnlinePlayersToast" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_toast")
+
+[node name="Badge" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -220.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 52.0
+grow_horizontal = 0
+
+[node name="BadgeLabel" type="Label" parent="Badge"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "1 spelare online"
+horizontal_alignment = 1
+
+[node name="Popup" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -180.0
+offset_top = 72.0
+offset_right = 180.0
+offset_bottom = 132.0
+grow_horizontal = 2
+
+[node name="PopupLabel" type="Label" parent="Popup"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "1 spelare online"
+horizontal_alignment = 1
+vertical_alignment = 1

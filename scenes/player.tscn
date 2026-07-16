@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://cube_player"]
+[gd_scene load_steps=5 format=3 uid="uid://cube_player"]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/access/znood_device.gd" id="2_znood"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.45
@@ -14,6 +15,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
 shape = SubResource("CapsuleShape3D_player")
 
 [node name="AvatarPivot" type="Node3D" parent="."]
+
+[node name="ZnoodMount" type="Node3D" parent="AvatarPivot"]
+transform = Transform3D(0.94, 0, 0.34, 0, 1, 0, -0.34, 0, 0.94, -0.38, 1.42, -0.22)
+script = ExtResource("2_znood")
 
 [node name="NameLabel" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0)

@@ -10,9 +10,11 @@ const PREVIEW_SCENE := preload("res://scenes/avatar_preview.tscn")
 
 var _avatar := AvatarData.new()
 var _preview_root: Node3D
+var _preview_animator: HumanAvatarAnimator
 var _preview_yaw := 0.0
 var _connecting := false
 var _last_archetype := ""
+var _connect_watchdog: SceneTreeTimer
 
 
 func _ready() -> void:
@@ -25,6 +27,7 @@ func _ready() -> void:
 	layout.offset_right = -368.0
 
 	_setup_welcome()
+	_configure_human_ui()
 	_setup_avatar()
 	_bind_sliders()
 	call_deferred("_init_preview")
@@ -55,7 +58,7 @@ func _update_enter_button() -> void:
 	elif Profile.needs_home_selection():
 		enter_button.text = "Gå till ljusrummet"
 	else:
-		enter_button.text = "Gå in i din satellitkub"
+		enter_button.text = "Gå in i din koloni"
 
 
 func _setup_welcome() -> void:
@@ -79,11 +82,11 @@ func _setup_avatar() -> void:
 	else:
 		_avatar = _random_starter_avatar()
 		if not Auth.is_guest:
-			status_label.text = "Arketyp: %s — forma ditt rymdmonster." % _last_archetype
+			status_label.text = "Arketyp: %s — forma din kolonist." % _last_archetype
 
 
 func _process(delta: float) -> void:
-	_preview_yaw += delta * 0.45
+	_preview_yaw += delta * 0.22
 	if _preview_root:
 		_preview_root.rotation.y = _preview_yaw
 
@@ -170,61 +173,120 @@ func _setup_preview_stage() -> void:
 		camera.look_at(Vector3(0, 1.1, 0), Vector3.UP)
 
 
+func _configure_human_ui() -> void:
+	var controls := $Layout/Right/Scroll/Controls
+	$Layout/Left/TitleBox/Subtitle.text = "Forma din kolonist"
+	%RandomizeButton.text = "Slumpa utseende"
+	controls.get_node("BodyScaleRow/BodyScaleLabel").text = "Längd"
+	controls.get_node("BodyColorRow/BodyColorLabel").text = "Hudton"
+	controls.get_node("AccentColorRow/AccentColorLabel").text = "Kläder"
+	controls.get_node("EyeColorRow/EyeColorLabel").text = "Detalj"
+	controls.get_node("GlowColorRow/GlowColorLabel").text = "Neon"
+	controls.get_node("GlowRow/GlowLabel").text = "Glow-styrka"
+	for row_name in [
+		"AbdomenScaleRow", "HeadScaleRow", "StanceRow", "LegLengthRow", "ArmLengthRow",
+		"SpiderLegsRow", "EyeSizeRow", "EyeSpreadRow", "EyeStalkRow", "MandibleRow",
+		"FangRow", "ClawRow", "SegmentRow", "CrestRow", "SpikeRow",
+		"RoughnessRow", "MetallicRow", "EyeCountRow", "LimbsSection", "FaceSection",
+		"DetailSection", "StyleSection",
+	]:
+		var row := controls.get_node_or_null(row_name)
+		if row:
+			row.visible = false
+	controls.get_node("BodySection").text = "KROPP"
+	controls.get_node("ColorsSection").text = "FÄRGER"
+
+
 func _refresh_preview() -> void:
 	if _preview_root:
-		SpiderAlienBuilder.build(_preview_root, _avatar)
+		var model := HumanAvatarBuilder.build(_preview_root, _avatar)
+		if model == null:
+			return
+		if _preview_animator == null:
+			_preview_animator = HumanAvatarAnimator.ensure_on(_preview_root, true)
+		_preview_animator.bind(model)
 
 
 func _on_enter_pressed() -> void:
 	if _connecting:
 		return
 	Profile.set_avatar(_avatar)
-	_connecting = true
-	enter_button.disabled = true
 
 	if Auth.is_guest:
-		status_label.text = "Ansluter till The Cube..."
+		_connecting = true
+		enter_button.disabled = true
+		status_label.text = "Ansluter till The Cube — väntar på servern..."
+		_start_connect_watchdog()
 		Network.connect_to_world()
-	else:
-		status_label.text = "Sparar karaktär..."
-		Profile.save_active_character(_avatar)
+		return
+
+	_connecting = true
+	enter_button.disabled = true
+	status_label.text = "Sparar karaktär..."
+	Profile.save_active_character(_avatar)
 
 
 func _on_character_saved() -> void:
 	if not _connecting:
 		return
-	if Profile.needs_nest_intro():
-		status_label.text = "Klättrar in i nästet..."
-		_connecting = false
-		enter_button.disabled = false
-		get_tree().change_scene_to_file("res://scenes/nest_room.tscn")
-	elif Profile.needs_home_selection():
-		status_label.text = "Går mot ljuset..."
-		_connecting = false
-		enter_button.disabled = false
-		get_tree().change_scene_to_file("res://scenes/emergence_room.tscn")
-	else:
-		status_label.text = "Ansluter till din satellitkub..."
+	var next_scene := GameFlow.play_scene_path()
+	if next_scene == "res://scenes/game.tscn":
+		status_label.text = "Ansluter till din koloni — väntar på servern..."
+		_start_connect_watchdog()
 		Network.connect_to_world()
+		return
+
+	_connecting = false
+	enter_button.disabled = false
+	if next_scene == "res://scenes/nest_room.tscn":
+		status_label.text = "Klättrar in i nästet..."
+	elif next_scene == "res://scenes/emergence_room.tscn":
+		status_label.text = "Går mot ljusrummet..."
+	get_tree().change_scene_to_file(next_scene)
 
 
 func _on_profile_error(message: String) -> void:
 	if not _connecting:
 		return
+	_stop_connect_watchdog()
 	_connecting = false
 	enter_button.disabled = false
 	status_label.text = message
 
 
 func _on_world_ready() -> void:
+	_stop_connect_watchdog()
 	status_label.text = "Går in i världen..."
 	get_tree().change_scene_to_file("res://scenes/game.tscn")
 
 
 func _on_connection_failed(reason: String) -> void:
+	_stop_connect_watchdog()
 	_connecting = false
 	enter_button.disabled = false
 	status_label.text = "Anslutning misslyckades: %s" % reason
+
+
+func _start_connect_watchdog() -> void:
+	_stop_connect_watchdog()
+	_connect_watchdog = get_tree().create_timer(28.0)
+	_connect_watchdog.timeout.connect(_on_connect_watchdog_timeout, CONNECT_ONE_SHOT)
+
+
+func _stop_connect_watchdog() -> void:
+	if _connect_watchdog != null and is_instance_valid(_connect_watchdog):
+		if _connect_watchdog.timeout.is_connected(_on_connect_watchdog_timeout):
+			_connect_watchdog.timeout.disconnect(_on_connect_watchdog_timeout)
+	_connect_watchdog = null
+
+
+func _on_connect_watchdog_timeout() -> void:
+	if not _connecting:
+		return
+	Network.stop()
+	_connecting = false
+	enter_button.disabled = false
+	status_label.text = "Servern svarade inte i tid — försök igen om en stund."
 
 
 func _on_randomize_pressed() -> void:
@@ -284,142 +346,58 @@ func _sync_ui_from_avatar() -> void:
 
 func _random_starter_avatar() -> AvatarData:
 	var data := AvatarData.new()
-	var archetype := randi() % 8
+	data.mesh_id = "reference_human"
+	var archetype := randi() % 6
 
 	match archetype:
 		0:
-			_last_archetype = "Kvävande koloss"
-			data.body_scale = randf_range(1.15, 1.5)
-			data.abdomen_scale = randf_range(1.2, 1.6)
-			data.head_scale = randf_range(0.95, 1.2)
-			data.leg_length = randf_range(1.1, 1.45)
-			data.arm_length = randf_range(1.05, 1.4)
-			data.spider_leg_count = randi_range(8, 12)
-			data.eye_count = randi_range(6, 10)
-			data.eye_size = randf_range(1.3, 2.4)
-			data.spike_amount = randf_range(0.65, 1.0)
-			data.crest_size = randf_range(0.5, 1.0)
-			data.mandible_length = randf_range(1.0, 1.8)
+			_last_archetype = "Neo-Washington-kolonist"
+			data.body_scale = randf_range(0.92, 1.08)
 		1:
-			_last_archetype = "Stalkerspindel"
-			data.body_scale = randf_range(0.78, 1.05)
-			data.abdomen_scale = randf_range(0.65, 0.95)
-			data.head_scale = randf_range(1.12, 1.38)
-			data.leg_length = randf_range(1.25, 1.5)
-			data.arm_length = randf_range(1.15, 1.45)
-			data.spider_leg_count = randi_range(6, 10)
-			data.eye_count = randi_range(6, 10)
-			data.eye_size = randf_range(1.4, 2.6)
-			data.eye_stalk_length = randf_range(0.85, 1.5)
-			data.eye_spread = randf_range(1.25, 2.0)
-			data.stance_width = randf_range(0.55, 0.82)
+			_last_archetype = "Gatulurare"
+			data.body_scale = randf_range(0.88, 1.02)
 		2:
-			_last_archetype = "Tandgaparen"
-			data.body_scale = randf_range(1.1, 1.45)
-			data.abdomen_scale = randf_range(1.0, 1.35)
-			data.head_scale = randf_range(0.9, 1.15)
-			data.spider_leg_count = randi_range(4, 7)
-			data.eye_count = randi_range(2, 5)
-			data.eye_size = randf_range(1.9, 3.0)
-			data.mandible_length = randf_range(1.4, 2.0)
-			data.fang_length = randf_range(1.5, 2.5)
-			data.claw_size = randf_range(1.1, 2.0)
-			data.spike_amount = randf_range(0.55, 0.95)
+			_last_archetype = "Avhoppare"
+			data.body_scale = randf_range(0.95, 1.12)
+			data.glow_strength = randf_range(0.6, 1.2)
 		3:
-			_last_archetype = "Svärmöga"
-			data.body_scale = randf_range(0.72, 1.0)
-			data.abdomen_scale = randf_range(1.25, 1.6)
-			data.head_scale = randf_range(0.82, 1.05)
-			data.eye_count = randi_range(10, 12)
-			data.eye_size = randf_range(0.85, 1.6)
-			data.eye_stalk_length = randf_range(0.95, 1.5)
-			data.eye_spread = randf_range(1.45, 2.0)
-			data.glow_strength = randf_range(1.1, 2.0)
-			data.abdomen_segments = randf_range(0.7, 1.0)
+			_last_archetype = "Kupéarbetare"
+			data.body_scale = randf_range(1.0, 1.18)
 		4:
-			_last_archetype = "Bioluminescent skräck"
-			data.body_scale = randf_range(0.85, 1.2)
-			data.abdomen_scale = randf_range(1.0, 1.4)
-			data.spider_leg_count = randi_range(6, 9)
-			data.eye_count = randi_range(5, 8)
-			data.glow_strength = randf_range(1.3, 2.0)
-			data.abdomen_segments = randf_range(0.55, 0.95)
-			data.crest_size = randf_range(0.35, 0.85)
-			data.spike_amount = randf_range(0.35, 0.75)
-		5:
-			_last_archetype = "Benkrossaren"
-			data.body_scale = randf_range(1.05, 1.35)
-			data.arm_length = randf_range(1.15, 1.4)
-			data.leg_length = randf_range(1.0, 1.35)
-			data.spider_leg_count = randi_range(7, 11)
-			data.claw_size = randf_range(1.2, 2.0)
-			data.mandible_length = randf_range(1.1, 1.7)
-			data.fang_length = randf_range(1.0, 2.0)
-			data.spike_amount = randf_range(0.45, 0.85)
-		6:
-			_last_archetype = "Tomma skalet"
-			data.body_scale = randf_range(0.75, 0.95)
-			data.abdomen_scale = randf_range(0.7, 1.0)
-			data.head_scale = randf_range(1.05, 1.3)
-			data.leg_length = randf_range(1.25, 1.5)
-			data.arm_length = randf_range(1.2, 1.4)
-			data.spider_leg_count = randi_range(8, 12)
-			data.eye_count = randi_range(4, 7)
-			data.eye_stalk_length = randf_range(0.6, 1.2)
-			data.stance_width = randf_range(0.55, 0.75)
-			data.chitin_metallic = randf_range(0.35, 0.65)
+			_last_archetype = "Nästflykting"
+			data.body_scale = randf_range(0.82, 0.98)
 		_:
-			_last_archetype = "Xeno-parasit"
-			data.body_scale = randf_range(0.9, 1.25)
-			data.abdomen_scale = randf_range(1.1, 1.5)
-			data.head_scale = randf_range(0.88, 1.12)
-			data.spider_leg_count = randi_range(5, 9)
-			data.eye_count = randi_range(6, 10)
-			data.eye_size = randf_range(1.1, 2.2)
-			data.mandible_length = randf_range(0.9, 1.8)
-			data.fang_length = randf_range(0.8, 2.0)
-			data.claw_size = randf_range(0.7, 1.6)
-			data.abdomen_segments = randf_range(0.45, 0.95)
-			data.crest_size = randf_range(0.35, 0.9)
-			data.spike_amount = randf_range(0.5, 1.0)
+			_last_archetype = "Zonköpare"
+			data.body_scale = randf_range(0.9, 1.15)
+			data.glow_strength = randf_range(0.8, 1.6)
 
-	_apply_monster_palette(data)
+	_apply_human_palette(data)
 	return data
 
 
-func _apply_monster_palette(data: AvatarData) -> void:
-	var palette := randi() % 5
+func _apply_human_palette(data: AvatarData) -> void:
+	var palette := randi() % 6
 	match palette:
 		0:
-			var hue := randf_range(0.08, 0.18)
-			data.body_color = Color.from_hsv(hue, randf_range(0.2, 0.5), randf_range(0.04, 0.16))
-			data.accent_color = Color.from_hsv(fmod(hue + 0.04, 1.0), randf_range(0.55, 0.95), randf_range(0.15, 0.38))
-			data.eye_color = Color.from_hsv(randf_range(0.0, 0.08), randf_range(0.8, 1.0), randf_range(0.85, 1.0))
+			data.body_color = Color.from_hsv(randf_range(0.06, 0.12), randf_range(0.25, 0.45), randf_range(0.55, 0.78))
+			data.accent_color = Color.from_hsv(randf_range(0.55, 0.65), randf_range(0.35, 0.6), randf_range(0.18, 0.32))
 		1:
-			data.body_color = Color.from_hsv(randf_range(0.28, 0.42), randf_range(0.25, 0.55), randf_range(0.05, 0.18))
-			data.accent_color = Color.from_hsv(randf_range(0.5, 0.62), randf_range(0.45, 0.9), randf_range(0.2, 0.42))
-			data.eye_color = Color.from_hsv(randf_range(0.58, 0.72), randf_range(0.65, 1.0), randf_range(0.8, 1.0))
+			data.body_color = Color.from_hsv(randf_range(0.02, 0.08), randf_range(0.2, 0.38), randf_range(0.42, 0.62))
+			data.accent_color = Color.from_hsv(randf_range(0.0, 0.05), randf_range(0.15, 0.35), randf_range(0.12, 0.28))
 		2:
-			data.body_color = Color.from_hsv(randf_range(0.0, 0.05), randf_range(0.1, 0.3), randf_range(0.03, 0.12))
-			data.accent_color = Color.from_hsv(randf_range(0.95, 1.0), randf_range(0.4, 0.85), randf_range(0.18, 0.35))
-			data.eye_color = Color.from_hsv(randf_range(0.08, 0.15), randf_range(0.7, 1.0), randf_range(0.9, 1.0))
+			data.body_color = Color.from_hsv(randf_range(0.08, 0.14), randf_range(0.3, 0.5), randf_range(0.62, 0.82))
+			data.accent_color = Color.from_hsv(randf_range(0.72, 0.82), randf_range(0.4, 0.7), randf_range(0.22, 0.38))
 		3:
-			data.body_color = Color.from_hsv(randf_range(0.12, 0.22), randf_range(0.35, 0.65), randf_range(0.06, 0.2))
-			data.accent_color = Color.from_hsv(randf_range(0.78, 0.88), randf_range(0.5, 0.95), randf_range(0.22, 0.45))
-			data.eye_color = Color.from_hsv(randf_range(0.72, 0.82), randf_range(0.55, 1.0), randf_range(0.75, 1.0))
+			data.body_color = Color.from_hsv(randf_range(0.04, 0.1), randf_range(0.18, 0.35), randf_range(0.48, 0.68))
+			data.accent_color = Color.from_hsv(randf_range(0.35, 0.5), randf_range(0.25, 0.55), randf_range(0.2, 0.35))
+		4:
+			data.body_color = Color.from_hsv(randf_range(0.0, 0.06), randf_range(0.12, 0.28), randf_range(0.72, 0.9))
+			data.accent_color = Color.from_hsv(randf_range(0.58, 0.68), randf_range(0.45, 0.75), randf_range(0.25, 0.42))
 		_:
-			data.body_color = Color.from_hsv(randf_range(0.0, 1.0), randf_range(0.15, 0.45), randf_range(0.04, 0.14))
-			data.accent_color = Color.from_hsv(randf(), randf_range(0.5, 1.0), randf_range(0.2, 0.4))
-			data.eye_color = Color.from_hsv(randf(), randf_range(0.7, 1.0), randf_range(0.85, 1.0))
+			data.body_color = Color.from_hsv(randf_range(0.05, 0.12), randf_range(0.22, 0.42), randf_range(0.38, 0.58))
+			data.accent_color = Color.from_hsv(randf(), randf_range(0.35, 0.7), randf_range(0.15, 0.35))
 
-	data.glow_color = data.eye_color.lightened(randf_range(0.08, 0.35))
+	data.eye_color = data.body_color.darkened(randf_range(0.25, 0.45))
+	data.glow_color = data.accent_color.lightened(randf_range(0.15, 0.4))
 	if data.glow_strength <= 0.0:
-		data.glow_strength = randf_range(0.55, 1.8)
-	data.chitin_roughness = randf_range(0.18, 0.88)
-	data.chitin_metallic = randf_range(0.08, 0.58)
-	if data.stance_width == 1.0:
-		data.stance_width = randf_range(0.62, 1.38)
-	if data.eye_spread == 1.0:
-		data.eye_spread = randf_range(0.75, 1.85)
-	if data.eye_stalk_length <= 0.4:
-		data.eye_stalk_length = randf_range(0.25, 1.25)
+		data.glow_strength = randf_range(0.2, 0.9)

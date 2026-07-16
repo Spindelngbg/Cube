@@ -243,7 +243,13 @@ func _stop_auth_watchdog() -> void:
 
 func _on_auth_watchdog_timeout() -> void:
 	var pending := status_label.text
-	if pending.begins_with("Loggar in") or pending.begins_with("Skapar konto") or pending.begins_with("Laddar karaktärer") or pending.begins_with("Skapar karaktär"):
+	if (
+		pending.begins_with("Loggar in")
+		or pending.begins_with("Skapar konto")
+		or pending.begins_with("Laddar karaktärer")
+		or pending.begins_with("Skapar karaktär")
+		or pending.begins_with("Ansluter")
+	):
 		Auth.cancel_request()
 		Profile.cancel_request()
 		_account_flow_running = false

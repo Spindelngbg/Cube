@@ -2,6 +2,7 @@ extends Node
 
 signal characters_loaded()
 signal character_selected()
+signal character_created(character_id: String)
 signal character_saved()
 signal nest_intro_completed()
 signal home_spawn_set(spawn_id: String)
@@ -101,12 +102,7 @@ func needs_nest_intro() -> bool:
 
 
 func needs_home_selection() -> bool:
-	return (
-		not Auth.is_guest
-		and active_nest_visited
-		and not active_home_spawn_locked
-		and active_home_spawn_id == ""
-	)
+	return not Auth.is_guest and active_nest_visited and not has_home_spawn()
 
 
 func has_home_spawn() -> bool:
@@ -271,6 +267,8 @@ func _on_request_completed(
 				characters.append(created)
 				active_character_id = str(data.get("activeId", created.get("id", "")))
 				_apply_active_character(created)
+				character_created.emit(active_character_id)
+				character_selected.emit()
 			_list_synced = true
 			characters_loaded.emit()
 		"select":
@@ -336,9 +334,11 @@ func _apply_character_list(data: Dictionary) -> void:
 func _apply_active_character(entry: Dictionary) -> void:
 	active_character_id = str(entry.get("id", ""))
 	active_character_name = str(entry.get("name", "Karaktär"))
-	active_nest_visited = bool(entry.get("nestVisited", true))
-	active_home_spawn_id = str(entry.get("homeSpawnId", ""))
 	active_home_spawn_locked = bool(entry.get("homeSpawnLocked", false))
+	active_home_spawn_id = str(entry.get("homeSpawnId", ""))
+	if not active_home_spawn_locked:
+		active_home_spawn_id = ""
+	active_nest_visited = bool(entry.get("nestVisited", false))
 	var avatar_dict: Dictionary = entry.get("avatar", {})
 	if typeof(avatar_dict) == TYPE_DICTIONARY and not avatar_dict.is_empty():
 		set_avatar(AvatarData.from_dict(avatar_dict))

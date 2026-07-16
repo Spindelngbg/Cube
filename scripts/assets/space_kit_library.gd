@@ -1,6 +1,8 @@
 class_name SpaceKitLibrary
 extends RefCounted
 
+const DevBuildingLabelsScript = preload("res://scripts/dev/dev_building_labels.gd")
+
 const BASE_PATH := "res://assets/models/modular-space-kit/Models/GLB format/"
 
 const MODELS := [
@@ -70,6 +72,13 @@ static func spawn(parent: Node3D, name: String, position: Vector3 = Vector3.ZERO
 	instance.position = position
 	instance.rotation.y = rotation_y
 	parent.add_child(instance)
+	if name.begins_with("room-"):
+		DevBuildingLabelsScript.attach(
+			parent,
+			position,
+			DevBuildingLabelsScript.footprint_half_for_space_model(name),
+			rotation_y
+		)
 	return instance
 
 

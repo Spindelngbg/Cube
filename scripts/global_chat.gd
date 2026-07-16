@@ -11,6 +11,9 @@ const RECONNECT_DELAY := 2.0
 @onready var chat_tab_button: Button = %ChatTabButton
 @onready var friends_tab_button: Button = %FriendsTabButton
 @onready var minimize_button: Button = %MinimizeButton
+@onready var chat_title: Label = %ChatTitle
+@onready var header_row: HBoxContainer = %Header
+@onready var panel_vbox: VBoxContainer = chat_panel.get_node("VBox") as VBoxContainer
 @onready var tab_bar: HBoxContainer = %TabBar
 @onready var body_panel: Control = %Body
 @onready var chat_view: Control = %ChatView
@@ -33,6 +36,12 @@ var _connecting := false
 var _identify_sent := false
 var _layout_mode := "corner"
 var _minimized := false
+var _panel_style_open: StyleBox
+var _panel_style_compact: StyleBox
+
+const PANEL_ALPHA_OPEN := 1.0
+const PANEL_ALPHA_CLOSED := 0.2
+const PANEL_ALPHA_CLOSED_HOVER := 0.34
 
 const LAYOUT_CORNER := {
 	"anchor_left": 1.0,
@@ -61,10 +70,10 @@ const MINIMIZED_CORNER := {
 	"anchor_top": 1.0,
 	"anchor_right": 1.0,
 	"anchor_bottom": 1.0,
-	"offset_left": -248.0,
-	"offset_top": -44.0,
-	"offset_right": -16.0,
-	"offset_bottom": -16.0,
+	"offset_left": -168.0,
+	"offset_top": -28.0,
+	"offset_right": -12.0,
+	"offset_bottom": -12.0,
 }
 
 const MINIMIZED_SIDEBAR_RIGHT := {
@@ -72,8 +81,8 @@ const MINIMIZED_SIDEBAR_RIGHT := {
 	"anchor_top": 1.0,
 	"anchor_right": 1.0,
 	"anchor_bottom": 1.0,
-	"offset_left": -248.0,
-	"offset_top": -44.0,
+	"offset_left": -168.0,
+	"offset_top": -28.0,
 	"offset_right": -12.0,
 	"offset_bottom": -12.0,
 }
@@ -103,6 +112,10 @@ func _ready() -> void:
 	chat_tab_button.pressed.connect(_show_tab.bind("chat"))
 	friends_tab_button.pressed.connect(_show_tab.bind("friends"))
 	minimize_button.pressed.connect(_toggle_minimize)
+	chat_panel.mouse_entered.connect(_on_panel_mouse_entered)
+	chat_panel.mouse_exited.connect(_on_panel_mouse_exited)
+	_panel_style_open = chat_panel.get_theme_stylebox("panel")
+	_panel_style_compact = _make_compact_panel_style()
 
 	Auth.login_succeeded.connect(_on_auth_changed)
 	Auth.logged_out.connect(_on_auth_logged_out)
@@ -111,6 +124,20 @@ func _ready() -> void:
 	_connect_chat()
 	_show_tab("chat")
 	_refresh_friends_ui()
+	_apply_layout_mode()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	if event.keycode != KEY_C:
+		return
+	if input_field.has_focus() and not _minimized:
+		return
+	_toggle_minimize()
+	get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:
@@ -411,12 +438,39 @@ func reset_layout_mode() -> void:
 
 
 func _toggle_minimize() -> void:
-	_minimized = not _minimized
+	_set_minimized(not _minimized)
+
+
+func _set_minimized(minimized: bool) -> void:
+	if _minimized == minimized:
+		return
+	_minimized = minimized
+	if _minimized:
+		input_field.release_focus()
+	elif visible and is_inside_tree():
+		input_field.grab_focus()
 	_apply_layout_mode()
+
+
+func _on_panel_mouse_entered() -> void:
+	if _minimized:
+		chat_panel.modulate.a = PANEL_ALPHA_CLOSED_HOVER
+
+
+func _on_panel_mouse_exited() -> void:
+	if _minimized:
+		chat_panel.modulate.a = PANEL_ALPHA_CLOSED
 
 
 func is_minimized() -> bool:
 	return _minimized
+
+
+func open_from_znood() -> void:
+	visible = true
+	_set_minimized(false)
+	_show_tab("chat")
+	input_field.grab_focus()
 
 
 func _apply_layout_mode() -> void:
@@ -437,5 +491,37 @@ func _apply_layout_mode() -> void:
 
 	tab_bar.visible = not _minimized
 	body_panel.visible = not _minimized
-	minimize_button.text = "□" if _minimized else "—"
-	minimize_button.tooltip_text = "Visa chatt" if _minimized else "Minimera chatt"
+	minimize_button.visible = not _minimized
+	status_label.visible = not _minimized
+
+	chat_panel.modulate.a = PANEL_ALPHA_CLOSED if _minimized else PANEL_ALPHA_OPEN
+	chat_panel.add_theme_stylebox_override(
+		"panel",
+		_panel_style_compact if _minimized else _panel_style_open
+	)
+	panel_vbox.add_theme_constant_override("separation", 2 if _minimized else 10)
+
+	if _minimized:
+		chat_title.text = "Chatt  [C]"
+		chat_title.add_theme_font_size_override("font_size", 11)
+		chat_title.add_theme_color_override("font_color", Color(SpiderTheme.BONE.r, SpiderTheme.BONE.g, SpiderTheme.BONE.b, 0.55))
+		header_row.add_theme_constant_override("separation", 4)
+	else:
+		chat_title.text = "Global chatt"
+		chat_title.add_theme_font_size_override("font_size", 14)
+		chat_title.remove_theme_color_override("font_color")
+		header_row.add_theme_constant_override("separation", 6)
+		minimize_button.text = "—"
+		minimize_button.tooltip_text = "Minimera chatt [C]"
+
+
+func _make_compact_panel_style() -> StyleBox:
+	var style := FantasyBorderLibrary.panel_style(Color(0.82, 0.38, 0.42, 0.42))
+	if style is StyleBoxTexture:
+		var compact := (style as StyleBoxTexture).duplicate() as StyleBoxTexture
+		compact.content_margin_left = 6
+		compact.content_margin_right = 6
+		compact.content_margin_top = 3
+		compact.content_margin_bottom = 3
+		return compact
+	return style

@@ -1,36 +1,38 @@
 class_name AvatarData
 extends Resource
 
-@export var body_color := Color(0.07, 0.1, 0.06)
-@export var accent_color := Color(0.52, 0.06, 0.14)
-@export var eye_color := Color(0.98, 0.22, 0.12)
-@export var glow_color := Color(0.9, 0.18, 0.28)
+@export var mesh_id := "reference_human"
+@export var body_color := Color(0.82, 0.66, 0.52)
+@export var accent_color := Color(0.18, 0.22, 0.34)
+@export var eye_color := Color(0.22, 0.16, 0.12)
+@export var glow_color := Color(0.45, 0.62, 0.95)
 
-@export_range(0.75, 1.5, 0.01) var body_scale := 1.08
-@export_range(0.6, 1.6, 0.01) var abdomen_scale := 1.12
-@export_range(0.8, 1.4, 0.01) var head_scale := 1.05
-@export_range(0.7, 1.5, 0.01) var leg_length := 1.05
-@export_range(0.6, 1.4, 0.01) var arm_length := 1.08
+@export_range(0.75, 1.5, 0.01) var body_scale := 1.0
+@export_range(0.6, 1.6, 0.01) var abdomen_scale := 1.18
+@export_range(0.8, 1.4, 0.01) var head_scale := 1.1
+@export_range(0.7, 1.5, 0.01) var leg_length := 1.12
+@export_range(0.6, 1.4, 0.01) var arm_length := 1.14
 
 @export_range(4, 12, 1) var spider_leg_count := 8
 @export_range(2, 12, 1) var eye_count := 8
-@export_range(0.4, 3.0, 0.01) var eye_size := 1.2
-@export_range(0.4, 2.0, 0.01) var eye_spread := 1.15
-@export_range(0.0, 1.5, 0.01) var eye_stalk_length := 0.55
-@export_range(0.0, 2.0, 0.01) var mandible_length := 1.25
-@export_range(0.0, 2.5, 0.01) var fang_length := 1.1
-@export_range(0.0, 2.0, 0.01) var claw_size := 0.85
-@export_range(0.0, 1.0, 0.01) var abdomen_segments := 0.62
-@export_range(0.0, 1.0, 0.01) var crest_size := 0.42
-@export_range(0.0, 1.0, 0.01) var chitin_roughness := 0.48
-@export_range(0.0, 1.0, 0.01) var chitin_metallic := 0.22
-@export_range(0.0, 2.0, 0.01) var glow_strength := 0.85
-@export_range(0.0, 1.0, 0.01) var spike_amount := 0.58
-@export_range(0.5, 1.5, 0.01) var stance_width := 1.08
+@export_range(0.4, 3.0, 0.01) var eye_size := 1.45
+@export_range(0.4, 2.0, 0.01) var eye_spread := 1.28
+@export_range(0.0, 1.5, 0.01) var eye_stalk_length := 0.72
+@export_range(0.0, 2.0, 0.01) var mandible_length := 1.38
+@export_range(0.0, 2.5, 0.01) var fang_length := 1.25
+@export_range(0.0, 2.0, 0.01) var claw_size := 1.05
+@export_range(0.0, 1.0, 0.01) var abdomen_segments := 0.72
+@export_range(0.0, 1.0, 0.01) var crest_size := 0.55
+@export_range(0.0, 1.0, 0.01) var chitin_roughness := 0.38
+@export_range(0.0, 1.0, 0.01) var chitin_metallic := 0.32
+@export_range(0.0, 2.0, 0.01) var glow_strength := 1.15
+@export_range(0.0, 1.0, 0.01) var spike_amount := 0.68
+@export_range(0.5, 1.5, 0.01) var stance_width := 1.16
 
 
 func duplicate_data() -> AvatarData:
 	var copy := AvatarData.new()
+	copy.mesh_id = mesh_id
 	copy.body_color = body_color
 	copy.accent_color = accent_color
 	copy.eye_color = eye_color
@@ -60,6 +62,7 @@ func duplicate_data() -> AvatarData:
 
 func to_dict() -> Dictionary:
 	return {
+		"mesh_id": mesh_id,
 		"body_color": body_color.to_html(false),
 		"accent_color": accent_color.to_html(false),
 		"eye_color": eye_color.to_html(false),
@@ -91,11 +94,12 @@ static func from_dict(data: Dictionary) -> AvatarData:
 	var avatar := AvatarData.new()
 	if data.is_empty():
 		return avatar
-	avatar.body_color = Color.html(data.get("body_color", "#121a0f"))
-	avatar.accent_color = Color.html(data.get("accent_color", "#850f24"))
-	avatar.eye_color = Color.html(data.get("eye_color", "#fa381f"))
-	avatar.glow_color = Color.html(data.get("glow_color", "#e52e47"))
-	avatar.body_scale = float(data.get("body_scale", 1.08))
+	avatar.mesh_id = str(data.get("mesh_id", "reference_human"))
+	avatar.body_color = Color.html(data.get("body_color", "#d1a885"))
+	avatar.accent_color = Color.html(data.get("accent_color", "#2e3857"))
+	avatar.eye_color = Color.html(data.get("eye_color", "#38281f"))
+	avatar.glow_color = Color.html(data.get("glow_color", "#739ef2"))
+	avatar.body_scale = float(data.get("body_scale", 1.0))
 	avatar.abdomen_scale = float(data.get("abdomen_scale", 1.12))
 	avatar.head_scale = float(data.get("head_scale", 1.05))
 	avatar.leg_length = float(data.get("leg_length", 1.05))

@@ -1,0 +1,38 @@
+{
+	"id": "colony_intro",
+	"title": "Välkommen till kuben",
+	"pages": [
+		{
+			"title": "Välkommen till kuben",
+			"body": "Du lever i en megastruktur — The Cube — tillsammans med tusentals andra kolonister.\n\nFyra satellitkuber (30×30×30 km) nås via hiss från ljusrummet:\nKoloni 1–4. Din hemkoloni är där du spawnar efter hissfärden.\n\nNeo-Washington (Koloni 4) är en futuristisk stad med zoner, väktare och hemligheter."
+		},
+		{
+			"title": "Styrning",
+			"body": "WASD + mus — röra dig\nE — interagera (prata, plocka upp, stämpla Znood, köpa zon)\nI — inventory och Mydrillium\nJ — questjournal\nM — kubnätverkskarta\nEscape — paus\n\nAlla slimeblasters har inbyggd frätande ammunition. Var försiktig med civila."
+		},
+		{
+			"title": "Mydrillium",
+			"body": "Mydrillium är kolonins in-game-valuta. Du ser saldot längst ner i HUD.\n\nNya karaktärer får startkapital i plånboken. Använd det för föremål, utrustning — och för att köpa zoner i staden."
+		},
+		{
+			"title": "Zoner & köp",
+			"body": "Staden är uppdelad i zoner (10×10 meter). Många kan köpas med Mydrillium.\n\nStå i en zon — HUD visar pris och [E] om den är till salu.\nTryck E för att köpa. Vissa områden (Kapitol, SRC HQ, monument) är ej till salu.\n\nÄgda zoner ger dig byggrätt i den zonen."
+		},
+		{
+			"title": "Visuella markörer",
+			"body": "Ägda zoner markeras i världen så du ser dem på avstånd:\n\n• Guld/amber + MYD — din zon (köpt med Mydrillium)\n• Lila + NFT — ägd via NFT-claim\n• Blå — någon annans zon\n\nVarje markör har lysande golvplatta, hörnstolpar, kantlist och skylt med ägare."
+		},
+		{
+			"title": "NFT & äganderätt",
+			"body": "Du kan köpa en zon i spelet med Mydrillium — men om någon senare claimar samma zon som NFT överförs äganderätten till NFT-innehavaren.\n\nDu får besked i spelet om din zon tas över. Planera därefter."
+		},
+		{
+			"title": "Znood & Zezzlor",
+			"body": "Znood sitter i din vänster hand. Stämpla vid läsare för att öppna dörrar och passera Zezzlor-checkpoints.\n\nJu närmare spawn i Koloni 4, desto fler Zezzlor-grindar. Zezzlor är kolonins blåklädda ordningsmakt — de jagar dig om du dödar civila med slem."
+		},
+		{
+			"title": "SRC & övrigt",
+			"body": "Shawshank Redemption Corp (SRC) har egna röda väktare — inte Zezzlor. De lämnar dig i fred tills du närmar dig deras HQ (1 km).\n\nPrata med NPC:er (Mara vid spawn), följ questjournalen (J), och tryck H när som helst för att öppna den här guiden igen.\n\nLycka till i kuben."
+		}
+	]
+}

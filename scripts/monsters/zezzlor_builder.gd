@@ -1,0 +1,123 @@
+class_name ZezzlorBuilder
+extends RefCounted
+
+## Flerarmad Zezzlor — mesh-skelett (SpiderAlien) + Sci-Fi GLTF-kropp. Inte människa.
+
+const CORE_MESH := "Enemy_Trilobite"
+const UNIFORM_BLUE := Color(0.12, 0.34, 0.82)
+const CHITIN_BASE := Color(0.08, 0.18, 0.34)
+
+
+static func build(parent: Node3D, rank_id: String = "patrol", scale_factor: float = 1.0) -> Dictionary:
+	for child in parent.get_children():
+		child.queue_free()
+
+	var rank_color: Color = ZezzlorLore.rank_color(rank_id)
+	var avatar := _build_avatar(rank_id, scale_factor)
+	SpiderAlienBuilder.build(parent, avatar)
+
+	var root := parent.get_child(0) if parent.get_child_count() > 0 else null
+	if root == null:
+		root = Node3D.new()
+		root.name = "ZezzlorBody"
+		parent.add_child(root)
+
+	_apply_uniform_tint(parent, rank_color.lerp(UNIFORM_BLUE, 0.62), 0.58)
+
+	var core := SciFiEssentialsLibrary.spawn(parent, CORE_MESH, Vector3(0.0, 1.08 * scale_factor, 0.02 * scale_factor))
+	if core:
+		core.scale = Vector3.ONE * 0.42 * scale_factor
+		core.rotation_degrees.y = 18.0
+		_apply_uniform_tint(core, rank_color.lerp(UNIFORM_BLUE, 0.45), 0.72)
+
+	var baton_socket := _ensure_baton_socket(parent, scale_factor)
+	return {"root": root, "baton_socket": baton_socket}
+
+
+static func apply_corrosion_tint(root: Node, strength: float) -> void:
+	_apply_uniform_tint(root, Color(0.22, 0.92, 0.28), clampf(strength, 0.0, 1.0) * 0.65)
+
+
+static func _build_avatar(rank_id: String, scale_factor: float) -> AvatarData:
+	var rank_color: Color = ZezzlorLore.rank_color(rank_id)
+	var data := AvatarData.new()
+	data.mesh_id = "zezzlor"
+	data.body_scale = 1.02 * scale_factor
+	data.abdomen_scale = 0.92
+	data.head_scale = 0.98
+	data.leg_length = 1.08
+	data.arm_length = 1.18
+	data.spider_leg_count = _arm_count_for_rank(rank_id)
+	data.eye_count = 6
+	data.eye_size = 1.15
+	data.eye_spread = 1.05
+	data.eye_stalk_length = 0.42
+	data.mandible_length = 0.35
+	data.fang_length = 0.2
+	data.claw_size = 0.55
+	data.crest_size = 0.18
+	data.glow_strength = 0.22
+	data.spike_amount = 0.2
+	data.stance_width = 1.12
+	data.body_color = CHITIN_BASE.lerp(rank_color, 0.25)
+	data.accent_color = rank_color.lerp(UNIFORM_BLUE, 0.35)
+	data.eye_color = rank_color.lightened(0.35)
+	data.glow_color = rank_color
+	data.chitin_roughness = 0.42
+	data.chitin_metallic = 0.38
+	return data
+
+
+static func _arm_count_for_rank(rank_id: String) -> int:
+	match rank_id:
+		"recruit":
+			return 8
+		"patrol":
+			return 10
+		"officer", "contract":
+			return 10
+		"sergeant", "inspector":
+			return 12
+		_:
+			return 10
+
+
+static func _ensure_baton_socket(parent: Node3D, scale_factor: float) -> Node3D:
+	var socket := parent.get_node_or_null("BatonSocket") as Node3D
+	if socket:
+		return socket
+
+	var pedipalp := _find_node_named(parent, "Pedipalp0")
+	if pedipalp == null:
+		pedipalp = _find_node_named(parent, "Pedipalp1")
+	if pedipalp == null:
+		pedipalp = parent
+
+	socket = Node3D.new()
+	socket.name = "BatonSocket"
+	socket.position = Vector3(0.22 * scale_factor, 0.08 * scale_factor, -0.12 * scale_factor)
+	pedipalp.add_child(socket)
+	return socket
+
+
+static func _find_node_named(node: Node, node_name: String) -> Node3D:
+	if node.name == node_name and node is Node3D:
+		return node as Node3D
+	for child in node.get_children():
+		var found := _find_node_named(child, node_name)
+		if found:
+			return found
+	return null
+
+
+static func _apply_uniform_tint(node: Node, color: Color, strength: float) -> void:
+	if node is MeshInstance3D:
+		var mesh := node as MeshInstance3D
+		var src := mesh.get_active_material(0)
+		if src is StandardMaterial3D:
+			var copy := (src as StandardMaterial3D).duplicate() as StandardMaterial3D
+			copy.albedo_color = copy.albedo_color.lerp(color, clampf(strength, 0.0, 1.0))
+			copy.metallic = clampf(copy.metallic + 0.12, 0.0, 1.0)
+			mesh.material_override = copy
+	for child in node.get_children():
+		_apply_uniform_tint(child, color, strength)

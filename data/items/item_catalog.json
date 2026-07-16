@@ -1,0 +1,45 @@
+{
+	"base_hp": 100,
+	"currency": {
+		"id": "mydrillium",
+		"name": "Mydrillium",
+		"symbol": "Md",
+		"starter_amount": 10000,
+		"description": "Koloniernas futuristiska valuta — handlas i vapenbutiker och svarta marknaden."
+	},
+	"items": {
+		"koloni_ration": {
+			"name": "Koloni-ranson",
+			"rarity": "common",
+			"hp_bonus": 10,
+			"description": "Standardnäring från kubens förråd. Ger lite extra uthållighet."
+		},
+		"chitin_patch": {
+			"name": "Kitinplåster",
+			"rarity": "uncommon",
+			"hp_bonus": 15,
+			"description": "Spindelkolonisternas fältförband. Hårdnar över sår och ökar max-HP."
+		},
+		"redemption_tonic": {
+			"name": "Redemption-tonic",
+			"rarity": "rare",
+			"hp_bonus": 35,
+			"description": "Omärkt SRC-flaska. Smakar metall och ånger — men kroppen klarar mer."
+		},
+		"psyxxrum_serum": {
+			"name": "Psyxxrum-Serumet",
+			"rarity": "legendary",
+			"hp_bonus": 80,
+			"description": "Legendariskt serum från ljusrummets djupaste lager. Psykisk och fysisk härdning i ett."
+		},
+		"hybrid_antidote": {
+			"name": "Hybrid-Antidot",
+			"type": "remedy",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"cures_poison": true,
+			"shop_price": 250,
+			"description": "Motgift mot spindelgift från SRC-hybridzombies. Säljs av Pill-Bot på Pharmacy."
+		}
+	}
+}

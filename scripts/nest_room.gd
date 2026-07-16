@@ -1,6 +1,7 @@
 extends Node3D
 
 const SMALL_SPIDER_SCENE := preload("res://scenes/nest_small_spider.tscn")
+const WORLD_MONSTER_SCENE := preload("res://scenes/monsters/world_monster.tscn")
 const MOVE_SPEED := 4.0
 const ROOM_SIZE := Vector3(14, 4.2, 12)
 
@@ -13,6 +14,7 @@ const WHISPER_LINES := [
 	"Den vakar inte längre. Den släpper dig.",
 	"Gå mot ljuset, unge.",
 	"Kuben väntar på andra sidan.",
+	"Shawshank Redemption Corp. vill inte att du ska veta vad de gör med hybriderna.",
 ]
 
 @onready var player: CharacterBody3D = $Player
@@ -39,6 +41,10 @@ var _fog_density := 0.014
 
 
 func _ready() -> void:
+	if not Profile.needs_nest_intro():
+		call_deferred("_redirect_to_play_scene")
+		return
+
 	_build_room()
 	_build_door()
 	_build_mother()
@@ -52,11 +58,21 @@ func _ready() -> void:
 	door_zone.body_entered.connect(_on_door_entered)
 	Profile.nest_intro_completed.connect(_on_nest_saved)
 	Profile.operation_failed.connect(_on_nest_failed)
+	_spawn_nest_guardians()
 	_begin_intro()
+	MouseLook.activate(camera_pivot, camera_pivot.get_node("Camera3D") as Camera3D)
+
+
+func _redirect_to_play_scene() -> void:
+	get_tree().change_scene_to_file(GameFlow.play_scene_path())
+
+
+func _exit_tree() -> void:
+	MouseLook.deactivate()
 
 
 func _begin_intro() -> void:
-	hint_label.text = ""
+	hint_label.text = "WASD + mus — gå rakt fram mot det gyllene ljuset framför dig."
 	_intro_index = 0
 	_intro_timer = 0.0
 	SceneTransition.fade_in(1.1)
@@ -107,8 +123,13 @@ func _update_door_beckon() -> void:
 	door_light.light_energy = _door_glow
 	door_spot.light_energy = lerpf(5.5, 12.0, nearness)
 
-	if nearness > 0.55 and _intro_index >= INTRO_LINES.size():
-		hint_label.text = "Ljuset kallar — gå igenom dörren."
+	if _intro_index >= INTRO_LINES.size():
+		if nearness > 0.55:
+			hint_label.text = "Ljuset kallar — gå rakt igenom dörren för att kläckas."
+		elif nearness > 0.2:
+			hint_label.text = "Nästan framme — följ det gyllene skenet."
+		else:
+			hint_label.text = "Gå mot ljuset framför dig. Det är din väg ut ur nästet."
 
 
 func _animate_nest(delta: float) -> void:
@@ -142,6 +163,24 @@ func _spawn_spiders(delta: float) -> void:
 	spider.setup(egg_pivot.global_position + offset, 5.8)
 
 
+func _spawn_nest_guardians() -> void:
+	var guardians := [
+		MonsterCatalog.resolve_entry("spider", "swarm"),
+		MonsterCatalog.resolve_entry("spider", "stalker"),
+	]
+	var spots := [
+		Vector3(-3.5, 0.0, -1.5),
+		Vector3(3.2, 0.0, -0.8),
+	]
+	for i in guardians.size():
+		var entry: Dictionary = guardians[i]
+		if entry.is_empty():
+			continue
+		var monster := WORLD_MONSTER_SCENE.instantiate()
+		spiders_root.add_child(monster)
+		monster.setup(entry, spots[i], Vector3(0, 0, 0), 5.5, 9000 + i)
+
+
 func _style_ui() -> void:
 	SpiderTheme.style_status(hint_label)
 	SpiderTheme.wrap_label_in_panel(hint_label)
@@ -151,8 +190,10 @@ func _build_player_spider() -> void:
 	var body := player.get_node_or_null("Body") as MeshInstance3D
 	if body:
 		body.visible = false
-	SpiderAlienBuilder.build(player_avatar, Profile.get_avatar())
-	player_avatar.scale = Vector3.ONE * 0.85
+	var model := HumanAvatarBuilder.build(player_avatar, Profile.get_avatar())
+	if model:
+		var animator := HumanAvatarAnimator.ensure_on(player_avatar, true)
+		animator.bind(model)
 
 
 func _build_door() -> void:
@@ -290,6 +331,8 @@ func _build_mother() -> void:
 	pivot.name = "Pivot"
 	mother_pivot.add_child(pivot)
 	SpiderAlienBuilder.build(pivot, data)
+	var mother_animator := AvatarAnimator.ensure_on(pivot, true)
+	mother_animator.bind(pivot)
 	mother_pivot.position = Vector3(0, 0, -3.2)
 	mother_pivot.rotation_degrees = Vector3(0, 180, 0)
 

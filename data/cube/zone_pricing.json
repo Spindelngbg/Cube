@@ -1,0 +1,28 @@
+{
+	"currency": "mydrillium",
+	"default_price": 3500,
+	"non_purchasable_zones": [
+		"KAPITOLPLAZA",
+		"SRC_LAB",
+		"PRESIDENTKORRIDOR",
+		"MONUMENTKÄRNA",
+		"MINNESPLATS_VÄST"
+	],
+	"prices_by_zone_type": {
+		"BOSTADSKVARTER": 2200,
+		"INDUSTRIKAJ": 1800,
+		"VATTENFRONT": 2600,
+		"TRANSITNAV": 3200,
+		"KONTORSGRID": 4000,
+		"FEDERALT_KVARTER": 5500,
+		"AMBASSADNÄSET": 4800,
+		"NATIONALMALLEN": 7500,
+		"PARKBÄLTE": 3000
+	},
+	"nft": {
+		"enabled": true,
+		"claim_endpoint": "/zones/{zone_id}/nft-claim",
+		"status_endpoint": "/zones/{zone_id}",
+		"transfer_note": "NFT-claim överför äganderätt från in-game köpare till NFT-innehavaren."
+	}
+}

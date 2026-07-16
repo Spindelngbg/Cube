@@ -1,8 +1,15 @@
 class_name SpawnPoints
 extends RefCounted
 
-## Fyra satellitkuber (30×30×30 km). Endast nåbara via hiss från ljusrummet.
+## Fyra kolonikuber (30×30×30 km). Nås via hiss från ljusrummet.
 const IDS := ["satellite_left", "satellite_top_a", "satellite_top_b", "satellite_right"]
+
+const COLONY_NUMBERS := {
+	"satellite_left": 1,
+	"satellite_top_a": 2,
+	"satellite_top_b": 3,
+	"satellite_right": 4,
+}
 
 const LEGACY_MAP := {
 	"north_tower": "satellite_top_a",
@@ -13,52 +20,52 @@ const LEGACY_MAP := {
 
 const SATELLITE_EXTENT_KM := 30.0
 const SATELLITE_EXTENT_M := 30_000.0
-const PROTOTYPE_SIZE_M := 30.0
+const EXTENT_LABEL := "30×30×30 km"
 const LEFT_ELEVATOR_KM := 10.0
 
 const DATA := {
 	"satellite_left": {
-		"name": "Vänsterkuben",
-		"cube_id": "SAT_LEFT_30",
-		"description": "En 30×30×30 km satellitkub. Nås via 10 km hiss på huvudkubens vänstra sida.",
+		"name": "Koloni 1",
+		"cube_id": "KOLONI_1_30",
+		"description": "Koloni 1 — en satellitkub på 30×30×30 km. Din permanenta hemvist om du väljer den.",
 		"elevator_mount": "left",
 		"elevator_length_km": 10.0,
 		"ride_axis": "horizontal_neg",
 		"ride_duration": 6.5,
 		"kit": "industrial",
-		"position": Vector3(15.0, 0.5, 15.0),
+		"spawn_norm": Vector2(0.027, 0.5),
 	},
 	"satellite_top_a": {
-		"name": "Toppkuben Alfa",
-		"cube_id": "SAT_TOP_A_30",
-		"description": "En 30×30×30 km satellitkub ovanpå huvudkuben. Hiss port A.",
+		"name": "Koloni 2",
+		"cube_id": "KOLONI_2_30",
+		"description": "Koloni 2 — en satellitkub på 30×30×30 km. Din permanenta hemvist om du väljer den.",
 		"elevator_mount": "top",
 		"elevator_index": 0,
 		"ride_axis": "vertical",
 		"ride_duration": 3.2,
 		"kit": "commercial",
-		"position": Vector3(10.0, 0.5, 15.0),
+		"spawn_norm": Vector2(0.333, 0.027),
 	},
 	"satellite_top_b": {
-		"name": "Toppkuben Beta",
-		"cube_id": "SAT_TOP_B_30",
-		"description": "En 30×30×30 km satellitkub ovanpå huvudkuben. Hiss port B.",
+		"name": "Koloni 3",
+		"cube_id": "KOLONI_3_30",
+		"description": "Koloni 3 — en satellitkub på 30×30×30 km. Din permanenta hemvist om du väljer den.",
 		"elevator_mount": "top",
 		"elevator_index": 1,
 		"ride_axis": "vertical",
 		"ride_duration": 3.2,
 		"kit": "suburban",
-		"position": Vector3(20.0, 0.5, 15.0),
+		"spawn_norm": Vector2(0.667, 0.027),
 	},
 	"satellite_right": {
-		"name": "Högerkuben",
-		"cube_id": "SAT_RIGHT_30",
-		"description": "En 30×30×30 km satellitkub. Nås via hiss på huvudkubens högra sida.",
+		"name": "Koloni 4",
+		"cube_id": "KOLONI_4_30",
+		"description": "Koloni 4 — Neo-Washington, en futuristisk huvudstad efter USA:s Washington. Kapitol vid spawn, Nationalmallen västerut, zontag på varje block.",
 		"elevator_mount": "right",
 		"ride_axis": "horizontal_pos",
 		"ride_duration": 4.0,
 		"kit": "commercial",
-		"position": Vector3(15.0, 0.5, 10.0),
+		"spawn_norm": Vector2(0.973, 0.5),
 	},
 }
 
@@ -73,9 +80,36 @@ static func is_valid(spawn_id: String) -> bool:
 	return DATA.has(normalize_id(spawn_id))
 
 
+static func get_extent_m() -> float:
+	return SATELLITE_EXTENT_M
+
+
 static func get_spawn_name(spawn_id: String) -> String:
 	var id := normalize_id(spawn_id)
 	return str(DATA.get(id, {}).get("name", spawn_id))
+
+
+static func get_colony_number(spawn_id: String) -> int:
+	var id := normalize_id(spawn_id)
+	return int(COLONY_NUMBERS.get(id, 0))
+
+
+static func get_colony_label(spawn_id: String) -> String:
+	var num := get_colony_number(spawn_id)
+	if num > 0:
+		return "Koloni %d" % num
+	return get_spawn_name(spawn_id)
+
+
+static func get_elevator_label(spawn_id: String) -> String:
+	var num := get_colony_number(spawn_id)
+	if num > 0:
+		return "Hiss %d Koloni %d" % [num, num]
+	return get_spawn_name(spawn_id)
+
+
+static func get_extent_label() -> String:
+	return EXTENT_LABEL
 
 
 static func get_cube_id(spawn_id: String) -> String:
@@ -84,12 +118,24 @@ static func get_cube_id(spawn_id: String) -> String:
 
 
 static func get_position(spawn_id: String) -> Vector3:
+	var entry := get_entry(spawn_id)
+	var norm: Vector2 = entry.get("spawn_norm", Vector2(0.5, 0.5))
+	return Vector3(
+		clampf(norm.x, 0.0, 1.0) * SATELLITE_EXTENT_M,
+		0.5,
+		clampf(norm.y, 0.0, 1.0) * SATELLITE_EXTENT_M
+	)
+
+
+static func get_map_view_half_extent(spawn_id: String) -> float:
 	var id := normalize_id(spawn_id)
-	var entry: Dictionary = DATA.get(id, {})
-	if entry.has("position") and entry.position is Vector3:
-		return entry.position
-	var pos: Array = entry.get("position", [15.0, 0.5, 15.0])
-	return Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
+	if id == "satellite_right":
+		return 300.0
+	return 170.0
+
+
+static func get_map_view_center(spawn_id: String) -> Vector3:
+	return get_position(spawn_id)
 
 
 static func get_description(spawn_id: String) -> String:
