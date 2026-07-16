@@ -58,11 +58,13 @@ func set_mode(is_game: bool) -> void:
 
 
 func _apply_mouse_mode(is_game: bool) -> void:
+	if _mouse_look_handles_mouse():
+		return
 	if is_game and not _game_allows_capture():
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		return
 	if is_game:
-		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		Input.set_mouse_mode(Input.MOUSE_MODE_CONFINED_HIDDEN)
 	else:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
