@@ -46,6 +46,17 @@ func toggle() -> void:
 	visible = _map_open
 	if _map_open:
 		_canvas.queue_redraw()
+		MouseLook.deactivate()
+	else:
+		_restore_mouse_look()
+
+
+func _restore_mouse_look() -> void:
+	if get_tree().paused:
+		return
+	var game := get_tree().get_first_node_in_group("game_director")
+	if game and game.has_method("restore_gameplay_mouse"):
+		game.restore_gameplay_mouse()
 
 
 func set_active_spawn(spawn_id: String) -> void:

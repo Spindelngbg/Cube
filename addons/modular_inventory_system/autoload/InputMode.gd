@@ -37,11 +37,24 @@ func allow_game_input() -> bool:
 
 func set_mode(is_game: bool) -> void:
 	_is_ui_mode = not is_game
-	
+	_apply_mouse_mode(is_game)
+
+
+func _apply_mouse_mode(is_game: bool) -> void:
+	if is_game and not _game_allows_capture():
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		return
 	if is_game:
 		Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	else:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+
+
+func _game_allows_capture() -> bool:
+	var scene := get_tree().current_scene
+	if scene and scene.has_method("should_capture_mouse"):
+		return bool(scene.call("should_capture_mouse"))
+	return true
 
 func _on_drag_start(_a, _b, _c):
 	_drag_active = true
@@ -61,8 +74,14 @@ func _on_drag_end():
 	elif has_open_ui:
 		set_mode(false)
 
-func _notification(what: int):
+func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_MOUSE_EXIT and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	elif what == NOTIFICATION_WM_MOUSE_ENTER:
-		set_mode(not _is_ui_mode)
+		if _is_ui_mode:
+			return
+		var mouse_look := get_node_or_null("/root/MouseLook")
+		if mouse_look and mouse_look.has_method("request_recapture"):
+			mouse_look.request_recapture()
+		else:
+			_apply_mouse_mode(true)

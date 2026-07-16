@@ -36,7 +36,6 @@ func activate(pivot: Node3D, camera: Camera3D) -> void:
 	if _pivot and _camera:
 		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
 	_capture_mouse()
-	_set_input_mode_game()
 
 
 func deactivate() -> void:
@@ -45,7 +44,6 @@ func deactivate() -> void:
 	_camera = null
 	_want_capture = false
 	_release_mouse()
-	_set_input_mode_ui()
 
 
 func get_yaw() -> float:
@@ -82,6 +80,11 @@ func get_aim_origin(fallback_position: Vector3) -> Vector3:
 	return _camera.global_position + get_aim_direction() * 0.65
 
 
+func request_recapture() -> void:
+	if is_active() and _should_auto_capture():
+		_capture_mouse()
+
+
 func _input(event: InputEvent) -> void:
 	if not is_active() or get_tree().paused:
 		return
@@ -89,7 +92,7 @@ func _input(event: InputEvent) -> void:
 	# Klick i spelet tar tillbaka siktet (om UI inte blockerar).
 	if event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
-		if button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
+		if button.pressed and button.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
 			if _should_auto_capture() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 				_capture_mouse()
 		return
@@ -129,7 +132,7 @@ func _process(delta: float) -> void:
 	if paused and not _was_paused:
 		_release_mouse()
 	elif not paused and _was_paused:
-		_capture_mouse()
+		request_recapture()
 	_was_paused = paused
 	if paused:
 		return
@@ -142,8 +145,8 @@ func _process(delta: float) -> void:
 		else:
 			_release_mouse()
 	elif want and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		# Tappad capture (alt-tab) — vänsterklick i _input tar tillbaka siktet.
-		pass
+		# Tappad capture (alt-tab / fönsterkant) — lås igen så fort spelet tillåter det.
+		_capture_mouse()
 
 
 func _should_auto_capture() -> bool:
@@ -157,6 +160,7 @@ func _should_auto_capture() -> bool:
 
 func _capture_mouse() -> void:
 	_want_capture = true
+	_set_input_mode_game()
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		# Hoppa över 1–2 frames så att capture-hoppet inte vrider kameran.
@@ -165,6 +169,7 @@ func _capture_mouse() -> void:
 
 func _release_mouse() -> void:
 	_want_capture = false
+	_set_input_mode_ui()
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 

@@ -678,6 +678,8 @@ func should_capture_mouse() -> bool:
 		return false
 	if GlobalChat != null and GlobalChat.has_method("is_chat_open") and GlobalChat.is_chat_open():
 		return false
+	if _network_map != null and _network_map.visible:
+		return false
 	var local_player := get_local_player()
 	if local_player != null and local_player.has_method("is_zezzlor_jailed") and local_player.is_zezzlor_jailed():
 		return false
