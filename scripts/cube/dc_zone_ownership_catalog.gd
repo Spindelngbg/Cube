@@ -42,8 +42,10 @@ static func koloni4_local_to_zone_id(local: Vector3) -> String:
 
 
 static func world_to_zone_id(world_pos: Vector3, spawn_id: String) -> String:
-	var spawn_pos := SpawnPoints.get_position(SpawnPoints.ensure_colony_id(spawn_id))
-	var local := world_pos - spawn_pos
+	var colony_id := SpawnPoints.ensure_colony_id(spawn_id)
+	var logical := SpawnPoints.to_logical_world(world_pos, colony_id)
+	var spawn_pos := SpawnPoints.get_position(colony_id)
+	var local := logical - spawn_pos
 	local.y = 0.0
 	if SpawnPoints.normalize_id(spawn_id) == "satellite_right":
 		return koloni4_local_to_zone_id(local)

@@ -286,7 +286,13 @@ static func _cmd_tp(tree: SceneTree, parts: PackedStringArray) -> String:
 		return "Användning: /tp [x] [z] — t.ex. /tp 29210 15020"
 	if not str(parts[1]).is_valid_float() or not str(parts[2]).is_valid_float():
 		return "Ogiltiga koordinater."
-	var pos := Vector3(float(parts[1]), SpawnPoints.SPAWN_FOOT_Y, float(parts[2]))
+	var logical := Vector3(float(parts[1]), SpawnPoints.SPAWN_FOOT_Y, float(parts[2]))
+	var game := tree.get_first_node_in_group("game_director")
+	var pos := (
+		game.shift_world_position(logical)
+		if game != null and game.has_method("shift_world_position")
+		else logical
+	)
 	player.global_position = pos
 	if player.has_method("set_spawn_anchor"):
 		player.set_spawn_anchor(pos)

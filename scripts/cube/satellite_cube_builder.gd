@@ -71,6 +71,9 @@ static func build(parent: Node3D, spawn_id: String) -> Node3D:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	root.add_child(label)
 
+	var shift := SpawnPoints.get_world_origin_shift(id)
+	root.position = Vector3(-shift.x, 0.0, -shift.z)
+
 	return root
 
 
@@ -118,11 +121,11 @@ static func _build_arrival_hub(root: Node3D, entry: Dictionary, spawn_id: String
 	hub.add_child(platform)
 	# Öppen spawn-yta i centrum — solid rum flyttat så spelaren inte fastnar i geometri.
 	SpaceKitLibrary.spawn(platform, "template-floor-detail-a", Vector3(0, 0, 0))
-	SpaceKitLibrary.spawn(platform, "room-small", Vector3(10.0, 0.0, -8.0))
+	SpaceKitLibrary.spawn(platform, "room-small", Vector3(18.0, 0.0, -14.0))
 	WorldCollisionBuilderScript.attach_box(
 		platform,
-		Vector3(28.0, 0.35, 28.0),
-		Vector3(0.0, -0.18, 0.0)
+		Vector3(30.0, 0.5, 30.0),
+		Vector3(0.0, 0.25, 0.0)
 	)
 	_add_arrival_pickup(platform, Vector3(-3.0, 0.0, -2.0))
 
@@ -131,14 +134,6 @@ static func _build_arrival_hub(root: Node3D, entry: Dictionary, spawn_id: String
 		PharmacyBuilderScript.build(hub, Vector3(22.0, 0.0, -18.0))
 		WeaponShopBuilderScript.build(hub, Vector3(-24.0, 0.0, -20.0), "weapon_shop_%s" % spawn_id)
 		PurpleLaserTowerBuilderScript.build(hub, Vector3(28.0, 0.0, 14.0), spawn_id)
-		GreeneryVegetationBuilder.scatter_in_radius(
-			hub,
-			Vector3.ZERO,
-			ARRIVAL_HUB_RADIUS_M * 0.55,
-			8,
-			5,
-			spawn_id
-		)
 
 
 static func _build_district(parent: Node3D, radius_m: float, kit: String) -> void:

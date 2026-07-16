@@ -255,12 +255,12 @@ static func _build_spawn_plaza(root: Node3D) -> void:
 	plaza.collision_mask = 0
 	root.add_child(plaza)
 
-	# Tunn platta under y=0 så spawn inte startar inuti kollisionen.
+	# Öppen spawnplatta ovanför golvnivå — undvik att spelaren startar inuti kollision.
 	var floor_shape := CollisionShape3D.new()
 	var floor_box := BoxShape3D.new()
-	floor_box.size = Vector3(22.0, 0.24, 22.0)
+	floor_box.size = Vector3(24.0, 0.4, 24.0)
 	floor_shape.shape = floor_box
-	floor_shape.position = Vector3(0.0, -0.12, 0.0)
+	floor_shape.position = Vector3(0.0, 0.2, 0.0)
 	plaza.add_child(floor_shape)
 
 	var floor_mesh := MeshInstance3D.new()

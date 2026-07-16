@@ -159,6 +159,26 @@ static func get_play_spawn_position(spawn_id: String) -> Vector3:
 	return base
 
 
+## Flyttar spelvärlden nära origo (XZ) så fysik och raycasts inte glappar vid ~30 km.
+static func get_world_origin_shift(spawn_id: String) -> Vector3:
+	var play := get_play_spawn_position(spawn_id)
+	return Vector3(play.x, 0.0, play.z)
+
+
+static func to_shifted_world(logical: Vector3, spawn_id: String) -> Vector3:
+	var shift := get_world_origin_shift(spawn_id)
+	return Vector3(logical.x - shift.x, logical.y, logical.z - shift.z)
+
+
+static func to_logical_world(shifted: Vector3, spawn_id: String) -> Vector3:
+	var shift := get_world_origin_shift(spawn_id)
+	return Vector3(shifted.x + shift.x, shifted.y, shifted.z + shift.z)
+
+
+static func get_shifted_play_spawn(spawn_id: String) -> Vector3:
+	return to_shifted_world(get_play_spawn_position(spawn_id), spawn_id)
+
+
 static func colony_number_to_id(colony_number: int) -> String:
 	for id in IDS:
 		if int(COLONY_NUMBERS.get(id, 0)) == colony_number:

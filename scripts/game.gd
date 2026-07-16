@@ -258,7 +258,7 @@ func _populate_world_entities() -> void:
 			zone_mgr.setup_world_visuals(self, "")
 		return
 
-	var spawn_pos := SpawnPoints.get_play_spawn_position(_active_spawn_id)
+	var spawn_pos := _shift_world(SpawnPoints.get_play_spawn_position(_active_spawn_id))
 	var monsters_root := MonsterSpawner.populate(
 		self,
 		_active_spawn_id,
@@ -578,6 +578,26 @@ func get_local_player() -> Node3D:
 	if players.has(local_id):
 		return players[local_id]
 	return null
+
+
+func shift_world_position(logical: Vector3) -> Vector3:
+	return _shift_world(logical)
+
+
+func logical_world_position(shifted: Vector3) -> Vector3:
+	return _logical_world(shifted)
+
+
+func _shift_world(logical: Vector3) -> Vector3:
+	if _active_spawn_id == "":
+		return logical
+	return SpawnPoints.to_shifted_world(logical, _active_spawn_id)
+
+
+func _logical_world(shifted: Vector3) -> Vector3:
+	if _active_spawn_id == "":
+		return shifted
+	return SpawnPoints.to_logical_world(shifted, _active_spawn_id)
 
 
 func get_camera_pivot() -> Node3D:
@@ -1173,8 +1193,9 @@ func _get_dc_zone_hint(player_pos: Vector3) -> String:
 		return ownership_hint
 	if SpawnPoints.normalize_id(_active_spawn_id) != "satellite_right":
 		return ""
+	var logical_player := _logical_world(player_pos)
 	var spawn_pos := SpawnPoints.get_position(_active_spawn_id)
-	var local := player_pos - spawn_pos
+	var local := logical_player - spawn_pos
 	var cell := Vector2i(
 		int(floor(local.x / DcZoneCatalogScript.BLOCK_M)),
 		int(floor(local.z / DcZoneCatalogScript.BLOCK_M))
@@ -1283,14 +1304,13 @@ func _connect_zone_spawn_signals() -> void:
 func _resolve_player_spawn_position(peer_id: int) -> Vector3:
 	var colony_id := SpawnPoints.ensure_colony_id(_active_spawn_id)
 	var spawn_pos := SpawnPoints.get_play_spawn_position(colony_id)
-	if peer_id != multiplayer.get_unique_id():
-		return spawn_pos
-	var zone_mgr := RuntimeGlobals.zone_ownership()
-	if zone_mgr:
-		var building_pos := zone_mgr.get_preferred_building_spawn_position(colony_id)
-		if building_pos != Vector3.ZERO:
-			spawn_pos = building_pos
-	return spawn_pos
+	if peer_id == multiplayer.get_unique_id():
+		var zone_mgr := RuntimeGlobals.zone_ownership()
+		if zone_mgr:
+			var building_pos := zone_mgr.get_preferred_building_spawn_position(colony_id)
+			if building_pos != Vector3.ZERO:
+				spawn_pos = building_pos
+	return _shift_world(spawn_pos)
 
 
 func _on_building_spawn_set(world_pos: Vector3) -> void:
@@ -1299,14 +1319,14 @@ func _on_building_spawn_set(world_pos: Vector3) -> void:
 		return
 	var player: Node3D = players[local_id]
 	if player.has_method("set_spawn_anchor"):
-		player.set_spawn_anchor(world_pos)
+		player.set_spawn_anchor(_shift_world(world_pos))
 
 
 func _align_player_to_floor(player: Node3D) -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	# Vänta tills statisk kollision från världen finns i physics-servern.
-	for _i in range(4):
+	for _i in range(10):
 		await get_tree().physics_frame
 	if not is_instance_valid(player):
 		return

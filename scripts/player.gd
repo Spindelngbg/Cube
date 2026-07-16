@@ -61,6 +61,17 @@ var _fp_melee: FirstPersonMeleeView
 var _punch_cooldown := 0.0
 var _melee_cooldown := 0.0
 var _stuck_frames := 0
+var _slap_active := false
+var _slap_immunity_timer := 0.0
+var _slap_airborne := false
+const SLAP_LAUNCH_VELOCITY := 20.0
+const SLAP_IMMUNITY_SEC := 6.0
+const SLAP_POST_LAND_IMMUNITY_SEC := 2.0
+const FALL_DAMAGE_MIN_IMPACT_SPEED := 9.0
+const FALL_DAMAGE_LETHAL_SPEED := 30.0
+const FALL_DAMAGE_MIN_AMOUNT := 8.0
+const FALL_DAMAGE_MAX_AMOUNT := 90.0
+var _peak_fall_speed := 0.0
 var _last_sync_pos := Vector3.ZERO
 var _last_sent_pos := Vector3.ZERO
 var _last_sent_yaw := 0.0
@@ -151,8 +162,10 @@ func ensure_safe_ground() -> void:
 func _try_place_on_floor(space: PhysicsDirectSpaceState3D, xz_pos: Vector3) -> Vector3:
 	var probe_x := xz_pos.x
 	var probe_z := xz_pos.z
-	var from := Vector3(probe_x, maxf(xz_pos.y, 0.0) + 64.0, probe_z)
-	var to := Vector3(probe_x, minf(xz_pos.y, 0.0) - 128.0, probe_z)
+	var anchor_y := _spawn_anchor.y if _spawn_anchor != Vector3.ZERO else SpawnPoints.SPAWN_FOOT_Y
+	var probe_top := maxf(maxf(xz_pos.y, anchor_y), SpawnPoints.SPAWN_FOOT_Y) + 32.0
+	var from := Vector3(probe_x, probe_top, probe_z)
+	var to := Vector3(probe_x, -6.0, probe_z)
 	var hit := _ray_floor(space, from, to)
 	if hit.is_empty():
 		return Vector3.INF
@@ -160,28 +173,8 @@ func _try_place_on_floor(space: PhysicsDirectSpaceState3D, xz_pos: Vector3) -> V
 	var normal: Vector3 = hit.get("normal", Vector3.UP)
 	if normal.y < 0.45:
 		return Vector3.INF
-	# Om första träffen är tak/plattform, sök nedåt efter riktigt golv.
-	var search_from_y := floor_y - 0.08
-	var max_reasonable_y := maxf(_spawn_anchor.y, SpawnPoints.SPAWN_FOOT_Y) + 8.0
-	for _pass in range(5):
-		var deeper := _ray_floor(
-			space,
-			Vector3(probe_x, search_from_y, probe_z),
-			Vector3(probe_x, search_from_y - 64.0, probe_z)
-		)
-		if deeper.is_empty():
-			break
-		var deeper_n: Vector3 = deeper.get("normal", Vector3.UP)
-		if deeper_n.y < 0.45:
-			break
-		var deeper_y := float(deeper.position.y)
-		if deeper_y < floor_y - 0.35 and deeper_y <= max_reasonable_y:
-			floor_y = deeper_y
-			search_from_y = floor_y - 0.08
-		else:
-			break
 	# CharacterBody-origin = fötter (kapsel offset y=1, height=2).
-	return Vector3(probe_x, floor_y + 0.06, probe_z)
+	return Vector3(probe_x, floor_y + 0.12, probe_z)
 
 
 func _ray_floor(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Dictionary:
@@ -337,10 +330,14 @@ func release_from_zezzlor_jail() -> void:
 		var building_pos := zone_mgr.get_preferred_building_spawn_position(colony_id)
 		if building_pos != Vector3.ZERO:
 			pos = building_pos
+	var game := get_tree().get_first_node_in_group("game_director")
+	if game != null and game.has_method("shift_world_position"):
+		pos = game.shift_world_position(pos)
+	else:
+		pos = SpawnPoints.get_shifted_play_spawn(colony_id)
 	global_position = pos
 	_spawn_anchor = pos
 	snap_to_floor()
-	var game := get_tree().get_first_node_in_group("game_director")
 	if game != null and game.has_method("should_capture_mouse") and game.should_capture_mouse():
 		if game.has_method("get_camera_pivot") and game.has_method("get_camera"):
 			MouseLook.activate(game.get_camera_pivot(), game.get_camera())
@@ -398,8 +395,17 @@ func _physics_process(delta: float) -> void:
 			_respawn()
 		return
 
+	if _slap_immunity_timer > 0.0:
+		_slap_immunity_timer = maxf(0.0, _slap_immunity_timer - delta)
+
+	if _slap_active:
+		_process_slap_physics(delta)
+		return
+
 	# Nödlösning: under mark / långt under spawn → knuffa upp till säkert golv.
-	if global_position.y < -2.0 or (_spawn_anchor != Vector3.ZERO and global_position.y < _spawn_anchor.y - 12.0):
+	if global_position.y < SpawnPoints.SPAWN_FOOT_Y - 1.0 or (
+		_spawn_anchor != Vector3.ZERO and global_position.y < _spawn_anchor.y - 2.0
+	):
 		if _spawn_anchor != Vector3.ZERO:
 			global_position = _spawn_anchor
 		ensure_safe_ground()
@@ -418,11 +424,13 @@ func _physics_process(delta: float) -> void:
 	var pre_move_pos := global_position
 
 	var ladder := _get_active_ladder()
+	var was_on_floor := is_on_floor()
 	if ladder != null and ladder.apply_climb(self, delta):
-		pass
+		_peak_fall_speed = 0.0
 	elif swimming:
 		_apply_swim_physics(delta, direction, input_dir)
 		move_and_slide()
+		_peak_fall_speed = 0.0
 	else:
 		if not is_on_floor():
 			velocity.y -= GRAVITY * delta
@@ -450,6 +458,7 @@ func _physics_process(delta: float) -> void:
 			velocity.z = move_toward(velocity.z, 0, move_speed)
 
 		move_and_slide()
+		_apply_landing_fall_damage(was_on_floor)
 
 	if not swimming and ladder == null:
 		if direction != Vector3.ZERO and is_on_floor() and pre_move_pos.distance_to(global_position) < 0.004:
@@ -606,6 +615,100 @@ func set_spawn_anchor(pos: Vector3) -> void:
 	_spawn_anchor = pos
 
 
+func get_account_username() -> String:
+	return _player_username
+
+
+func matches_player_name(query: String) -> bool:
+	var needle := query.strip_edges().to_lower()
+	if needle.is_empty():
+		return false
+	if _player_username.strip_edges().to_lower() == needle:
+		return true
+	return name_label.text.strip_edges().to_lower() == needle
+
+
+func get_slap_display_name() -> String:
+	var label := name_label.text.strip_edges() if name_label else ""
+	if label != "":
+		return label
+	if _player_username.strip_edges() != "":
+		return _player_username.strip_edges()
+	return "Spelare"
+
+
+func request_slap() -> String:
+	var display := get_slap_display_name()
+	if is_multiplayer_authority():
+		apply_slap()
+	else:
+		_rpc_slap.rpc_id(get_multiplayer_authority())
+	return "SLAP! %s skickades upp i luften." % display
+
+
+func apply_slap() -> void:
+	if not is_multiplayer_authority():
+		return
+	if _is_dead or _zezzlor_jail_active or is_piloting_vehicle() or _slap_active:
+		return
+	_slap_active = true
+	_slap_airborne = false
+	_slap_immunity_timer = SLAP_IMMUNITY_SEC
+	_peak_fall_speed = 0.0
+	_stuck_frames = 0
+	velocity = Vector3(0.0, SLAP_LAUNCH_VELOCITY, 0.0)
+
+
+func _process_slap_physics(delta: float) -> void:
+	velocity.y -= GRAVITY * delta
+	if not is_on_floor():
+		_slap_airborne = true
+	move_and_slide()
+	if _slap_airborne and is_on_floor() and velocity.y <= 0.0:
+		_finish_slap_landing()
+
+
+func _finish_slap_landing() -> void:
+	_slap_active = false
+	_slap_airborne = false
+	_peak_fall_speed = 0.0
+	velocity = Vector3.ZERO
+	ensure_safe_ground()
+	_slap_immunity_timer = maxf(_slap_immunity_timer, SLAP_POST_LAND_IMMUNITY_SEC)
+	_stuck_frames = 0
+
+
+func _apply_landing_fall_damage(was_on_floor_before: bool) -> void:
+	if is_on_floor():
+		if not was_on_floor_before:
+			var impact_speed := maxf(_peak_fall_speed, maxf(0.0, -velocity.y))
+			_peak_fall_speed = 0.0
+			var damage := _fall_damage_for_speed(impact_speed)
+			if damage > 0.0:
+				take_fall_damage(damage)
+		else:
+			_peak_fall_speed = 0.0
+	elif velocity.y < 0.0:
+		_peak_fall_speed = maxf(_peak_fall_speed, -velocity.y)
+
+
+func _fall_damage_for_speed(impact_speed: float) -> float:
+	if impact_speed < FALL_DAMAGE_MIN_IMPACT_SPEED:
+		return 0.0
+	var weight := inverse_lerp(
+		FALL_DAMAGE_MIN_IMPACT_SPEED,
+		FALL_DAMAGE_LETHAL_SPEED,
+		impact_speed
+	)
+	return lerpf(FALL_DAMAGE_MIN_AMOUNT, FALL_DAMAGE_MAX_AMOUNT, clampf(weight, 0.0, 1.0))
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _rpc_slap() -> void:
+	if is_multiplayer_authority():
+		apply_slap()
+
+
 func apply_zezzlor_laser_hit(amount: float) -> void:
 	if not is_multiplayer_authority():
 		return
@@ -618,9 +721,21 @@ func _rpc_apply_zezzlor_laser_hit(amount: float) -> void:
 
 
 func take_damage(amount: float) -> void:
+	_apply_damage(amount, true)
+
+
+func take_fall_damage(amount: float) -> void:
+	_apply_damage(amount, false)
+
+
+func _apply_damage(amount: float, respect_cooldown: bool) -> void:
 	if CheatStateScript.god_mode:
 		return
-	if _is_dead or _damage_cooldown > 0.0 or amount <= 0.0:
+	if _slap_active or _slap_immunity_timer > 0.0:
+		return
+	if _is_dead or amount <= 0.0:
+		return
+	if respect_cooldown and _damage_cooldown > 0.0:
 		return
 	_damage_cooldown = 0.85
 	_health = maxf(0.0, _health - amount)
