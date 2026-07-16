@@ -68,7 +68,10 @@ func _apply_mouse_mode(is_game: bool) -> void:
 
 
 func _game_allows_capture() -> bool:
-	var scene := get_tree().current_scene
+	var tree := get_tree()
+	if tree == null:
+		return false
+	var scene := tree.current_scene
 	if scene and scene.has_method("should_capture_mouse"):
 		return bool(scene.call("should_capture_mouse"))
 	return true

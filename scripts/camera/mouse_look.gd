@@ -154,7 +154,10 @@ func _should_auto_capture() -> bool:
 	var input_mode := get_node_or_null("/root/InputMode")
 	if input_mode and input_mode.has_method("allow_game_input") and not input_mode.allow_game_input():
 		return false
-	var game := get_tree().current_scene
+	var tree := get_tree()
+	if tree == null:
+		return false
+	var game := tree.current_scene
 	if game and game.has_method("should_capture_mouse"):
 		return bool(game.call("should_capture_mouse"))
 	return true
