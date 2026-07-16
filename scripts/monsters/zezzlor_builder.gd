@@ -28,13 +28,15 @@ static func build(parent: Node3D, rank_id: String = "patrol", scale_factor: floa
 
 	var core := SciFiEssentialsLibrary.spawn(parent, CORE_MESH, Vector3(0.0, 1.08 * scale_factor, 0.02 * scale_factor))
 	if core:
-		core.scale = Vector3.ONE * 0.42 * scale_factor
+		core.scale = Vector3.ONE * 0.5 * scale_factor
 		core.rotation_degrees.y = 18.0
 		_apply_uniform_tint(core, rank_color.lerp(UNIFORM_BLUE, 0.45), 0.72)
 
 	var baton_socket := _ensure_baton_socket(parent, scale_factor)
 	if rank_id == "superman":
 		_attach_cape(parent, scale_factor)
+	if rank_id == "allmakare":
+		_attach_healer_staff(parent, scale_factor)
 	return {"root": root, "baton_socket": baton_socket}
 
 
@@ -48,23 +50,23 @@ static func _build_avatar(rank_id: String, scale_factor: float) -> AvatarData:
 		rank_color = Color(1.0, 0.84, 0.18)
 	var data := AvatarData.new()
 	data.mesh_id = "zezzlor"
-	data.body_scale = 1.02 * scale_factor
-	data.abdomen_scale = 0.92
-	data.head_scale = 0.98
-	data.leg_length = 1.08
-	data.arm_length = 1.18
+	data.body_scale = 1.14 * scale_factor
+	data.abdomen_scale = 1.36
+	data.head_scale = 1.04
+	data.leg_length = 0.94
+	data.arm_length = 1.12
 	data.spider_leg_count = _arm_count_for_rank(rank_id)
 	data.eye_count = 6
-	data.eye_size = 1.15
-	data.eye_spread = 1.05
-	data.eye_stalk_length = 0.42
-	data.mandible_length = 0.35
-	data.fang_length = 0.2
-	data.claw_size = 0.55
-	data.crest_size = 0.18
+	data.eye_size = 1.12
+	data.eye_spread = 1.08
+	data.eye_stalk_length = 0.38
+	data.mandible_length = 0.32
+	data.fang_length = 0.18
+	data.claw_size = 0.52
+	data.crest_size = 0.16
 	data.glow_strength = 0.55 if rank_id == "superman" else 0.22
-	data.spike_amount = 0.2
-	data.stance_width = 1.12
+	data.spike_amount = 0.16
+	data.stance_width = 1.28
 	data.body_color = CHITIN_BASE.lerp(rank_color, 0.25)
 	data.accent_color = rank_color.lerp(UNIFORM_BLUE, 0.35)
 	data.eye_color = rank_color.lightened(0.35)
@@ -72,6 +74,40 @@ static func _build_avatar(rank_id: String, scale_factor: float) -> AvatarData:
 	data.chitin_roughness = 0.42
 	data.chitin_metallic = 0.38
 	return data
+
+
+static func _attach_healer_staff(parent: Node3D, scale_factor: float) -> void:
+	var staff := MeshInstance3D.new()
+	staff.name = "HealerStaff"
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.04
+	mesh.bottom_radius = 0.05
+	mesh.height = 1.1
+	staff.mesh = mesh
+	staff.position = Vector3(0.28 * scale_factor, 1.05 * scale_factor, 0.08 * scale_factor)
+	staff.rotation_degrees = Vector3(8.0, 0.0, -18.0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.95, 0.82, 0.28)
+	mat.emission_enabled = true
+	mat.emission = Color(0.98, 0.9, 0.4)
+	mat.emission_energy_multiplier = 0.65
+	mat.metallic = 0.55
+	staff.material_override = mat
+	parent.add_child(staff)
+
+	var orb := MeshInstance3D.new()
+	var orb_mesh := SphereMesh.new()
+	orb_mesh.radius = 0.1
+	orb_mesh.height = 0.2
+	orb.mesh = orb_mesh
+	orb.position = staff.position + Vector3(0.0, 0.62 * scale_factor, 0.0)
+	var orb_mat := StandardMaterial3D.new()
+	orb_mat.albedo_color = Color(0.55, 0.92, 1.0)
+	orb_mat.emission_enabled = true
+	orb_mat.emission = Color(0.45, 0.85, 1.0)
+	orb_mat.emission_energy_multiplier = 1.1
+	orb.material_override = orb_mat
+	parent.add_child(orb)
 
 
 static func _attach_cape(parent: Node3D, scale_factor: float) -> void:

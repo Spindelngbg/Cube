@@ -13,6 +13,7 @@ const REQUEST_TIMEOUT_SEC := 20.0
 
 var avatar: AvatarData = AvatarData.new()
 var avatar_ready := false
+var active_avatar_configured := false
 var characters: Array = []
 var active_character_id: String = ""
 var active_character_name: String = ""
@@ -50,10 +51,12 @@ func clear_characters() -> void:
 	characters.clear()
 	active_character_id = ""
 	active_character_name = ""
+	active_nest_visited = false
 	active_home_spawn_id = ""
 	active_home_spawn_locked = false
 	avatar = AvatarData.new()
 	avatar_ready = false
+	active_avatar_configured = false
 	_busy = false
 	_list_synced = false
 
@@ -114,8 +117,10 @@ func has_home_spawn() -> bool:
 
 func get_home_spawn_position() -> Vector3:
 	if has_home_spawn():
-		return SpawnPoints.get_position(SpawnPoints.normalize_id(active_home_spawn_id))
-	return SpawnPoints.get_position("satellite_left")
+		return SpawnPoints.get_play_spawn_position(
+			SpawnPoints.ensure_colony_id(active_home_spawn_id)
+		)
+	return SpawnPoints.get_play_spawn_position(SpawnPoints.default_colony_id())
 
 
 func complete_nest_intro() -> void:
@@ -305,6 +310,7 @@ func _on_request_completed(
 						break
 			else:
 				avatar_ready = false
+				active_avatar_configured = false
 			_list_synced = true
 			characters_loaded.emit()
 		"nest_complete":
@@ -339,10 +345,43 @@ func _apply_character_list(data: Dictionary) -> void:
 		for entry in characters:
 			if typeof(entry) == TYPE_DICTIONARY and str((entry as Dictionary).get("id", "")) == active_character_id:
 				_apply_active_character(entry as Dictionary)
+				character_selected.emit()
 				return
 
 	if not characters.is_empty() and typeof(characters[0]) == TYPE_DICTIONARY:
 		_apply_active_character(characters[0] as Dictionary)
+		character_selected.emit()
+
+
+func character_avatar_configured(entry: Dictionary) -> bool:
+	if typeof(entry) != TYPE_DICTIONARY or entry.is_empty():
+		return false
+	if bool(entry.get("avatarConfigured", false)):
+		return true
+	if bool(entry.get("homeSpawnLocked", false)) or bool(entry.get("nestVisited", false)):
+		return true
+	var created_at := str(entry.get("createdAt", ""))
+	var updated_at := str(entry.get("updatedAt", ""))
+	if created_at != "" and updated_at != "" and updated_at != created_at:
+		return true
+	return false
+
+
+func active_needs_avatar_setup() -> bool:
+	if Auth.is_guest:
+		return true
+	return not active_avatar_configured
+
+
+func _fallback_avatar_for_character(character_id: String) -> AvatarData:
+	var data := AvatarData.new()
+	var mesh_ids := HumanCharacterLibrary.list_mesh_ids()
+	if mesh_ids.is_empty():
+		data.mesh_id = "character-a"
+	else:
+		var seed := absi(hash("%s_%s" % [character_id, Auth.username]))
+		data.mesh_id = mesh_ids[seed % mesh_ids.size()]
+	return data
 
 
 func _apply_active_character(entry: Dictionary) -> void:
@@ -353,6 +392,21 @@ func _apply_active_character(entry: Dictionary) -> void:
 	if not active_home_spawn_locked:
 		active_home_spawn_id = ""
 	active_nest_visited = bool(entry.get("nestVisited", false))
+	active_avatar_configured = character_avatar_configured(entry)
+
 	var avatar_dict: Dictionary = entry.get("avatar", {})
-	if typeof(avatar_dict) == TYPE_DICTIONARY and not avatar_dict.is_empty():
-		set_avatar(AvatarData.from_dict(avatar_dict))
+	if typeof(avatar_dict) != TYPE_DICTIONARY:
+		avatar_dict = {}
+
+	if not avatar_dict.is_empty():
+		var avatar_data := AvatarData.from_dict(avatar_dict)
+		if not avatar_dict.has("mesh_id") or str(avatar_dict.get("mesh_id", "")).strip_edges() == "":
+			var mesh_ids := HumanCharacterLibrary.list_mesh_ids()
+			if not mesh_ids.is_empty():
+				var seed := absi(hash("%s_%s" % [active_character_id, Auth.username]))
+				avatar_data.mesh_id = mesh_ids[seed % mesh_ids.size()]
+		set_avatar(avatar_data)
+	elif active_avatar_configured:
+		set_avatar(_fallback_avatar_for_character(active_character_id))
+	else:
+		avatar_ready = false

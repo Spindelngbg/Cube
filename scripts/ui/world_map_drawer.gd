@@ -53,7 +53,8 @@ static func draw(
 	has_waypoint: bool = false,
 	backup_pings: Array = [],
 	blink_alpha: float = 1.0,
-	show_footer: bool = false
+	show_footer: bool = false,
+	show_text: bool = true
 ) -> void:
 	if inner.size.x <= 4.0 or inner.size.y <= 4.0:
 		return
@@ -82,30 +83,32 @@ static func draw(
 		var elev_px := _world_to_map(elevator_pos, inner, map_center, half_extent, true)
 		canvas.draw_rect(Rect2(elev_px - Vector2(5, 5), Vector2(10, 10)), Color(0.95, 0.75, 0.2, 0.9), true)
 
-	GuiFontLibraryScript.draw(
-		canvas,
-		inner.position + Vector2(4, 16),
-		"N",
-		GuiFontLibraryScript.FONT_SMALL,
-		Color(1, 1, 1, 0.35)
-	)
+	if show_text:
+		GuiFontLibraryScript.draw(
+			canvas,
+			inner.position + Vector2(4, 16),
+			"N",
+			GuiFontLibraryScript.FONT_SMALL,
+			Color(1, 1, 1, 0.35)
+		)
 
 	for poi in pois:
 		var poi_pos: Vector3 = poi.get("world_position", Vector3.ZERO)
 		var px := _world_to_map(poi_pos, inner, map_center, half_extent, true)
 		var color: Color = poi.get("color", Color(0.45, 0.92, 0.68))
 		canvas.draw_rect(Rect2(px - Vector2(4, 4), Vector2(8, 8)), color, true)
-		var label_pos := Vector2(
-			clampf(px.x + 6.0, inner.position.x + 2.0, inner.end.x - 72.0),
-			clampf(px.y - 4.0, inner.position.y + 12.0, inner.end.y - 4.0)
-		)
-		GuiFontLibraryScript.draw(
-			canvas,
-			label_pos,
-			str(poi.get("name", "")),
-			GuiFontLibraryScript.FONT_MAP,
-			Color(color.r, color.g, color.b, 0.9)
-		)
+		if show_text:
+			var label_pos := Vector2(
+				clampf(px.x + 6.0, inner.position.x + 2.0, inner.end.x - 72.0),
+				clampf(px.y - 4.0, inner.position.y + 12.0, inner.end.y - 4.0)
+			)
+			GuiFontLibraryScript.draw(
+				canvas,
+				label_pos,
+				str(poi.get("name", "")),
+				GuiFontLibraryScript.FONT_MAP,
+				Color(color.r, color.g, color.b, 0.9)
+			)
 
 	if has_waypoint:
 		var wpx := _world_to_map(waypoint, inner, map_center, half_extent, true)
@@ -139,7 +142,7 @@ static func draw(
 		canvas.draw_circle(px, radius + 1.5, Color(0, 0, 0, 0.45))
 		canvas.draw_circle(px, radius, color)
 
-	if show_footer:
+	if show_text and show_footer:
 		var title := SpawnPoints.get_spawn_name(spawn_id)
 		if title == "":
 			title = "Karta"

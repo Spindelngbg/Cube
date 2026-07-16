@@ -60,10 +60,8 @@ static func prototype_position_to_zone(world_pos: Vector3) -> String:
 
 
 static func prototype_spawn_position() -> Vector3:
-	var center_block := CubeConstants.PROTOTYPE_BLOCK_ORIGIN + Vector2i(
-		CubeConstants.PROTOTYPE_BLOCK_COUNT / 2,
-		CubeConstants.PROTOTYPE_BLOCK_COUNT / 2
-	)
+	var half_blocks := int(CubeConstants.PROTOTYPE_BLOCK_COUNT / 2.0)
+	var center_block := CubeConstants.PROTOTYPE_BLOCK_ORIGIN + Vector2i(half_blocks, half_blocks)
 	var origin := prototype_origin_m(center_block, Vector2i(2, 2))
 	return origin + Vector3(
 		CubeConstants.PROTOTYPE_METERS_PER_ZONE * 0.5,

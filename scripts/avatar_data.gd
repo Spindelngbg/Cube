@@ -1,7 +1,8 @@
 class_name AvatarData
 extends Resource
 
-@export var mesh_id := "reference_human"
+@export var mesh_id := "character-a"
+@export var gender := "man"
 @export var body_color := Color(0.82, 0.66, 0.52)
 @export var accent_color := Color(0.18, 0.22, 0.34)
 @export var eye_color := Color(0.22, 0.16, 0.12)
@@ -33,6 +34,7 @@ extends Resource
 func duplicate_data() -> AvatarData:
 	var copy := AvatarData.new()
 	copy.mesh_id = mesh_id
+	copy.gender = gender
 	copy.body_color = body_color
 	copy.accent_color = accent_color
 	copy.eye_color = eye_color
@@ -63,6 +65,7 @@ func duplicate_data() -> AvatarData:
 func to_dict() -> Dictionary:
 	return {
 		"mesh_id": mesh_id,
+		"gender": gender,
 		"body_color": body_color.to_html(false),
 		"accent_color": accent_color.to_html(false),
 		"eye_color": eye_color.to_html(false),
@@ -94,7 +97,8 @@ static func from_dict(data: Dictionary) -> AvatarData:
 	var avatar := AvatarData.new()
 	if data.is_empty():
 		return avatar
-	avatar.mesh_id = str(data.get("mesh_id", "reference_human"))
+	avatar.mesh_id = str(data.get("mesh_id", "character-a"))
+	avatar.gender = str(data.get("gender", "man"))
 	avatar.body_color = Color.html(data.get("body_color", "#d1a885"))
 	avatar.accent_color = Color.html(data.get("accent_color", "#2e3857"))
 	avatar.eye_color = Color.html(data.get("eye_color", "#38281f"))

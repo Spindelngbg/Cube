@@ -1,6 +1,9 @@
 class_name ZnoodAccessDoor
 extends Node3D
 
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
+
 signal door_opened(door_id: String)
 
 @export var door_id := ""
@@ -73,6 +76,14 @@ func _do_unlock() -> void:
 	_locked = false
 	_opening = true
 	_update_status_label()
+	GameSfxScript.play_3d_varied(self, global_position + Vector3(0.0, 1.2, 0.0), RpgAudioLibraryScript.door_open())
+	GameSfxScript.play_3d_varied(
+		self,
+		global_position + Vector3(0.0, 1.8, 0.0),
+		RpgAudioLibraryScript.door_creak(),
+		Vector2(-14.0, -9.0),
+		Vector2(0.88, 1.02)
+	)
 	_open_leaf()
 	door_opened.emit(door_id)
 

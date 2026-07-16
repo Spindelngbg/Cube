@@ -82,6 +82,7 @@ func _build() -> void:
 # ---- tab: audio ----------------------------------------------------------
 
 func _build_audio_tab() -> Control:
+	var settings := _settings()
 	var tab := VBoxContainer.new()
 	tab.name = "Audio"
 	tab.add_theme_constant_override("separation", 10)
@@ -89,6 +90,15 @@ func _build_audio_tab() -> Control:
 	_add_slider_row(tab, "Master", "audio.master", 0.0, 1.0, 0.01)
 	_add_slider_row(tab, "Music", "audio.music", 0.0, 1.0, 0.01)
 	_add_slider_row(tab, "SFX", "audio.sfx", 0.0, 1.0, 0.01)
+	if settings != null:
+		var footsteps_row := _row(tab, "Gåljud")
+		var footsteps_cb := CheckBox.new()
+		footsteps_cb.button_pressed = bool(settings.get_value("audio.footsteps_enabled", true))
+		footsteps_cb.toggled.connect(func(p):
+			var s := _settings()
+			if s != null:
+				s.set_value("audio.footsteps_enabled", p))
+		footsteps_row.add_child(footsteps_cb)
 	return tab
 
 

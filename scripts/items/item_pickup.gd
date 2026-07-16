@@ -1,6 +1,9 @@
 class_name ItemPickup
 extends Area3D
 
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
+
 @export var item_id := ""
 @export var prompt_text := "Plocka upp [E]"
 @export var one_shot := true
@@ -34,8 +37,18 @@ func try_collect() -> bool:
 	if not InventoryManager.add_item(item_id):
 		return false
 	_collected = true
+	_play_pickup_sound()
 	_on_collected()
 	return true
+
+
+func _play_pickup_sound() -> void:
+	var stream := (
+		RpgAudioLibraryScript.pickup_weapon()
+		if ItemCatalog.is_weapon(item_id)
+		else RpgAudioLibraryScript.pickup_item()
+	)
+	GameSfxScript.play_3d_varied(self, global_position + Vector3(0.0, 0.5, 0.0), stream)
 
 
 func _on_collected() -> void:

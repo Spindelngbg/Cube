@@ -1,12 +1,19 @@
 extends CharacterBody3D
 
+const Hurtbox3DScript = preload("res://scripts/combat/hurtbox_3d.gd")
+const NpcHealthBar3DScript = preload("res://scripts/ui/npc_health_bar_3d.gd")
+const NpcDialogueBarkScript = preload("res://scripts/audio/npc_dialogue_bark.gd")
+const SimulationLodScript = preload("res://scripts/world/simulation_lod.gd")
+
 const WANDER_SPEED_MULT := 1.0
 const TURN_SPEED := 4.5
 const HYBRID_HP := 48.0
 const DEFAULT_HP := 28.0
+const SYNC_INTERVAL := 0.18
 
 var _model_pivot: Node3D
 var _name_label: Label3D
+var _health_bar: NpcHealthBar3D
 var _display_name := "Monster"
 var _move_speed := 2.0
 var _wander_dir := Vector3.FORWARD
@@ -18,7 +25,10 @@ var _avatar_animator: AvatarAnimator
 var _moving := false
 var _rng := RandomNumberGenerator.new()
 var _hp := DEFAULT_HP
+var _max_hp := DEFAULT_HP
 var _alive := true
+var _sync_accum := 0.0
+var _lod_wait := 0.0
 
 
 func _ready() -> void:
@@ -49,7 +59,10 @@ func setup(entry: Dictionary, spawn_pos: Vector3, bounds_center: Vector3, bounds
 			push_warning("WorldMonster: okänd typ %s" % entry.get("kind", ""))
 
 	_wander_timer = _rng.randf_range(0.5, 2.0)
-	_hp = HYBRID_HP if has_meta("is_src_hybrid") else DEFAULT_HP
+	_max_hp = HYBRID_HP if has_meta("is_src_hybrid") else DEFAULT_HP
+	_hp = _max_hp
+	_setup_hurtbox()
+	_setup_health_bar()
 
 
 func is_alive() -> bool:
@@ -75,8 +88,10 @@ func _apply_damage(amount: float) -> void:
 func _apply_damage_local(amount: float) -> void:
 	if not _alive or amount <= 0.0:
 		return
-	_hp -= amount
+	_hp = maxf(0.0, _hp - amount)
 	_flash_hit()
+	NpcDialogueBarkScript.play_for_npc(self, "damage", "ian")
+	_refresh_health_bar()
 	if _hp <= 0.0:
 		_die()
 
@@ -96,6 +111,8 @@ func _die() -> void:
 	_alive = false
 	velocity = Vector3.ZERO
 	set_collision_layer_value(4, false)
+	NpcDialogueBarkScript.play_for_npc(self, "death", "ian")
+	_refresh_health_bar()
 	var game := get_tree().get_first_node_in_group("game_director")
 	if game and game.has_method("unregister_monster"):
 		game.unregister_monster(self)
@@ -107,9 +124,17 @@ func _physics_process(delta: float) -> void:
 		return
 	if not _is_simulation_authority():
 		return
-	_simulate(delta)
+	_lod_wait += delta
+	var lod_interval := SimulationLodScript.physics_interval(self)
+	if _lod_wait >= lod_interval:
+		var step := _lod_wait
+		_lod_wait = 0.0
+		_simulate(step)
 	if multiplayer.multiplayer_peer != null:
-		_sync_state.rpc(position, rotation.y, _moving)
+		_sync_accum += delta
+		if _sync_accum >= SYNC_INTERVAL:
+			_sync_accum = 0.0
+			_sync_state.rpc(position, rotation.y, _moving)
 
 
 func _is_simulation_authority() -> bool:
@@ -138,6 +163,23 @@ func _simulate(delta: float) -> void:
 
 	move_and_slide()
 	_update_animation()
+
+
+func _setup_hurtbox() -> void:
+	Hurtbox3DScript.attach(self, 0.72, 2.2, 1.0)
+
+
+func _setup_health_bar() -> void:
+	_health_bar = NpcHealthBar3DScript.new()
+	_health_bar.name = "HealthBar"
+	_health_bar.position = Vector3(0.0, 2.85, 0.0)
+	add_child(_health_bar)
+	_health_bar.tree_entered.connect(func(): _refresh_health_bar(), CONNECT_ONE_SHOT)
+
+
+func _refresh_health_bar() -> void:
+	if _health_bar:
+		_health_bar.update_health(_hp, _max_hp, not _alive)
 
 
 func _pick_new_direction() -> void:

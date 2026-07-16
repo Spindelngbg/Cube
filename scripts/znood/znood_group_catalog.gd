@@ -18,6 +18,10 @@ const GROUPS := {
 		"name": "Zezzlor Respons",
 		"description": "Zezzlor-enheter i närheten av checkpoint.",
 	},
+	"gleazers": {
+		"name": "Gleazers",
+		"description": "Klanen som alltid misslyckas — ger konstant nya (dåliga) quests.",
+	},
 }
 
 

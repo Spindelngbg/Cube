@@ -276,10 +276,8 @@ static func _place_structure(
 
 static func _kit_for_block(block: Vector2i) -> String:
 	var local := block - CubeConstants.PROTOTYPE_BLOCK_ORIGIN
-	var center := Vector2i(
-		CubeConstants.PROTOTYPE_BLOCK_COUNT / 2,
-		CubeConstants.PROTOTYPE_BLOCK_COUNT / 2
-	)
+	var half_blocks := int(CubeConstants.PROTOTYPE_BLOCK_COUNT / 2.0)
+	var center := Vector2i(half_blocks, half_blocks)
 	var dist := maxi(abs(local.x - center.x), abs(local.y - center.y))
 	if dist <= 0:
 		return "commercial"

@@ -12,10 +12,10 @@ extends EditorPlugin
 const _SETTINGS := preload("./plugin_settings.gd")
 const _GIZMO_PLUGIN := preload("./gizmos/gizmo_plugin.gd")
 const _EDITOR_ACTIONS := preload("./editor_actions.gd")
-const _CONTROL_SCENES: Array[PackedScene] = [
-	preload("./controls/root_actions/root_actions.tscn"),
-	preload("./controls/blocks_area_actions/blocks_area_actions.tscn"),
-	preload("./controls/styler_actions/styler_actions.tscn"),
+const _CONTROL_SCENE_PATHS: Array[String] = [
+	"res://addons/roommate/controls/root_actions/root_actions.tscn",
+	"res://addons/roommate/controls/blocks_area_actions/blocks_area_actions.tscn",
+	"res://addons/roommate/controls/styler_actions/styler_actions.tscn",
 ]
 
 var settings: _SETTINGS
@@ -34,7 +34,11 @@ func _enter_tree() -> void:
 	get_editor_interface().get_selection().selection_changed.connect(_update_controls_visibility)
 	settings.init_settings()
 	add_node_3d_gizmo_plugin(_gizmo_plugin)
-	for scene in _CONTROL_SCENES:
+	for scene_path in _CONTROL_SCENE_PATHS:
+		var scene := load(scene_path) as PackedScene
+		if scene == null:
+			push_error("Roommate: could not load control scene: %s" % scene_path)
+			continue
 		var control := scene.instantiate() as Control
 		control.set(&"plugin", self)
 		add_control_to_container(EditorPlugin.CONTAINER_SPATIAL_EDITOR_MENU, control)

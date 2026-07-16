@@ -1,5 +1,8 @@
 extends Area3D
 
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
+
 const LASER_DAMAGE := 24.0
 const SPEED := 52.0
 const MAX_LIFETIME := 2.4
@@ -59,6 +62,7 @@ func _try_hit(node: Node) -> void:
 	if target.has_method("take_damage"):
 		target.take_damage(LASER_DAMAGE)
 	_spawn_spark(global_position)
+	GameSfxScript.play_3d_varied(get_parent(), global_position, RpgAudioLibraryScript.laser_hit())
 	queue_free()
 
 

@@ -18,6 +18,8 @@ var _connect_watchdog: SceneTreeTimer
 
 
 func _ready() -> void:
+	InputMode.ui()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	SpiderTheme.apply_to(self)
 	SpiderTheme.style_title($Layout/Left/TitleBox/Title, 40)
 	SpiderTheme.style_subtitle($Layout/Left/TitleBox/Subtitle)
@@ -28,8 +30,12 @@ func _ready() -> void:
 
 	_setup_welcome()
 	_configure_human_ui()
+	_setup_mesh_options()
+	_setup_gender_options()
 	_setup_avatar()
 	_bind_sliders()
+	_set_mesh_option_from_avatar()
+	_set_gender_option_from_avatar()
 	call_deferred("_init_preview")
 
 	enter_button.pressed.connect(_on_enter_pressed)
@@ -37,6 +43,8 @@ func _ready() -> void:
 	%BackButton.pressed.connect(_on_back_pressed)
 	%RandomizeButton.pressed.connect(_on_randomize_pressed)
 	%ResetButton.pressed.connect(_on_reset_pressed)
+	%MeshOption.item_selected.connect(_on_mesh_selected)
+	%GenderOption.item_selected.connect(_on_gender_selected)
 	Profile.character_saved.connect(_on_character_saved)
 	Profile.operation_failed.connect(_on_profile_error)
 
@@ -173,6 +181,26 @@ func _setup_preview_stage() -> void:
 		camera.look_at(Vector3(0, 1.1, 0), Vector3.UP)
 
 
+func _setup_mesh_options() -> void:
+	var option: OptionButton = %MeshOption
+	option.clear()
+	for mesh_id in HumanCharacterLibrary.list_mesh_ids():
+		option.add_item(HumanCharacterLibrary.get_mesh_label(mesh_id))
+		option.set_item_metadata(option.item_count - 1, mesh_id)
+
+
+func _setup_gender_options() -> void:
+	var option: OptionButton = %GenderOption
+	option.clear()
+	for entry in [
+		{"id": "man", "label": "Man"},
+		{"id": "kvinna", "label": "Kvinna"},
+		{"id": "hermafrodit", "label": "Hermafrodit"},
+	]:
+		option.add_item(str(entry.label))
+		option.set_item_metadata(option.item_count - 1, str(entry.id))
+
+
 func _configure_human_ui() -> void:
 	var controls := $Layout/Right/Scroll/Controls
 	$Layout/Left/TitleBox/Subtitle.text = "Forma din kolonist"
@@ -193,6 +221,7 @@ func _configure_human_ui() -> void:
 		var row := controls.get_node_or_null(row_name)
 		if row:
 			row.visible = false
+	controls.get_node("MeshSection").text = "KARAKTÄR"
 	controls.get_node("BodySection").text = "KROPP"
 	controls.get_node("ColorsSection").text = "FÄRGER"
 
@@ -201,7 +230,12 @@ func _refresh_preview() -> void:
 	if _preview_root:
 		var model := HumanAvatarBuilder.build(_preview_root, _avatar)
 		if model == null:
+			status_label.text = "Kunde inte ladda karaktärsmodellen (%s)." % HumanCharacterLibrary.get_mesh_label(_avatar.mesh_id)
 			return
+		status_label.text = "%s | %s" % [
+			_gender_label(_avatar.gender),
+			HumanCharacterLibrary.get_mesh_label(_avatar.mesh_id),
+		]
 		if _preview_animator == null:
 			_preview_animator = HumanAvatarAnimator.ensure_on(_preview_root, true)
 		_preview_animator.bind(model)
@@ -303,6 +337,23 @@ func _on_reset_pressed() -> void:
 	_refresh_preview()
 
 
+func _on_mesh_selected(index: int) -> void:
+	var option: OptionButton = %MeshOption
+	if index < 0 or index >= option.item_count:
+		return
+	_avatar.mesh_id = str(option.get_item_metadata(index))
+	_refresh_preview()
+
+
+func _on_gender_selected(index: int) -> void:
+	var option: OptionButton = %GenderOption
+	if index < 0 or index >= option.item_count:
+		return
+	_avatar.gender = str(option.get_item_metadata(index))
+	_maybe_suggest_mesh_for_gender()
+	_refresh_preview()
+
+
 func _on_back_pressed() -> void:
 	if Auth.is_guest:
 		_on_logout_pressed()
@@ -342,11 +393,57 @@ func _sync_ui_from_avatar() -> void:
 	%AccentColorPicker.color = _avatar.accent_color
 	%EyeColorPicker.color = _avatar.eye_color
 	%GlowColorPicker.color = _avatar.glow_color
+	_set_mesh_option_from_avatar()
+	_set_gender_option_from_avatar()
+
+
+func _set_mesh_option_from_avatar() -> void:
+	var option: OptionButton = %MeshOption
+	var target := HumanCharacterLibrary.normalize_mesh_id(_avatar.mesh_id)
+	for i in option.item_count:
+		if str(option.get_item_metadata(i)) == target:
+			option.select(i)
+			return
+
+
+func _set_gender_option_from_avatar() -> void:
+	var option: OptionButton = %GenderOption
+	var target := _avatar.gender if _avatar.gender != "" else "man"
+	for i in option.item_count:
+		if str(option.get_item_metadata(i)) == target:
+			option.select(i)
+			return
+	option.select(0)
+
+
+func _maybe_suggest_mesh_for_gender() -> void:
+	match _avatar.gender:
+		"kvinna":
+			if _avatar.mesh_id == "quaternius_universal":
+				_avatar.mesh_id = "quaternius_universal_female"
+		"man":
+			if _avatar.mesh_id == "quaternius_universal_female":
+				_avatar.mesh_id = "quaternius_universal"
+	_set_mesh_option_from_avatar()
+
+
+func _gender_label(gender_id: String) -> String:
+	match gender_id:
+		"kvinna":
+			return "Kvinna"
+		"hermafrodit":
+			return "Hermafrodit"
+		_:
+			return "Man"
 
 
 func _random_starter_avatar() -> AvatarData:
 	var data := AvatarData.new()
-	data.mesh_id = "reference_human"
+	var mesh_ids := HumanCharacterLibrary.list_mesh_ids()
+	if mesh_ids.is_empty():
+		data.mesh_id = "character-a"
+	else:
+		data.mesh_id = mesh_ids[randi() % mesh_ids.size()]
 	var archetype := randi() % 6
 
 	match archetype:

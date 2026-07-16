@@ -7,7 +7,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 @tool
-extends "../roommate_menu_button.gd"
+extends "res://addons/roommate/controls/roommate_menu_button.gd"
 
 
 func visibility_predicate(nodes: Array[Node]) -> bool:

@@ -2,6 +2,8 @@
 extends Node3D
 class_name GrassManager
 
+const DEFAULT_GRASS_SHADER := preload("res://addons/open-world-database/demo/resources/terrain/grass.gdshader")
+
 ## Simplified Dynamic Grass System with terrain height positioning
 
 @export_group("Grass Settings")
@@ -318,21 +320,19 @@ func add_vertex_to_surface(surface_tool: SurfaceTool, vertex_data: Dictionary):
 	surface_tool.add_vertex(vertex_data.position)
 
 func create_grass_material() -> ShaderMaterial:
-	var material = ShaderMaterial.new()
-	
-	if grass_shader:
-		material.shader = grass_shader.shader
-		# Copy existing shader parameters
-		var shader_params = grass_shader.get_property_list()
+	var material := ShaderMaterial.new()
+	var template: ShaderMaterial = grass_shader
+	if template != null and template.shader != null:
+		material.shader = template.shader
+		var shader_params := template.get_property_list()
 		for param in shader_params:
 			if param.name.begins_with("shader_parameter/"):
-				var param_name = param.name.replace("shader_parameter/", "")
-				material.set_shader_parameter(param_name, grass_shader.get_shader_parameter(param_name))
-	
-	# Set basic shader parameters
+				var param_name: String = param.name.replace("shader_parameter/", "")
+				material.set_shader_parameter(param_name, template.get_shader_parameter(param_name))
+	else:
+		material.shader = DEFAULT_GRASS_SHADER
 	material.set_shader_parameter("grass_height_min", grass_height_min)
 	material.set_shader_parameter("grass_height_max", grass_height_max)
-	
 	return material
 
 func remove_grass_chunk(chunk_key: String):

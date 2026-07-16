@@ -118,9 +118,9 @@ static func get_spawn_plan(spawn_id: String) -> Array:
 			])
 		"satellite_right":
 			return _entries([
-				["hybrid", "crawler", 6],
-				["hybrid", "stalker", 5],
-				["hybrid", "drone_host", 4],
+				["hybrid", "crawler", 3],
+				["hybrid", "stalker", 2],
+				["hybrid", "drone_host", 2],
 			])
 		_:
 			return _entries([
@@ -230,47 +230,43 @@ static func get_spawn_batches(spawn_id: String, spawn_center: Vector3) -> Array:
 			"center": spawn_center + Vector3(28.0, 0.0, 18.0),
 			"radius": 42.0,
 			"entries": _entries([
-				["hybrid", "crawler", 3],
-				["hybrid", "stalker", 2],
+				["hybrid", "crawler", 1],
+				["hybrid", "stalker", 1],
 			]),
 		},
 		{
 			"center": spawn_center + Vector3(-block * 1.0, 0.0, block * 2.0),
 			"radius": 72.0,
 			"entries": _entries([
-				["hybrid", "crawler", 4],
-				["hybrid", "stalker", 3],
-				["hybrid", "drone_host", 2],
+				["hybrid", "crawler", 1],
+				["hybrid", "stalker", 1],
 			]),
 		},
 		{
 			"center": spawn_center + Vector3(-block * 4.5, 0.0, block * 1.5),
 			"radius": 78.0,
 			"entries": _entries([
-				["hybrid", "crawler", 4],
-				["hybrid", "stalker", 4],
-				["hybrid", "drone_host", 3],
+				["hybrid", "crawler", 1],
+				["hybrid", "drone_host", 1],
 			]),
 		},
 		{
 			"center": spawn_center + Vector3(-block * 3.0, 0.0, block * 0.25),
 			"radius": 58.0,
 			"entries": _entries([
-				["hybrid", "crawler", 3],
-				["hybrid", "drone_host", 2],
+				["hybrid", "crawler", 1],
 			]),
 		},
 		{
 			"center": spawn_center + Vector3(-block * 2.0, 0.0, -block * 1.25),
 			"radius": 64.0,
 			"entries": _entries([
-				["hybrid", "stalker", 3],
-				["hybrid", "drone_host", 2],
+				["hybrid", "stalker", 1],
 			]),
 		},
 		{
 			"center": spawn_center,
-			"radius": SpawnPoints.get_extent_m() * 0.14,
+			"radius": SpawnPoints.get_extent_m() * 0.1,
 			"entries": plan,
 		},
 	]

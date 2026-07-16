@@ -1,18 +1,25 @@
 extends CharacterBody3D
 
 const HumanCharacterLibraryScript = preload("res://scripts/assets/human_character_library.gd")
+const GleazerBuilderScript = preload("res://scripts/monsters/gleazer_builder.gd")
+const GleazerLoreScript = preload("res://scripts/story/gleazer_lore.gd")
+const PedestrianStyleScript = preload("res://scripts/npcs/pedestrian_style.gd")
+const PedestrianCatalogScript = preload("res://scripts/npcs/pedestrian_catalog.gd")
 const ZezzlorBuilderScript = preload("res://scripts/monsters/zezzlor_builder.gd")
 const StoryInteractableScript = preload("res://scripts/story/story_interactable.gd")
 const SlimeDamageScript = preload("res://scripts/combat/slime_damage.gd")
-const HurtboxScript = preload("res://scripts/combat/hurtbox_3d.gd")
+const Hurtbox3DScript = preload("res://scripts/combat/hurtbox_3d.gd")
 const NpcHealthBar3DScript = preload("res://scripts/ui/npc_health_bar_3d.gd")
+const NpcDialogueBarkScript = preload("res://scripts/audio/npc_dialogue_bark.gd")
 const ZezzlorLoreScript = preload("res://scripts/story/zezzlor_lore.gd")
 const SrcGuardLoreScript = preload("res://scripts/story/src_guard_lore.gd")
 const SrcHqCatalogScript = preload("res://scripts/story/src_hq_catalog.gd")
+const SimulationLodScript = preload("res://scripts/world/simulation_lod.gd")
 
 const TURN_SPEED := 5.0
 const SRC_TURN_SPEED := 6.5
 const CORROSION_COLOR := Color(0.22, 0.92, 0.28)
+const SYNC_INTERVAL := 0.18
 
 var _model_pivot: Node3D
 var _name_label: Label3D
@@ -47,6 +54,23 @@ var _src_harass_timer := 0.0
 var _src_block_pos := Vector3.ZERO
 var _src_is_blocking := false
 var _is_zezzlor := false
+var _is_gleazer := false
+var _gleazer_role := "recruit"
+var _gleazer_name := ""
+var _quest_bark_timer := 0.0
+var _is_allmakare := false
+var _allmakare_name := ""
+var _is_pedestrian := false
+var _route: Array[Vector3] = []
+var _route_index := 0
+var _wallet := 0
+var _style_seed := 0
+var _smell_wobble := 0.0
+var _smell_timer := 0.0
+var _last_melee_attacker_id := -1
+var _game_director: Node
+var _sync_accum := 0.0
+var _lod_wait := 0.0
 
 
 func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
@@ -60,9 +84,20 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 	_bounds_radius = float(entry.get("wander_radius", 8.0))
 	_name_label.text = _display_name
 	_is_zezzlor = bool(entry.get("zezzlor", false))
+	_is_gleazer = bool(entry.get("gleazer", false))
+	_gleazer_role = str(entry.get("gleazer_role", "recruit"))
+	_gleazer_name = str(entry.get("gleazer_name", ""))
+	_is_allmakare = bool(entry.get("allmakare", false))
+	_allmakare_name = str(entry.get("allmakare_name", entry.get("zezzlor_name", "")))
+	_is_pedestrian = bool(entry.get("pedestrian", false))
+	_wallet = int(entry.get("wallet", 0)) if _is_pedestrian else 0
+	_style_seed = int(entry.get("style_seed", seed))
+	_configure_route(entry, world_pos)
 	if _is_zezzlor:
 		var rank_id := str(entry.get("zezzlor_rank", "patrol"))
 		_name_label.modulate = ZezzlorLoreScript.rank_color(rank_id)
+	elif _is_gleazer:
+		_name_label.modulate = GleazerLoreScript.role_color(_gleazer_role)
 	elif bool(entry.get("src_guard", false)):
 		_name_label.modulate = SrcGuardLoreScript.LABEL_COLOR
 		_configure_src_guard(entry, world_pos)
@@ -70,11 +105,25 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 	rotation.y = float(entry.get("rotation_y", 0.0))
 	_bounds_center = world_pos
 	_mount_model(entry)
-	_setup_hurtbox()
-	_setup_health_bar()
-	_attach_interactable(entry)
+	_game_director = get_tree().get_first_node_in_group("game_director")
+	if not _is_zezzlor:
+		_setup_hurtbox()
+		_setup_health_bar()
+	if not _is_pedestrian:
+		_attach_interactable(entry)
 	_pick_new_direction()
 	_wander_timer = _rng.randf_range(1.0, 3.0)
+	set_meta("npc_id", _npc_id)
+	add_to_group("world_npc")
+	if _is_gleazer:
+		add_to_group("gleazer_npc")
+		_quest_bark_timer = _rng.randf_range(6.0, 14.0)
+	if _is_allmakare:
+		add_to_group("allmakare_npc")
+		_post_position = world_pos
+		_post_rotation_y = float(entry.get("rotation_y", 0.0))
+	if _is_pedestrian:
+		add_to_group("pedestrian_npc")
 
 
 func _physics_process(delta: float) -> void:
@@ -82,17 +131,31 @@ func _physics_process(delta: float) -> void:
 		return
 	if _dead:
 		return
-	if _is_src_guard:
-		_tick_src_guard(delta)
-	elif _wander_enabled:
-		_simulate_wander(delta)
-	else:
-		velocity = Vector3.ZERO
-		if _moving:
-			_moving = false
-			_update_animation()
+	_lod_wait += delta
+	var lod_interval := SimulationLodScript.physics_interval(self)
+	if _lod_wait >= lod_interval:
+		var step := _lod_wait
+		_lod_wait = 0.0
+		if _is_gleazer:
+			_tick_gleazer(step)
+		if _is_allmakare:
+			_tick_allmakare(step)
+		elif _is_pedestrian:
+			_simulate_route(step)
+		elif _is_src_guard:
+			_tick_src_guard(step)
+		elif _wander_enabled:
+			_simulate_wander(step)
+		else:
+			velocity = Vector3.ZERO
+			if _moving:
+				_moving = false
+				_update_animation()
 	if multiplayer.multiplayer_peer != null:
-		_sync_state.rpc(position, rotation.y, _moving)
+		_sync_accum += delta
+		if _sync_accum >= SYNC_INTERVAL:
+			_sync_accum = 0.0
+			_sync_state.rpc(position, rotation.y, _moving)
 
 
 func _is_simulation_authority() -> bool:
@@ -181,19 +244,13 @@ func _tick_src_guard(delta: float) -> void:
 func _find_src_target(hq_pos: Vector3, radius: float) -> Node3D:
 	var best: Node3D = null
 	var best_dist := 999999.0
-	for node in get_tree().get_nodes_in_group("game_director"):
-		if not node.get("players") is Dictionary:
+	for player in _iter_players():
+		if SrcHqCatalogScript.flat_distance(player.global_position, hq_pos) > radius:
 			continue
-		var players: Dictionary = node.players
-		for player in players.values():
-			if not is_instance_valid(player):
-				continue
-			if SrcHqCatalogScript.flat_distance(player.global_position, hq_pos) > radius:
-				continue
-			var dist := global_position.distance_to(player.global_position)
-			if dist < best_dist:
-				best_dist = dist
-				best = player
+		var dist := global_position.distance_to(player.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			best = player
 	return best
 
 
@@ -263,6 +320,7 @@ func _try_src_harass(target: Node3D, kind: String) -> void:
 	if not target.is_multiplayer_authority():
 		return
 	var line := SrcGuardLoreScript.random_harass_line(kind, _rng)
+	NpcDialogueBarkScript.play_for_npc(self, "shouting")
 	QuestManager.story_toast.emit(
 		SrcGuardLoreScript.format_name(_src_guard_role, _src_guard_name),
 		line
@@ -288,7 +346,172 @@ func _resolve_display_name(entry: Dictionary) -> String:
 			str(entry.get("src_guard_role", "guard")),
 			str(entry.get("src_guard_name", ""))
 		)
+	if bool(entry.get("gleazer", false)):
+		return GleazerLoreScript.format_name(
+			str(entry.get("gleazer_role", "recruit")),
+			str(entry.get("gleazer_name", ""))
+		)
+	if bool(entry.get("allmakare", false)):
+		return ZezzlorLoreScript.format_name("allmakare", str(entry.get("allmakare_name", "")))
 	return str(entry.get("name", "NPC"))
+
+
+func build_allmakare_talk_payload() -> Dictionary:
+	return {
+		"allmakare_name": _allmakare_name,
+		"world_pos": global_position,
+	}
+
+
+func _configure_route(entry: Dictionary, world_pos: Vector3) -> void:
+	_route.clear()
+	_route_index = 0
+	if not _is_pedestrian:
+		return
+	var raw: Variant = entry.get("route", [])
+	if raw is Array:
+		for point in raw:
+			if point is Vector3:
+				_route.append(world_pos + (point as Vector3) - (entry.get("local_pos", Vector3.ZERO) as Vector3))
+	if _route.is_empty():
+		_route.append(world_pos)
+		_route.append(world_pos + Vector3(40.0, 0.0, 0.0))
+
+
+func _simulate_route(delta: float) -> void:
+	if _route.is_empty():
+		velocity = Vector3.ZERO
+		_moving = false
+		_update_animation()
+		return
+	var target := _route[_route_index]
+	var to := target - global_position
+	to.y = 0.0
+	var dist := to.length()
+	if dist <= PedestrianCatalogScript.ROUTE_REACH_M:
+		_route_index = (_route_index + 1) % _route.size()
+		target = _route[_route_index]
+		to = target - global_position
+		to.y = 0.0
+		dist = to.length()
+	if dist < 0.05:
+		velocity = Vector3.ZERO
+		_moving = false
+	else:
+		var dir := to / dist
+		velocity = dir * _move_speed
+		var target_yaw := atan2(dir.x, dir.z)
+		rotation.y = lerp_angle(rotation.y, target_yaw, TURN_SPEED * delta)
+		_moving = true
+	var prev_pos := global_position
+	move_and_slide()
+	_moving = global_position.distance_to(prev_pos) > 0.02 or _moving
+	_update_animation()
+
+
+func _tick_allmakare(delta: float) -> void:
+	_smell_timer -= delta
+	var debt := AllmakareDebtManager.should_smell_follow(_npc_id)
+	if debt.is_empty():
+		_return_to_post(delta)
+		return
+	var target := _find_debtor_player()
+	if target == null:
+		_return_to_post(delta)
+		return
+	_smell_wobble += delta * 2.4
+	var wobble := Vector3(sin(_smell_wobble) * 1.8, 0.0, cos(_smell_wobble * 0.8) * 1.8)
+	var desired := target.global_position + wobble
+	desired.y = global_position.y
+	_move_toward_point(desired, 2.65, delta, null)
+	if _smell_timer <= 0.0 and global_position.distance_to(target.global_position) <= 5.0:
+		_smell_timer = 6.0
+		if target.is_multiplayer_authority():
+			NpcDialogueBarkScript.play_for_npc(self, "miscellaneous")
+			QuestManager.story_toast.emit(
+				"Allmakare — luktspår",
+				"%s känner din doft. Betala %d %s — vi ser inget annat."
+				% [
+					_allmakare_name,
+					int(debt.get("amount", 0)),
+					ItemCatalog.currency_symbol(),
+				]
+			)
+
+
+func _find_debtor_player() -> Node3D:
+	for player in _iter_players():
+		var pid: int = player.get_multiplayer_authority()
+		var pd: Dictionary = AllmakareDebtManager.get_debt_for_peer(pid)
+		if pd.is_empty() or str(pd.get("creditor_id", "")) != _npc_id:
+			continue
+		return player
+	return null
+
+
+func _try_rob_pedestrian(shooter_id: int) -> void:
+	if _wallet <= 0:
+		return
+	var amount := _wallet
+	_wallet = 0
+	_ensure_game_director()
+	if _game_director == null or not _game_director.get("players") is Dictionary:
+		return
+	if not _game_director.players.has(shooter_id):
+		return
+	var player: Node3D = _game_director.players[shooter_id]
+	if player == null or not player.is_multiplayer_authority():
+		return
+	InventoryManager.add_mydrillium(amount)
+	QuestManager.story_toast.emit(
+		"Rån",
+		"Du slog ner %s och tog %d %s från plånboken."
+		% [_display_name, amount, ItemCatalog.currency_symbol()]
+	)
+
+
+func build_gleazer_talk_payload() -> Dictionary:
+	_ensure_game_director()
+	var player_pos := Vector3.ZERO
+	if _game_director != null and _game_director.has_method("get_local_player"):
+		var player: Node3D = _game_director.get_local_player()
+		if player != null:
+			player_pos = player.global_position
+	return {
+		"gleazer_role": _gleazer_role,
+		"gleazer_name": _gleazer_name,
+		"world_pos": global_position,
+		"player_pos": player_pos,
+	}
+
+
+func _tick_gleazer(delta: float) -> void:
+	GleazerQuestManager.set_giver_world_pos(_npc_id, global_position)
+	if not _is_simulation_authority():
+		return
+	_quest_bark_timer -= delta
+	if _quest_bark_timer > 0.0 or GleazerQuestManager.has_active_quest():
+		return
+	var target := _find_nearby_local_player(11.0)
+	if target == null:
+		return
+	_quest_bark_timer = _rng.randf_range(18.0, 32.0)
+	if _rng.randf() > 0.42:
+		return
+	NpcDialogueBarkScript.play_for_npc(self, "miscellaneous")
+	QuestManager.story_toast.emit(
+		GleazerLoreScript.format_dialogue_title(_gleazer_role, _gleazer_name),
+		"Psst! Gleazers har en ny quest. Den kommer gå åt skogen. Prata med mig!"
+	)
+
+
+func _find_nearby_local_player(radius: float) -> Node3D:
+	for player in _iter_players():
+		if not player.is_multiplayer_authority():
+			continue
+		if global_position.distance_to(player.global_position) <= radius:
+			return player
+	return null
 
 
 func take_corrosive_slime(amount: float, shooter_id: int) -> void:
@@ -304,33 +527,38 @@ func take_damage(amount: float) -> void:
 	take_corrosive_slime(amount, -1)
 
 
-func take_melee_hit(amount: float, _attacker_id: int = -1) -> void:
+func take_melee_hit(amount: float, attacker_id: int = -1) -> void:
 	if _dead or amount <= 0.0:
 		return
 	if multiplayer.multiplayer_peer == null:
-		_apply_melee_hit_local(amount)
+		_apply_melee_hit_local(amount, attacker_id)
 		return
-	_apply_melee_hit.rpc(amount)
+	_apply_melee_hit.rpc(amount, attacker_id)
 
 
 @rpc("any_peer", "call_local", "reliable")
-func _apply_melee_hit(amount: float) -> void:
+func _apply_melee_hit(amount: float, attacker_id: int = -1) -> void:
 	if not _is_simulation_authority():
 		return
-	_apply_melee_hit_local(amount)
+	_apply_melee_hit_local(amount, attacker_id)
 
 
-func _apply_melee_hit_local(amount: float) -> void:
+func _apply_melee_hit_local(amount: float, attacker_id: int = -1) -> void:
 	if _dead or amount <= 0.0:
 		return
 	if _is_zezzlor:
 		_flash_corrosion_hit()
 		return
+	if attacker_id >= 0:
+		_last_melee_attacker_id = attacker_id
 	_health = maxf(0.0, _health - amount)
 	_flash_corrosion_hit()
+	NpcDialogueBarkScript.play_for_npc(self, "damage")
+	if _is_pedestrian and _wallet > 0 and attacker_id >= 0:
+		MydrilliumEconomyManager.rob_pedestrian_wallet(self, attacker_id)
 	_broadcast_health()
 	if _health <= 0.0:
-		_die(-1)
+		_die(attacker_id)
 
 
 @rpc("any_peer", "call_local", "reliable")
@@ -350,37 +578,27 @@ func _apply_corrosive_slime_local(amount: float, shooter_id: int) -> void:
 	_corrosion = minf(1.0, _corrosion + SlimeDamageScript.CORROSION_BUILDUP)
 	_apply_corrosion_visual()
 	_flash_corrosion_hit()
+	NpcDialogueBarkScript.play_for_npc(self, "damage")
 	_broadcast_health()
 	if _health <= 0.0:
 		_die(shooter_id)
 
 
 func _setup_hurtbox() -> void:
-	var hurtbox := Area3D.new()
-	hurtbox.name = "Hurtbox"
-	hurtbox.set_script(HurtboxScript)
-	var shape_node := CollisionShape3D.new()
-	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.62
-	capsule.height = 2.1
-	shape_node.shape = capsule
-	shape_node.position = Vector3(0.0, 0.95, 0.0)
-	hurtbox.add_child(shape_node)
-	add_child(hurtbox)
+	Hurtbox3DScript.attach(self)
 
 
 func _setup_health_bar() -> void:
 	_health_bar = NpcHealthBar3DScript.new()
 	_health_bar.name = "HealthBar"
-	_health_bar.position = Vector3(0.0, 2.55, 0.0)
+	_health_bar.position = Vector3(0.0, 2.75, 0.0)
 	add_child(_health_bar)
-	_refresh_health_bar()
+	_health_bar.tree_entered.connect(func(): _refresh_health_bar(), CONNECT_ONE_SHOT)
 
 
 func _refresh_health_bar() -> void:
 	if _health_bar:
-		_health_bar.set_ratio(get_health_ratio())
-		_health_bar.visible = not _dead
+		_health_bar.update_health(_health, _max_health, _dead)
 
 
 func _broadcast_health() -> void:
@@ -421,6 +639,20 @@ func _mount_model(entry: Dictionary) -> void:
 		_avatar_animator.bind(_model_pivot)
 		_anim_player = null
 		return
+	if bool(entry.get("gleazer", false)):
+		var role_id := str(entry.get("gleazer_role", "recruit"))
+		var gleazer_built: Dictionary = GleazerBuilderScript.build(_model_pivot, role_id, scale_factor)
+		_model_root = gleazer_built.get("root") as Node3D
+		if _model_root != null:
+			_human_animator = HumanAvatarAnimator.ensure_on(_model_pivot)
+			_human_animator.bind(_model_root)
+			_anim_player = HumanCharacterLibraryScript.find_anim_player(_model_root)
+			_play_idle()
+		else:
+			_human_animator = null
+			_anim_player = null
+		_avatar_animator = null
+		return
 	var model := HumanCharacterLibraryScript.spawn(
 		_model_pivot,
 		Vector3.ZERO,
@@ -431,14 +663,20 @@ func _mount_model(entry: Dictionary) -> void:
 		return
 	_model_root = model
 	var avatar := AvatarData.new()
-	avatar.body_scale = scale_factor
-	if entry.has("tint"):
+	if _is_pedestrian:
+		avatar = PedestrianStyleScript.build_avatar(_style_seed)
+		avatar.body_scale *= scale_factor
+	elif entry.has("tint"):
+		avatar.body_scale = scale_factor
 		avatar.body_color = entry.tint
 		avatar.accent_color = entry.tint.darkened(0.25)
 	else:
+		avatar.body_scale = scale_factor
 		avatar.body_color = Color.from_hsv(randf(), randf_range(0.15, 0.35), randf_range(0.45, 0.72))
 		avatar.accent_color = Color.from_hsv(randf_range(0.55, 0.75), randf_range(0.3, 0.55), randf_range(0.2, 0.38))
 	HumanCharacterLibraryScript.apply_avatar_customization(model, avatar)
+	if _is_pedestrian and avatar.glow_strength > 0.05:
+		HumanCharacterLibraryScript.apply_accent_glow(model, avatar.glow_color, avatar.glow_strength)
 	_human_animator = HumanAvatarAnimator.ensure_on(_model_pivot)
 	_human_animator.bind(model)
 	_anim_player = null
@@ -469,9 +707,16 @@ func _die(shooter_id: int) -> void:
 	if _dead:
 		return
 	_dead = true
+	if not _is_zezzlor:
+		NpcDialogueBarkScript.play_for_npc(self, "death")
 	_wander_enabled = false
 	velocity = Vector3.ZERO
-	_name_label.text = "%s — frätt bort" % _display_name
+	if _is_pedestrian:
+		var robber := shooter_id if shooter_id >= 0 else _last_melee_attacker_id
+		_try_rob_pedestrian(robber)
+		_name_label.text = "%s — nedslagen" % _display_name
+	else:
+		_name_label.text = "%s — frätt bort" % _display_name
 	_name_label.modulate = Color(0.35, 0.9, 0.32)
 	_broadcast_health()
 	if _model_pivot:
@@ -480,9 +725,28 @@ func _die(shooter_id: int) -> void:
 	for child in get_children():
 		if child is Area3D and child.has_method("get_prompt"):
 			child.queue_free()
-	for node in get_tree().get_nodes_in_group("game_director"):
-		if node.has_method("on_npc_murdered"):
-			node.on_npc_murdered(shooter_id, global_position, _npc_id)
+	if _is_allmakare:
+		return
+	_ensure_game_director()
+	if _game_director != null and _game_director.has_method("on_npc_murdered"):
+		_game_director.on_npc_murdered(shooter_id, global_position, _npc_id)
+
+
+func _ensure_game_director() -> void:
+	if _game_director != null and is_instance_valid(_game_director):
+		return
+	_game_director = get_tree().get_first_node_in_group("game_director")
+
+
+func _iter_players() -> Array:
+	_ensure_game_director()
+	if _game_director == null or not _game_director.get("players") is Dictionary:
+		return []
+	var result: Array = []
+	for player in (_game_director.players as Dictionary).values():
+		if is_instance_valid(player):
+			result.append(player)
+	return result
 
 
 func _attach_interactable(entry: Dictionary) -> void:

@@ -1,0 +1,20 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/zezzlor_capture_ray.gd" id="1_ray"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_ray"]
+radius = 0.35
+
+[sub_resource type="BoxMesh" id="BoxMesh_ray"]
+size = Vector3(0.2, 0.2, 1.2)
+
+[node name="ZezzlorCaptureRay" type="Area3D"]
+collision_layer = 8
+collision_mask = 1
+script = ExtResource("1_ray")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_ray")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_ray")

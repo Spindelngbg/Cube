@@ -4,6 +4,7 @@ extends RefCounted
 const WORLD_NPC_SCENE := preload("res://scenes/npcs/world_npc.tscn")
 const NpcCatalogScript = preload("res://scripts/npcs/npc_catalog.gd")
 const MultiplayerEntityAuthorityScript = preload("res://scripts/multiplayer_entity_authority.gd")
+const SpawnDensityScript = preload("res://scripts/world/spawn_density.gd")
 
 
 static func populate(
@@ -25,6 +26,9 @@ static func populate(
 		var local_pos: Vector3 = entry.get("local_pos", Vector3.ZERO)
 		var world_pos := city_origin + local_pos
 		world_pos.y = city_origin.y
+		if not SpawnDensityScript.should_spawn_entity(world_pos, city_origin, spawn_index):
+			spawn_index += 1
+			continue
 
 		var npc := WORLD_NPC_SCENE.instantiate()
 		npc.name = "NPC_%s" % str(entry.get("id", spawn_index))

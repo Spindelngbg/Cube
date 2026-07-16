@@ -110,6 +110,9 @@ func _ready() -> void:
 
 	messages.meta_clicked.connect(_on_message_meta_clicked)
 	messages.scroll_following = true
+	messages.add_theme_color_override("default_color", SpiderTheme.BONE)
+	messages.add_theme_font_override("normal_font", GuiFontLibraryScript.regular())
+	messages.add_theme_font_size_override("normal_font_size", GuiFontLibraryScript.FONT_BODY)
 	input_field.text_submitted.connect(_on_input_submitted)
 	send_button.pressed.connect(_send_chat_message)
 	chat_tab_button.pressed.connect(_show_tab.bind("chat"))
@@ -135,12 +138,65 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
-	if event.keycode != KEY_C:
+	var key := event as InputEventKey
+	var code := key.keycode if key.keycode != KEY_NONE else key.physical_keycode
+
+	# ENTER öppnar chatten (skicka sker via LineEdit text_submitted när fältet har fokus).
+	if code == KEY_ENTER or code == KEY_KP_ENTER:
+		if _is_typing_elsewhere():
+			return
+		if _minimized or _is_corner_hidden() or not input_field.has_focus():
+			open_chat()
+			get_viewport().set_input_as_handled()
+		return
+
+	# Escape stänger chatten (pausmeny får Esc när chatten redan är minimerad).
+	if code == KEY_ESCAPE:
+		if not _minimized and (input_field.has_focus() or chat_panel.visible):
+			_set_minimized(true)
+			get_viewport().set_input_as_handled()
+		return
+
+	# C växlar minimera (som tidigare).
+	if code != KEY_C:
+		return
+	if _is_typing_elsewhere():
+		return
+	if _is_corner_hidden():
+		open_chat()
+		get_viewport().set_input_as_handled()
 		return
 	if input_field.has_focus() and not _minimized:
 		return
 	_toggle_minimize()
 	get_viewport().set_input_as_handled()
+
+
+func is_chat_open() -> bool:
+	return visible and not _minimized
+
+
+func open_chat() -> void:
+	visible = true
+	if _layout_mode == "":
+		_layout_mode = "corner"
+	if _minimized:
+		_set_minimized(false)
+	else:
+		_apply_layout_mode()
+	_show_tab("chat")
+	if is_inside_tree():
+		input_field.grab_focus()
+		input_field.caret_column = input_field.text.length()
+
+
+func _is_typing_elsewhere() -> bool:
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus == null:
+		return false
+	if focus == input_field:
+		return false
+	return focus is LineEdit or focus is TextEdit
 
 
 func _process(delta: float) -> void:
@@ -321,11 +377,16 @@ func _on_input_submitted(_text: String) -> void:
 
 
 func _send_chat_message() -> void:
-	if not _identified:
-		_append_system("Ansluter fortfarande...")
-		return
 	var text := input_field.text.strip_edges()
 	if text.is_empty():
+		return
+	var cheat_result := ChatCheatCommands.try_execute(get_tree(), text, _current_username())
+	if cheat_result != "":
+		input_field.text = ""
+		_append_system(cheat_result)
+		return
+	if not _identified:
+		_append_system("Ansluter fortfarande...")
 		return
 	input_field.text = ""
 	_send_json({ "type": "chat", "text": text })
@@ -438,6 +499,7 @@ func set_layout_mode(mode: String) -> void:
 
 func reset_layout_mode() -> void:
 	set_layout_mode("corner")
+	_set_minimized(true)
 
 
 func _toggle_minimize() -> void:
@@ -452,6 +514,7 @@ func _set_minimized(minimized: bool) -> void:
 		input_field.release_focus()
 	elif visible and is_inside_tree():
 		input_field.grab_focus()
+		input_field.caret_column = input_field.text.length()
 	_apply_layout_mode()
 
 
@@ -471,12 +534,23 @@ func is_minimized() -> bool:
 
 func open_from_znood() -> void:
 	visible = true
+	set_layout_mode("corner")
 	_set_minimized(false)
 	_show_tab("chat")
 	input_field.grab_focus()
 
 
+func _is_corner_hidden() -> bool:
+	return _minimized and _layout_mode == "corner"
+
+
 func _apply_layout_mode() -> void:
+	if _minimized and _layout_mode == "corner":
+		chat_panel.visible = false
+		return
+
+	chat_panel.visible = true
+
 	var layout: Dictionary
 	if _minimized:
 		layout = MINIMIZED_SIDEBAR_RIGHT if _layout_mode == "sidebar_right" else MINIMIZED_CORNER
@@ -505,7 +579,7 @@ func _apply_layout_mode() -> void:
 	panel_vbox.add_theme_constant_override("separation", 2 if _minimized else 10)
 
 	if _minimized:
-		chat_title.text = "Chatt  [C]"
+		chat_title.text = "Chatt  [Enter]"
 		chat_title.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_SMALL)
 		chat_title.add_theme_color_override("font_color", Color(SpiderTheme.BONE.r, SpiderTheme.BONE.g, SpiderTheme.BONE.b, 0.55))
 		header_row.add_theme_constant_override("separation", 4)
@@ -515,6 +589,6 @@ func _apply_layout_mode() -> void:
 		chat_title.remove_theme_color_override("font_color")
 		header_row.add_theme_constant_override("separation", 6)
 		minimize_button.text = "—"
-		minimize_button.tooltip_text = "Minimera chatt [C]"
+		minimize_button.tooltip_text = "Minimera chatt [Esc]"
 
 

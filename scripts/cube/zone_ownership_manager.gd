@@ -15,6 +15,8 @@ var _character_id := ""
 var _local_records: Dictionary = {}
 var _active_rental_zone_id := ""
 var _active_rental_spawn_id := ""
+var _last_purchased_zone_id := ""
+var _last_purchased_spawn_id := ""
 var _nft_poll_timer := 0.0
 var _http: HTTPRequest
 var _pending_nft_zone_id := ""
@@ -149,15 +151,12 @@ func get_hud_hint(world_pos: Vector3, spawn_id: String) -> String:
 			if _is_active_rental_block(block_zone_id, spawn_id):
 				return "Din hyra: %s — spawn här [E]" % name
 			if DcZoneOwnershipCatalogScript.is_rentable(zone_id, entry):
-				var rent_price := DcZoneOwnershipCatalogScript.get_rental_price(zone_id)
-				var buy_price := DcZoneOwnershipCatalogScript.get_purchase_price(zone_id)
 				if DcZoneOwnershipCatalogScript.is_purchasable(zone_id, entry):
-					return "%s — hyr [%d] eller köp [%d] [E]" % [name, rent_price, buy_price]
-				return "%s — hyr byggnad [%d] [E]" % [name, rent_price]
+					return "%s — [E] Zonköp / hyra" % name
+				return "%s — [E] Hyra byggnad" % name
 			if not DcZoneOwnershipCatalogScript.is_purchasable(zone_id, entry):
 				return "%s" % name
-			var price := DcZoneOwnershipCatalogScript.get_purchase_price(zone_id)
-			return "%s — köp [%d Mydrillium] [E]" % [name, price]
+			return "%s — [E] Zonköp" % name
 
 
 func has_active_rental_spawn(spawn_id: String) -> bool:
@@ -171,6 +170,27 @@ func get_active_rental_spawn_position(spawn_id: String) -> Vector3:
 	if not has_active_rental_spawn(spawn_id):
 		return Vector3.ZERO
 	return DcZoneOwnershipCatalogScript.zone_id_to_building_spawn(_active_rental_zone_id, spawn_id)
+
+
+func has_last_purchased_spawn(spawn_id: String) -> bool:
+	if _last_purchased_zone_id == "":
+		return false
+	if SpawnPoints.normalize_id(spawn_id) != SpawnPoints.normalize_id(_last_purchased_spawn_id):
+		return false
+	return _player_owns_zone(_last_purchased_zone_id)
+
+
+func get_last_purchased_spawn_position(spawn_id: String) -> Vector3:
+	if not has_last_purchased_spawn(spawn_id):
+		return Vector3.ZERO
+	return DcZoneOwnershipCatalogScript.zone_id_to_building_spawn(_last_purchased_zone_id, spawn_id)
+
+
+func get_preferred_building_spawn_position(spawn_id: String) -> Vector3:
+	var rental_pos := get_active_rental_spawn_position(spawn_id)
+	if rental_pos != Vector3.ZERO:
+		return rental_pos
+	return get_last_purchased_spawn_position(spawn_id)
 
 
 func try_interact_building_spawn(world_pos: Vector3, spawn_id: String) -> bool:
@@ -193,12 +213,109 @@ func try_interact_building_spawn(world_pos: Vector3, spawn_id: String) -> bool:
 	if _is_active_rental_block(block_zone_id, spawn_id):
 		_set_building_spawn(_active_rental_zone_id, spawn_id)
 		return true
+	return false
 
+
+func get_zone_interact_action(world_pos: Vector3, spawn_id: String) -> String:
+	var entry := get_zone_at(world_pos, spawn_id)
+	if entry.is_empty():
+		return ""
+	var zone_id := str(entry.get("zone_id", ""))
+	if zone_id == "":
+		return ""
+
+	var ownership := str(entry.get("ownership", "public"))
+	var owner := str(entry.get("owner_account", ""))
+	if ownership == "owned" and Auth.is_logged_in and owner == Auth.username:
+		return "spawn"
+	var block_zone_id := _block_zone_id(zone_id)
+	if _is_active_rental_block(block_zone_id, spawn_id):
+		return "spawn"
+
+	if (
+		DcZoneOwnershipCatalogScript.is_purchasable(zone_id, entry)
+		or DcZoneOwnershipCatalogScript.is_rentable(zone_id, entry)
+	):
+		return "dialog"
+	return ""
+
+
+func build_zone_dialog_context(world_pos: Vector3, spawn_id: String) -> Dictionary:
+	var entry := get_zone_at(world_pos, spawn_id)
+	if entry.is_empty():
+		return {}
+	var zone_id := str(entry.get("zone_id", ""))
+	if zone_id == "":
+		return {}
+
+	var can_purchase := DcZoneOwnershipCatalogScript.is_purchasable(zone_id, entry)
+	var can_rent := DcZoneOwnershipCatalogScript.is_rentable(zone_id, entry)
+	if not can_purchase and not can_rent:
+		return {}
+
+	var pricing := DcZoneOwnershipCatalogScript.load_pricing()
+	var nft_cfg: Dictionary = pricing.get("nft", {})
+	var nft_note := str(nft_cfg.get("transfer_note", ""))
+	var spec := DcZoneOwnershipCatalogScript.get_dc_zone_spec(zone_id)
+
+	return {
+		"zone_id": zone_id,
+		"name": DcZoneOwnershipCatalogScript.get_zone_display_name(zone_id, entry),
+		"zone_type": str(spec.get("zone_type", entry.get("zone_type", ""))),
+		"spawn_id": spawn_id,
+		"can_purchase": can_purchase,
+		"can_rent": can_rent,
+		"purchase_price": DcZoneOwnershipCatalogScript.get_purchase_price(zone_id),
+		"rent_price": DcZoneOwnershipCatalogScript.get_rental_price(zone_id),
+		"balance": InventoryManager.get_mydrillium(),
+		"nft_note": nft_note,
+	}
+
+
+func confirm_zone_purchase(zone_id: String, spawn_id: String = "") -> bool:
+	if zone_id == "":
+		return false
+	var entry := get_zone_record(zone_id)
+	if not DcZoneOwnershipCatalogScript.is_purchasable(zone_id, entry):
+		return false
+	if not Auth.is_logged_in or Auth.is_guest:
+		QuestManager.story_toast.emit("Zonköp", "Logga in med konto för att köpa zoner.")
+		return false
+	var price := DcZoneOwnershipCatalogScript.get_purchase_price(zone_id)
+	if price <= 0:
+		return false
+	if not InventoryManager.spend_mydrillium(price):
+		QuestManager.story_toast.emit(
+			"Zonköp",
+			"Inte tillräckligt med %s. Behöver %d." % [ItemCatalog.currency_name(), price]
+		)
+		return false
+	var resolved_spawn_id := SpawnPoints.normalize_id(spawn_id)
+	if resolved_spawn_id == "":
+		resolved_spawn_id = "satellite_right"
+	_apply_purchase(zone_id, Auth.username, "mydrillium", price)
+	_set_last_purchased_zone(_block_zone_id(zone_id), resolved_spawn_id)
+	var display := DcZoneOwnershipCatalogScript.get_zone_display_name(zone_id, entry)
+	_set_building_spawn(_block_zone_id(zone_id), resolved_spawn_id, false)
+	QuestManager.story_toast.emit(
+		"Zon köpt",
+		"%s är din för %d %s.\nDu spawnar här vid respawn.\nOm någon claimar zonen som NFT överförs äganderätten till dem."
+		% [display, price, ItemCatalog.currency_name()]
+	)
+	zone_purchased.emit(zone_id, Auth.username, price)
+	ownership_changed.emit(zone_id)
+	return true
+
+
+func confirm_zone_rental(zone_id: String, spawn_id: String) -> bool:
+	if zone_id == "" or spawn_id == "":
+		return false
+	var entry := get_zone_record(zone_id)
 	if not DcZoneOwnershipCatalogScript.is_rentable(zone_id, entry):
 		return false
 	if not Auth.is_logged_in or Auth.is_guest:
 		QuestManager.story_toast.emit("Byggnadshyra", "Logga in för att hyra byggnader.")
-		return true
+		return false
 
 	var rent_price := DcZoneOwnershipCatalogScript.get_rental_price(zone_id)
 	if rent_price <= 0:
@@ -209,8 +326,9 @@ func try_interact_building_spawn(world_pos: Vector3, spawn_id: String) -> bool:
 			"Inte tillräckligt med %s. Hyra kostar %d."
 			% [ItemCatalog.currency_name(), rent_price]
 		)
-		return true
+		return false
 
+	var block_zone_id := _block_zone_id(zone_id)
 	_active_rental_zone_id = block_zone_id
 	_active_rental_spawn_id = SpawnPoints.normalize_id(spawn_id)
 	_save_rental_state()
@@ -221,37 +339,6 @@ func try_interact_building_spawn(world_pos: Vector3, spawn_id: String) -> bool:
 		"%s hyrd för %d %s.\nDu spawnar här vid respawn."
 		% [display, rent_price, ItemCatalog.currency_name()]
 	)
-	return true
-
-
-func try_interact_purchase(world_pos: Vector3, spawn_id: String) -> bool:
-	var entry := get_zone_at(world_pos, spawn_id)
-	if entry.is_empty():
-		return false
-	var zone_id := str(entry.get("zone_id", ""))
-	if not DcZoneOwnershipCatalogScript.is_purchasable(zone_id, entry):
-		return false
-	if not Auth.is_logged_in or Auth.is_guest:
-		QuestManager.story_toast.emit("Zonköp", "Logga in med konto för att köpa zoner.")
-		return true
-	var price := DcZoneOwnershipCatalogScript.get_purchase_price(zone_id)
-	if price <= 0:
-		return false
-	if not InventoryManager.spend_mydrillium(price):
-		QuestManager.story_toast.emit(
-			"Zonköp",
-			"Inte tillräckligt med %s. Behöver %d." % [ItemCatalog.currency_name(), price]
-		)
-		return true
-	_apply_purchase(zone_id, Auth.username, "mydrillium", price)
-	var display := DcZoneOwnershipCatalogScript.get_zone_display_name(zone_id, entry)
-	QuestManager.story_toast.emit(
-		"Zon köpt",
-		"%s är din för %d %s.\nOm någon claimar zonen som NFT överförs äganderätten till dem."
-		% [display, price, ItemCatalog.currency_name()]
-	)
-	zone_purchased.emit(zone_id, Auth.username, price)
-	ownership_changed.emit(zone_id)
 	return true
 
 
@@ -331,6 +418,8 @@ func _notify_nft_transfer(
 ) -> void:
 	var display := DcZoneOwnershipCatalogScript.get_zone_display_name(zone_id, entry)
 	if Auth.is_logged_in and Auth.username == previous_owner:
+		if _last_purchased_zone_id == zone_id or _last_purchased_zone_id == _block_zone_id(zone_id):
+			_clear_last_purchased_zone()
 		QuestManager.story_toast.emit(
 			"NFT tog över din zon",
 			"%s claimades som NFT av %s. Äganderätten har överförts."
@@ -404,6 +493,8 @@ func _load_for_character(character_id: String) -> void:
 	_local_records.clear()
 	_active_rental_zone_id = ""
 	_active_rental_spawn_id = ""
+	_last_purchased_zone_id = ""
+	_last_purchased_spawn_id = ""
 	if _character_id == "":
 		return
 	var path := SAVE_PATH_TEMPLATE % _character_id
@@ -418,6 +509,13 @@ func _load_for_character(character_id: String) -> void:
 	var rental: Dictionary = parsed.get("rental", {})
 	_active_rental_zone_id = str(rental.get("active_zone_id", ""))
 	_active_rental_spawn_id = str(rental.get("spawn_id", ""))
+	var last_purchased: Dictionary = parsed.get("last_purchased", {})
+	_last_purchased_zone_id = str(last_purchased.get("zone_id", ""))
+	_last_purchased_spawn_id = str(last_purchased.get("spawn_id", ""))
+	if _last_purchased_zone_id != "" and not _player_owns_zone(_last_purchased_zone_id):
+		_clear_last_purchased_zone()
+	elif _last_purchased_zone_id == "":
+		_migrate_last_purchased_from_owned_zones()
 	for zone_id in _local_records.keys():
 		var record: Dictionary = _local_records[zone_id]
 		var entry := get_zone_record(str(zone_id))
@@ -443,40 +541,77 @@ func _save_local_record(zone_id: String, entry: Dictionary) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return
-	file.store_string(JSON.stringify({
-		"character_id": _character_id,
-		"zones": _local_records,
-		"rental": {
-			"active_zone_id": _active_rental_zone_id,
-			"spawn_id": _active_rental_spawn_id,
-		},
-	}, "\t"))
-	file.close()
+	_write_save_file()
 
 
 func _save_rental_state() -> void:
+	_write_save_file()
+
+
+func _write_save_file() -> void:
 	if _character_id == "":
 		return
 	var path := SAVE_PATH_TEMPLATE % _character_id
-	var payload := {
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(JSON.stringify(_build_save_payload(), "\t"))
+	file.close()
+
+
+func _build_save_payload() -> Dictionary:
+	return {
 		"character_id": _character_id,
 		"zones": _local_records,
 		"rental": {
 			"active_zone_id": _active_rental_zone_id,
 			"spawn_id": _active_rental_spawn_id,
 		},
+		"last_purchased": {
+			"zone_id": _last_purchased_zone_id,
+			"spawn_id": _last_purchased_spawn_id,
+		},
 	}
-	if FileAccess.file_exists(path):
-		var file := FileAccess.open(path, FileAccess.READ)
-		var parsed: Variant = JSON.parse_string(file.get_as_text())
-		file.close()
-		if typeof(parsed) == TYPE_DICTIONARY:
-			payload["zones"] = (parsed as Dictionary).get("zones", _local_records)
-	var out := FileAccess.open(path, FileAccess.WRITE)
-	if out == null:
-		return
-	out.store_string(JSON.stringify(payload, "\t"))
-	out.close()
+
+
+func _set_last_purchased_zone(zone_id: String, spawn_id: String) -> void:
+	_last_purchased_zone_id = zone_id
+	_last_purchased_spawn_id = SpawnPoints.normalize_id(spawn_id)
+	_write_save_file()
+
+
+func _clear_last_purchased_zone() -> void:
+	_last_purchased_zone_id = ""
+	_last_purchased_spawn_id = ""
+	_write_save_file()
+
+
+func _player_owns_zone(zone_id: String) -> bool:
+	if zone_id == "" or not Auth.is_logged_in:
+		return false
+	var entry := get_zone_record(zone_id)
+	if str(entry.get("ownership", "")) != "owned":
+		return false
+	return str(entry.get("owner_account", "")) == Auth.username
+
+
+func _migrate_last_purchased_from_owned_zones() -> void:
+	var latest_zone_id := ""
+	var latest_stamp := ""
+	for zone_id in _local_records.keys():
+		var record: Dictionary = _local_records[zone_id]
+		if str(record.get("owner_account", "")) != Auth.username:
+			continue
+		if str(record.get("purchase_source", "")) == "nft":
+			continue
+		var purchased_at := str(record.get("purchased_at", ""))
+		if purchased_at == "":
+			continue
+		if latest_stamp == "" or purchased_at > latest_stamp:
+			latest_stamp = purchased_at
+			latest_zone_id = _block_zone_id(str(zone_id))
+	if latest_zone_id != "":
+		_set_last_purchased_zone(latest_zone_id, "satellite_right")
 
 
 func _set_building_spawn(zone_id: String, spawn_id: String, announce: bool = true) -> void:
@@ -488,7 +623,7 @@ func _set_building_spawn(zone_id: String, spawn_id: String, announce: bool = tru
 
 
 func _block_zone_id(zone_id: String) -> String:
-	var parsed := CubeZoneId.parse(zone_id)
+	var parsed: Dictionary = CubeZoneId.parse(zone_id)
 	if parsed.is_empty():
 		return zone_id
 	var block: Vector2i = parsed.get("block", Vector2i.ZERO)

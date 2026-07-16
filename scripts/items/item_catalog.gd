@@ -1,6 +1,9 @@
 class_name ItemCatalog
 extends RefCounted
 
+const MydrilliumMaterialCatalogScript = preload(
+	"res://scripts/economy/mydrillium_material_catalog.gd"
+)
 const CATALOG_PATH := "res://data/items/item_catalog.json"
 
 static var _data: Dictionary = {}
@@ -70,8 +73,27 @@ static func get_item_type(item_id: String) -> String:
 	return str(get_item(item_id).get("type", "consumable"))
 
 
+static func get_icon_key(item_id: String) -> String:
+	var icon := str(get_item(item_id).get("icon", ""))
+	if icon != "":
+		return icon
+	match get_item_type(item_id):
+		"food":
+			return "food"
+		_:
+			return ""
+
+
 static func is_weapon(item_id: String) -> bool:
 	return get_item_type(item_id) == "weapon"
+
+
+static func is_material(item_id: String) -> bool:
+	return get_item_type(item_id) == "material" or MydrilliumMaterialCatalogScript.is_material(item_id)
+
+
+static func is_stackable(item_id: String) -> bool:
+	return is_material(item_id)
 
 
 static func get_weapon_kind(item_id: String) -> String:

@@ -379,8 +379,14 @@ func _call_zezzlor() -> void:
 	if game and game.has_method("get_local_player"):
 		var player: Node3D = game.get_local_player()
 		if player:
-			_znood_mgr().request_zezzlor_backup(player.global_position)
-			_status_label.text = "Zezzlor tillkallade — signal på kartan."
+			var trouble_dir := MouseLook.get_aim_direction()
+			trouble_dir.y = 0.0
+			if trouble_dir.length_squared() < 0.01:
+				trouble_dir = -player.global_transform.basis.z
+				trouble_dir.y = 0.0
+			trouble_dir = trouble_dir.normalized()
+			_znood_mgr().request_zezzlor_backup(player.global_position, trouble_dir)
+			_status_label.text = "Zezzlor tillkallade — peka med siktet åt bråket."
 
 
 func _call_backup() -> void:

@@ -2,6 +2,7 @@ class_name SpaceKitLibrary
 extends RefCounted
 
 const DevBuildingLabelsScript = preload("res://scripts/dev/dev_building_labels.gd")
+const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
 
 const BASE_PATH := "res://assets/models/modular-space-kit/Models/GLB format/"
 
@@ -48,6 +49,8 @@ const MODELS := [
 	"template-wall-top",
 ]
 
+static var _scene_cache: Dictionary = {}
+
 
 static func model_path(name: String) -> String:
 	var file_name := name if name.ends_with(".glb") else "%s.glb" % name
@@ -55,11 +58,24 @@ static func model_path(name: String) -> String:
 
 
 static func load_model(name: String) -> PackedScene:
+	if _scene_cache.has(name):
+		return _scene_cache[name] as PackedScene
 	var path := model_path(name)
-	if ResourceLoader.exists(path):
-		return load(path) as PackedScene
-	push_warning("Space kit model not found: %s" % path)
-	return null
+	if not ResourceLoader.exists(path):
+		push_warning("Space kit model not found: %s" % path)
+		return null
+	var scene := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_REUSE) as PackedScene
+	if scene:
+		_scene_cache[name] = scene
+	return scene
+
+
+static func warmup_common_models() -> void:
+	for model_name in [
+		"room-large", "room-small", "corridor-wide", "gate-door-window",
+		"template-floor-big", "template-floor-detail-a", "stairs-wide",
+	]:
+		load_model(model_name)
 
 
 static func spawn(parent: Node3D, name: String, position: Vector3 = Vector3.ZERO, rotation_y: float = 0.0) -> Node3D:
@@ -72,7 +88,9 @@ static func spawn(parent: Node3D, name: String, position: Vector3 = Vector3.ZERO
 	instance.position = position
 	instance.rotation.y = rotation_y
 	parent.add_child(instance)
-	if name.begins_with("room-"):
+	if WorldCollisionBuilderScript.should_collide_space_model(name):
+		WorldCollisionBuilderScript.attach_space_kit_collision(instance, name)
+	if name.begins_with("room-") and OS.is_debug_build():
 		DevBuildingLabelsScript.attach(
 			parent,
 			position,

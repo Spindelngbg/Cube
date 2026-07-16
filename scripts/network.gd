@@ -10,7 +10,7 @@ const GLOBAL_LOBBY := "the-cube"
 var client: WebRTCMultiplayerClient
 var signaling_url: String = DEFAULT_SIGNAL_URL
 var current_lobby: String = GLOBAL_LOBBY
-var is_connected := false
+var peer_connected := false
 var _is_host := false
 
 signal world_ready()
@@ -30,7 +30,7 @@ func _ready() -> void:
 
 
 func connect_to_world(url: String = "") -> void:
-	if is_connected and multiplayer.multiplayer_peer != null:
+	if peer_connected and multiplayer.multiplayer_peer != null:
 		world_ready.emit()
 		return
 	_start(url, GLOBAL_LOBBY)
@@ -68,7 +68,7 @@ func _start(url: String, lobby_code: String) -> void:
 func stop() -> void:
 	if client:
 		client.stop()
-	is_connected = false
+	peer_connected = false
 	_is_host = false
 	current_lobby = GLOBAL_LOBBY
 
@@ -82,7 +82,7 @@ func _on_lobby_joined(lobby: String) -> void:
 
 
 func _on_connected(id: int, _use_mesh: bool) -> void:
-	is_connected = true
+	peer_connected = true
 	_is_host = id == 1
 	if current_lobby == GLOBAL_LOBBY or current_lobby.is_empty():
 		world_ready.emit()
@@ -95,7 +95,7 @@ func _on_lobby_sealed() -> void:
 
 
 func _on_disconnected() -> void:
-	is_connected = false
+	peer_connected = false
 	_is_host = false
 	if not client.sealed:
 		connection_failed.emit(client.reason)

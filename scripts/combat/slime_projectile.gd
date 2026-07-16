@@ -1,6 +1,8 @@
 extends Area3D
 
 const SlimeDamageScript = preload("res://scripts/combat/slime_damage.gd")
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
 const CorrosiveSplatScene = preload("res://scripts/combat/corrosive_splat.gd")
 const ProjectileTrailFxScript = preload("res://scripts/combat/projectile_trail_fx.gd")
 
@@ -173,6 +175,7 @@ func _apply_corrosive_hit(target: Node) -> void:
 
 
 func _splat(pos: Vector3) -> void:
+	GameSfxScript.play_3d_varied(get_parent(), pos, RpgAudioLibraryScript.from_pool(RpgAudioLibraryScript.PUNCH_HIT))
 	_spawn_corrosive_splat(pos)
 	queue_free()
 

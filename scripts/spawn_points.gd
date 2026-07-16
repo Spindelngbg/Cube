@@ -76,6 +76,15 @@ static func normalize_id(spawn_id: String) -> String:
 	return str(LEGACY_MAP.get(spawn_id, ""))
 
 
+static func default_colony_id() -> String:
+	return "satellite_left"
+
+
+static func ensure_colony_id(spawn_id: String) -> String:
+	var id := normalize_id(spawn_id)
+	return id if id != "" else default_colony_id()
+
+
 static func is_valid(spawn_id: String) -> bool:
 	return DATA.has(normalize_id(spawn_id))
 
@@ -117,14 +126,50 @@ static func get_cube_id(spawn_id: String) -> String:
 	return str(DATA.get(id, {}).get("cube_id", ""))
 
 
+## Spelarens fötter över golvytan (världs-Y). Påverkar INTE världsgeometrins origin.
+const SPAWN_FOOT_Y := 1.15
+
+
 static func get_position(spawn_id: String) -> Vector3:
-	var entry := get_entry(spawn_id)
+	var id := ensure_colony_id(spawn_id)
+	var entry := DATA.get(id, {})
 	var norm: Vector2 = entry.get("spawn_norm", Vector2(0.5, 0.5))
+	# Y=0 = kubens golvyta. Byggnader/stad byggs relativt denna origin.
 	return Vector3(
 		clampf(norm.x, 0.0, 1.0) * SATELLITE_EXTENT_M,
-		0.5,
+		0.0,
 		clampf(norm.y, 0.0, 1.0) * SATELLITE_EXTENT_M
 	)
+
+
+## Var spelaren faktiskt ska stå i kolonin (kan skilja från kub-hörnet).
+## Viktigt: ska ligga på öppen yta, inte mitt i byggnads-kollision.
+static func get_play_spawn_position(spawn_id: String) -> Vector3:
+	var id := ensure_colony_id(spawn_id)
+	var base := get_position(id)
+	match id:
+		"satellite_right":
+			# Kapitolplaza (cell 0,0 centrum) — kapitoliet ligger norrut, ytan är fri.
+			base += Vector3(20.0, 0.0, 20.0)
+		_:
+			# Ankomsthubbens öppna plattform (centrum), inte kubens hörnkant.
+			base += Vector3(0.0, 0.0, 0.0)
+	base.y = SPAWN_FOOT_Y
+	return base
+
+
+static func colony_number_to_id(colony_number: int) -> String:
+	for id in IDS:
+		if int(COLONY_NUMBERS.get(id, 0)) == colony_number:
+			return id
+	return ""
+
+
+static func resolve_spawn_token(token: String) -> String:
+	var t := token.strip_edges().to_lower()
+	if t.is_valid_int():
+		return colony_number_to_id(int(t))
+	return normalize_id(t)
 
 
 static func get_map_view_half_extent(spawn_id: String) -> float:
@@ -135,7 +180,7 @@ static func get_map_view_half_extent(spawn_id: String) -> float:
 
 
 static func get_map_view_center(spawn_id: String) -> Vector3:
-	return get_position(spawn_id)
+	return get_play_spawn_position(spawn_id)
 
 
 static func get_description(spawn_id: String) -> String:

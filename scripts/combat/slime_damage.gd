@@ -11,3 +11,5 @@ const BATON_DAMAGE := 14.0
 const BATON_COOLDOWN := 1.1
 const ZEZZLOR_SPEED := 5.8
 const ZEZZLOR_COUNT := 4
+const ENFORCER_SPEED := 4.4
+const ENFORCER_COUNT := 2

@@ -2,6 +2,9 @@ class_name QuestJournalUI
 extends PanelContainer
 
 const Lore = preload("res://scripts/story/shawshank_lore.gd")
+const GleazerLoreScript = preload("res://scripts/story/gleazer_lore.gd")
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
 
 var _title: Label
 var _company: Label
@@ -18,11 +21,19 @@ func _ready() -> void:
 	QuestManager.quest_step_changed.connect(_refresh)
 	QuestManager.quest_started.connect(func(_id: String) -> void: _refresh())
 	QuestManager.quest_completed.connect(func(_id: String) -> void: _refresh())
+	ArrivalQuestManager.quest_step_changed.connect(func(_idx: int) -> void: _refresh())
+	ArrivalQuestManager.quest_started.connect(func() -> void: _refresh())
+	ArrivalQuestManager.quest_completed.connect(func() -> void: _refresh())
+	GleazerQuestManager.gleazer_quest_changed.connect(_refresh)
 
 
 func toggle() -> void:
 	_visible = not _visible
 	visible = _visible
+	if _visible:
+		GameSfxScript.play_2d_varied(self, RpgAudioLibraryScript.ui_open())
+	else:
+		GameSfxScript.play_2d_varied(self, RpgAudioLibraryScript.ui_close())
 	if _visible:
 		_refresh()
 		MouseLook.deactivate()
@@ -80,6 +91,28 @@ func _build() -> void:
 
 
 func _refresh() -> void:
+	if ArrivalQuestManager.is_active() or ArrivalQuestManager.is_completed():
+		var arrival: Dictionary = ArrivalQuestManager.get_journal_entry()
+		_title.text = str(arrival.get("title", ""))
+		_company.text = str(arrival.get("company", ""))
+		if bool(arrival.get("completed", false)):
+			_objective.text = "AVSLUTAD — alla delmål i Ankomstprotokoll klara."
+			_briefing.text = "Steam-achievements låses upp när du spelar via Steam."
+		else:
+			_objective.text = str(arrival.get("current_objective", ""))
+			_briefing.text = str(arrival.get("current_briefing", ""))
+		_tagline.text = "%s\n\nDelmål:\n%s" % [
+			str(arrival.get("tagline", "")),
+			str(arrival.get("milestones", "")),
+		]
+		if GleazerQuestManager.has_active_quest():
+			var gq: Dictionary = GleazerQuestManager.get_active_summary()
+			_objective.text += "\n\n[Gleazers] %s\n%s" % [
+				str(gq.get("title", "")),
+				str(gq.get("objective", "")),
+			]
+		return
+
 	var entries: Array = QuestManager.get_journal_entries()
 	if entries.is_empty():
 		_title.text = "Inga uppdrag ännu"
@@ -99,3 +132,11 @@ func _refresh() -> void:
 		_objective.text = str(entry.get("current_objective", ""))
 		_briefing.text = str(entry.get("current_briefing", ""))
 	_tagline.text = str(entry.get("tagline", ""))
+	if GleazerQuestManager.has_active_quest():
+		var gq: Dictionary = GleazerQuestManager.get_active_summary()
+		_objective.text += "\n\n[Gleazers] %s\n%s" % [
+			str(gq.get("title", "")),
+			str(gq.get("objective", "")),
+		]
+		_briefing.text += "\n\n%s" % str(gq.get("briefing", ""))
+		_tagline.text += "\n%s" % GleazerLoreScript.CLAN_MOTTO

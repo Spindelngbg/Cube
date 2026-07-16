@@ -6,6 +6,9 @@ const ZnoodDoorBuilderScript = preload("res://scripts/access/znood_door_builder.
 const ItemPickupScript = preload("res://scripts/items/item_pickup.gd")
 const PharmacyBuilderScript = preload("res://scripts/shops/pharmacy_builder.gd")
 const WeaponShopBuilderScript = preload("res://scripts/shops/weapon_shop_builder.gd")
+const PurpleLaserTowerBuilderScript = preload("res://scripts/city/purple_laser_tower_builder.gd")
+const SpawnDensityScript = preload("res://scripts/world/spawn_density.gd")
+const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
 
 const ARRIVAL_HUB_RADIUS_M := 140.0
 const WALL_THICKNESS_M := 80.0
@@ -61,7 +64,10 @@ static func build(parent: Node3D, spawn_id: String) -> Node3D:
 	)
 	label.font_size = 72
 	label.modulate = Color(0.72, 0.8, 0.95) if id == "satellite_right" else Color(0.95, 0.88, 0.72)
-	label.position = spawn_pos + Vector3(0.0, 8.0, 0.0)
+	if id == "satellite_right":
+		label.position = spawn_pos + Vector3(20.0, 14.0, 12.0)
+	else:
+		label.position = spawn_pos + Vector3(0.0, 8.0, 0.0)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	root.add_child(label)
 
@@ -72,6 +78,8 @@ static func _build_cube_volume(root: Node3D, size_m: float, spawn_id: String) ->
 	var half := size_m * 0.5
 	var shell := StaticBody3D.new()
 	shell.name = "CubeVolume"
+	shell.collision_layer = 1
+	shell.collision_mask = 0
 	root.add_child(shell)
 
 	var floor_mat := _surface_material(Color(0.14, 0.15, 0.18))
@@ -108,14 +116,21 @@ static func _build_arrival_hub(root: Node3D, entry: Dictionary, spawn_id: String
 	var platform := Node3D.new()
 	platform.name = "ArrivalPlatform"
 	hub.add_child(platform)
+	# Öppen spawn-yta i centrum — solid rum flyttat så spelaren inte fastnar i geometri.
 	SpaceKitLibrary.spawn(platform, "template-floor-detail-a", Vector3(0, 0, 0))
-	SpaceKitLibrary.spawn(platform, "room-small", Vector3(0, 0, 2))
+	SpaceKitLibrary.spawn(platform, "room-small", Vector3(10.0, 0.0, -8.0))
+	WorldCollisionBuilderScript.attach_box(
+		platform,
+		Vector3(28.0, 0.35, 28.0),
+		Vector3(0.0, -0.18, 0.0)
+	)
 	_add_arrival_pickup(platform, Vector3(-3.0, 0.0, -2.0))
 
 	if spawn_id != "satellite_right":
 		_build_district(hub, ARRIVAL_HUB_RADIUS_M, str(entry.get("kit", "commercial")))
 		PharmacyBuilderScript.build(hub, Vector3(22.0, 0.0, -18.0))
 		WeaponShopBuilderScript.build(hub, Vector3(-24.0, 0.0, -20.0), "weapon_shop_%s" % spawn_id)
+		PurpleLaserTowerBuilderScript.build(hub, Vector3(28.0, 0.0, 14.0), spawn_id)
 		GreeneryVegetationBuilder.scatter_in_radius(
 			hub,
 			Vector3.ZERO,
@@ -139,6 +154,9 @@ static func _build_district(parent: Node3D, radius_m: float, kit: String) -> voi
 		Vector3(radius_m * 0.35, 0, radius_m * 0.3),
 	]
 	for i in range(spots.size()):
+		if not SpawnDensityScript.should_place_hub_building(spots[i], Vector3.ZERO, i):
+			CityKitLibrary.spawn(district, "roads", "tile-low", spots[i] + Vector3(0, 0.02, 0))
+			continue
 		var model := buildings[i % buildings.size()]
 		CityKitLibrary.spawn(district, kit, model, spots[i], float(i) * PI * 0.5)
 		CityKitLibrary.spawn(district, "roads", "road-square", spots[i] + Vector3(0, 0.02, 0))

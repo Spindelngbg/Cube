@@ -1,6 +1,9 @@
 class_name PharmacyShop
 extends Area3D
 
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
+
 const REMEDY_ID := "hybrid_antidote"
 
 var prompt_text := "Prata med Pill-Bot [E]"
@@ -37,6 +40,7 @@ func try_purchase() -> bool:
 
 	var price := ItemCatalog.get_shop_price(REMEDY_ID)
 	if not PoisonManager.is_poisoned():
+		GameSfxScript.play_3d_varied(self, global_position, RpgAudioLibraryScript.bot_greet())
 		QuestManager.story_toast.emit(
 			"Pill-Bot",
 			"Hej hej! Du ser frisk ut idag. Om en SRC-zombie biter dig kom tillbaka — jag har antidot!"
@@ -53,6 +57,7 @@ func try_purchase() -> bool:
 
 	PoisonManager.cure()
 	InventoryManager.add_item(REMEDY_ID)
+	GameSfxScript.play_3d_varied(self, global_position, RpgAudioLibraryScript.shop_buy())
 	QuestManager.story_toast.emit(
 		"Pill-Bot",
 		"Yay! Giftet är borta nu. Ta det lugnt där ute bland hybridzombies!"

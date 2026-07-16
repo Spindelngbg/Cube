@@ -67,6 +67,22 @@ static func mall_cells() -> Array[Vector2i]:
 	return cells
 
 
+## Rutnätsceller som redan fylls av landmärken eller story-byggnader — inga zonk-byggnader här.
+static func reserved_landmark_cells() -> Array[Vector2i]:
+	return [
+		Vector2i(0, 0),
+		Vector2i(-6, 0),
+		Vector2i(-2, 3),
+		Vector2i(-4, -3),
+		Vector2i(-1, 2),
+		Vector2i(-5, 1),
+	]
+
+
+static func is_reserved_landmark_cell(cell: Vector2i) -> bool:
+	return cell in reserved_landmark_cells()
+
+
 static func grid_extent() -> Dictionary:
 	return {
 		"x_min": -7,
@@ -99,12 +115,12 @@ const GREENERY_ZONE_TYPES := [
 
 
 const GREENERY_DENSITY := {
-	"NATIONALMALLEN": {"trees": 7, "mushrooms": 4},
-	"VATTENFRONT": {"trees": 4, "mushrooms": 7},
-	"BOSTADSKVARTER": {"trees": 4, "mushrooms": 3},
-	"AMBASSADNÄSET": {"trees": 4, "mushrooms": 3},
-	"MONUMENTKÄRNA": {"trees": 6, "mushrooms": 4},
-	"PARKBÄLTE": {"trees": 6, "mushrooms": 4},
+	"NATIONALMALLEN": {"trees": 2, "mushrooms": 1},
+	"VATTENFRONT": {"trees": 1, "mushrooms": 2},
+	"BOSTADSKVARTER": {"trees": 1, "mushrooms": 1},
+	"AMBASSADNÄSET": {"trees": 1, "mushrooms": 1},
+	"MONUMENTKÄRNA": {"trees": 2, "mushrooms": 1},
+	"PARKBÄLTE": {"trees": 2, "mushrooms": 1},
 }
 
 

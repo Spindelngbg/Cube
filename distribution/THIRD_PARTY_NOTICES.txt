@@ -9,5 +9,7 @@ Node signaling server (Railway deploy only, not in player build):
 
 Kenney 3D asset kits — CC0 — used for city and environment models.
 Settings Menus addon — see addons/settings_menus/
+GodotSteam GDExtension 4.20 — MIT — see addons/godotsteam/license.md
+  (Steamworks SDK redistributables in addons/godotsteam/*/steam_api*.dll|so|dylib)
 
 All networking is limited to game login, chat, matchmaking, and multiplayer sync.

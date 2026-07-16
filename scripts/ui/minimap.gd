@@ -1,7 +1,7 @@
 class_name MinimapPanel
 extends PanelContainer
 
-const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+const GameplayHudThemeScript = preload("res://scripts/ui/gameplay_hud_theme.gd")
 
 var _world_size := 30.0
 var _spawn_id := ""
@@ -13,7 +13,7 @@ var _map_input_enabled := false
 
 
 func _ready() -> void:
-	SpiderTheme.apply_gui(self)
+	GameplayHudThemeScript.apply_panel(self)
 	custom_minimum_size = Vector2(188, 188)
 
 	_canvas = Control.new()
@@ -67,16 +67,10 @@ func _on_canvas_draw() -> void:
 		znood.waypoint if znood else Vector3.ZERO,
 		znood.has_waypoint if znood else false,
 		znood.get_backup_pings_for_local() if znood else [],
-		znood.get_blink_alpha() if znood else 1.0
+		znood.get_blink_alpha() if znood else 1.0,
+		false,
+		false
 	)
-	if _map_input_enabled:
-		GuiFontLibraryScript.draw(
-			_canvas,
-			inner.position + Vector2(inner.size.x * 0.5 - 56, inner.position.y + 20),
-			"Klicka vägpunkt",
-			GuiFontLibraryScript.FONT_SMALL,
-			Color(0.55, 0.9, 1.0, 0.85)
-		)
 
 
 func _on_canvas_input(event: InputEvent) -> void:

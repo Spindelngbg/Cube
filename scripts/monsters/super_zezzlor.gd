@@ -3,6 +3,10 @@ extends CharacterBody3D
 const LASER_SCENE := preload("res://scenes/combat/laser_projectile.tscn")
 const ZezzlorBuilderScript = preload("res://scripts/monsters/zezzlor_builder.gd")
 const ZezzlorLoreScript = preload("res://scripts/story/zezzlor_lore.gd")
+const ProceduralSfxScript = preload("res://scripts/audio/procedural_sfx.gd")
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
+const Hurtbox3DScript = preload("res://scripts/combat/hurtbox_3d.gd")
 
 const RANK_ID := "superman"
 const TURN_SPEED := 13.0
@@ -33,6 +37,9 @@ var _strafe_dir := 1.0
 var _strafe_timer := 0.0
 var _rng := RandomNumberGenerator.new()
 var _deflect_flash := false
+var _was_on_floor := true
+var _last_air_velocity_y := 0.0
+var _bounce_player: AudioStreamPlayer3D
 
 
 func take_corrosive_slime(_amount: float, _shooter_id: int) -> void:
@@ -60,6 +67,8 @@ func setup(
 	_name_label.modulate = ZezzlorLoreScript.rank_color(RANK_ID)
 	_mount_model()
 	_attach_laser_pistol()
+	Hurtbox3DScript.attach(self, 0.85, 2.4, 1.15)
+	_setup_bounce_audio()
 	_pick_patrol_direction()
 	_wander_timer = _rng.randf_range(0.4, 1.2)
 	_strafe_dir = 1.0 if _rng.randf() > 0.5 else -1.0
@@ -88,6 +97,7 @@ func _physics_process(delta: float) -> void:
 		_patrol(delta)
 
 	move_and_slide()
+	_check_landing_bounce()
 	_update_animation()
 	if multiplayer.multiplayer_peer != null:
 		_sync_state.rpc(position, rotation.y, velocity.length() > 0.6)
@@ -220,6 +230,7 @@ func _spawn_laser(origin: Vector3, direction: Vector3) -> void:
 	if laser.has_method("launch"):
 		var shooter_id := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 0
 		laser.launch(origin, direction, shooter_id)
+	GameSfxScript.play_3d_varied(root, origin, RpgAudioLibraryScript.laser_fire())
 
 
 func _get_projectiles_root() -> Node:
@@ -300,6 +311,39 @@ func _attach_laser_pistol() -> void:
 func _update_animation() -> void:
 	if _avatar_animator:
 		_avatar_animator.set_moving(velocity.length() > 0.5 or not is_on_floor())
+
+
+func _setup_bounce_audio() -> void:
+	_bounce_player = AudioStreamPlayer3D.new()
+	_bounce_player.name = "LandingBounce"
+	_bounce_player.bus = &"Sfx"
+	_bounce_player.max_distance = 42.0
+	_bounce_player.position = Vector3(0.0, 0.35, 0.0)
+	_bounce_player.stream = ProceduralSfxScript.bounce_stream()
+	add_child(_bounce_player)
+
+
+func _check_landing_bounce() -> void:
+	if not is_on_floor():
+		_last_air_velocity_y = velocity.y
+		_was_on_floor = false
+		return
+	if not _was_on_floor:
+		_play_landing_bounce(_last_air_velocity_y)
+	_was_on_floor = true
+
+
+func _play_landing_bounce(air_velocity_y: float) -> void:
+	if _bounce_player == null:
+		return
+	var impact := clampf(absf(air_velocity_y) / LEAP_UP, 0.35, 1.35)
+	_bounce_player.pitch_scale = _rng.randf_range(0.88, 1.08) * impact
+	_bounce_player.volume_db = lerpf(-14.0, -4.0, impact)
+	_bounce_player.play()
+	if _model_pivot:
+		var tween := create_tween()
+		tween.tween_property(_model_pivot, "scale", Vector3(1.08, 0.9, 1.08), 0.05)
+		tween.tween_property(_model_pivot, "scale", Vector3.ONE, 0.12)
 
 
 func _flash_deflect() -> void:

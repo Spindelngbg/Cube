@@ -10,6 +10,8 @@ signaling-server/node_modules/
 node_modules/
 tmp_*.json
 gh_*.txt
+_godot_*.txt
+_scan_*.txt
 *.uid
 ~*
 github-login.bat

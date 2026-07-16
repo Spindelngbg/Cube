@@ -24,7 +24,7 @@ static func apply_environment(env: Environment, is_exposed_city: bool, draw_dist
 		env.ambient_light_color = Color(0.1, 0.13, 0.22)
 		env.ambient_light_energy = 0.22 if not shadows_enabled() else 0.1
 		env.fog_light_color = Color(0.14, 0.18, 0.28)
-		env.fog_density = 0.0032
+		env.fog_density = 0.0048
 		env.fog_depth_begin = fog_begin
 		env.fog_depth_end = fog_end
 		env.fog_sky_affect = 0.1

@@ -5,12 +5,16 @@ extends Control
 @onready var character_list: VBoxContainer = %CharacterList
 @onready var create_button: Button = %CreateButton
 @onready var play_button: Button = %PlayButton
+@onready var edit_button: Button = %EditButton
 
 var _selected_id := ""
 var _navigate_after_create := false
+var _entering := false
 
 
 func _ready() -> void:
+	InputMode.ui()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	SpiderTheme.apply_to(self)
 	SpiderTheme.style_title($Center/Panel/VBox/Title)
 	SpiderTheme.style_subtitle($Center/Panel/VBox/Subtitle)
@@ -22,6 +26,7 @@ func _ready() -> void:
 
 	create_button.pressed.connect(_on_create_pressed)
 	play_button.pressed.connect(_on_play_pressed)
+	edit_button.pressed.connect(_on_edit_pressed)
 	%LogoutButton.pressed.connect(_on_logout_pressed)
 
 	if Profile.characters_list_ready():
@@ -66,8 +71,10 @@ func _refresh_ui() -> void:
 
 	if _selected_id == "" or not _has_character(_selected_id):
 		_selected_id = Profile.active_character_id
-	play_button.disabled = _selected_id == ""
-	_set_status("Välj en karaktär eller skapa en ny.")
+	play_button.disabled = _selected_id == "" or _entering
+	edit_button.disabled = _selected_id == "" or _entering
+	play_button.text = _play_label_for(_selected_id)
+	_set_status("Välj en sparad karaktär och tryck Spela — eller skapa en ny.")
 
 
 func _make_character_row(character_id: String, character_name: String, is_active: bool) -> PanelContainer:
@@ -77,10 +84,20 @@ func _make_character_row(character_id: String, character_name: String, is_active
 	row.add_theme_constant_override("separation", 8)
 	panel.add_child(row)
 
+	var name_col := VBoxContainer.new()
+	name_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(name_col)
+
 	var name_label := Label.new()
 	name_label.text = "%s%s" % [character_name, "  ★" if is_active else ""]
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(name_label)
+	name_col.add_child(name_label)
+
+	var status := CharacterFlow.character_status(_character_entry(character_id))
+	if status != "":
+		var status_label := Label.new()
+		SpiderTheme.style_subtitle(status_label)
+		status_label.text = status
+		name_col.add_child(status_label)
 
 	var select_button := Button.new()
 	select_button.text = "Välj"
@@ -118,13 +135,65 @@ func _on_create_pressed() -> void:
 
 
 func _on_play_pressed() -> void:
-	if _selected_id == "":
+	if _selected_id == "" or _entering:
+		return
+	_entering = true
+	play_button.disabled = true
+	edit_button.disabled = true
+	create_button.disabled = true
+	if _selected_id != Profile.active_character_id:
+		_set_status("Väljer karaktär...")
+		Profile.select_character(_selected_id)
+		await Profile.character_selected
+	if needs_avatar_setup_for_selected():
+		_entering = false
+		_refresh_ui()
+		CharacterFlow.open_avatar_editor(self)
+		return
+	if CharacterFlow.destination_scene_path() == CharacterFlow.GAME_SCENE:
+		_set_status("Ansluter till din koloni...")
+	var result: Dictionary = await CharacterFlow.continue_as(self)
+	_entering = false
+	if not result.ok:
+		_refresh_ui()
+		_set_status(str(result.get("error", "Kunde inte gå vidare")))
+		return
+
+
+func _on_edit_pressed() -> void:
+	if _selected_id == "" or _entering:
 		return
 	if _selected_id != Profile.active_character_id:
 		_set_status("Väljer karaktär...")
 		Profile.select_character(_selected_id)
 		await Profile.character_selected
-	get_tree().change_scene_to_file("res://scenes/avatar_builder.tscn")
+	CharacterFlow.open_avatar_editor(self)
+
+
+func needs_avatar_setup_for_selected() -> bool:
+	if _selected_id == "":
+		return true
+	return not Profile.character_avatar_configured(_character_entry(_selected_id))
+
+
+func _play_label_for(character_id: String) -> String:
+	if character_id == "":
+		return "Spela"
+	var entry := _character_entry(character_id)
+	if not Profile.character_avatar_configured(entry):
+		return "Skapa utseende"
+	if bool(entry.get("homeSpawnLocked", false)):
+		return "Spela"
+	if not bool(entry.get("nestVisited", false)):
+		return "Till nästet"
+	return "Till ljusrummet"
+
+
+func _character_entry(character_id: String) -> Dictionary:
+	for entry in Profile.characters:
+		if typeof(entry) == TYPE_DICTIONARY and str((entry as Dictionary).get("id", "")) == character_id:
+			return entry as Dictionary
+	return {}
 
 
 func _on_delete_pressed(character_id: String) -> void:

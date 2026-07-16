@@ -215,10 +215,10 @@ func get_blink_alpha() -> float:
 	return 0.45 + absf(sin(_blink_phase)) * 0.55
 
 
-func request_zezzlor_backup(world_position: Vector3) -> void:
+func request_zezzlor_backup(world_position: Vector3, trouble_direction: Vector3 = Vector3.ZERO) -> void:
 	var game := get_tree().get_first_node_in_group("game_director")
 	if game and game.has_method("broadcast_znood_zezzlor_call"):
-		game.broadcast_znood_zezzlor_call(world_position)
+		game.broadcast_znood_zezzlor_call(world_position, trouble_direction)
 
 
 func request_group_backup(world_position: Vector3) -> void:

@@ -11,6 +11,7 @@ const { redeemSecretCode, SPAWN_IDS, normalizeSpawnId } = require('./spawn_codes
 const MAX_CHARACTERS_DEFAULT = 6;
 const UNLIMITED_USER = 'testare1';
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const MESH_ID_RE = /^[a-z0-9_-]{2,32}$/;
 const CHARACTER_NAME_RE = /^[\p{L}\p{N} _-]{1,16}$/u;
 
 function loadStore() {
@@ -49,7 +50,12 @@ function sanitizeAvatar(raw) {
 		return null;
 	}
 
+	const mesh_id = typeof raw.mesh_id === 'string' && MESH_ID_RE.test(raw.mesh_id)
+		? raw.mesh_id.slice(0, 32)
+		: 'character-a';
+
 	return {
+		mesh_id,
 		body_color: sanitizeColor(raw.body_color, '#121a0f'),
 		accent_color: sanitizeColor(raw.accent_color, '#850f24'),
 		eye_color: sanitizeColor(raw.eye_color, '#fa381f'),
@@ -126,6 +132,18 @@ function ensureUserRecord(data, username) {
 }
 
 function migrateCharacter(character) {
+	if (character.avatar === undefined || character.avatar === null) {
+		character.avatar = defaultAvatar();
+	}
+	if (character.avatarConfigured === undefined) {
+		const createdAt = character.createdAt || '';
+		const updatedAt = character.updatedAt || '';
+		character.avatarConfigured = Boolean(
+			character.homeSpawnLocked
+			|| character.nestVisited
+			|| (createdAt && updatedAt && updatedAt !== createdAt)
+		);
+	}
 	if (character.nestVisited === undefined) {
 		character.nestVisited = false;
 	}
@@ -160,6 +178,7 @@ function serializeCharacter(character) {
 		id: entry.id,
 		name: entry.name,
 		avatar: entry.avatar,
+		avatarConfigured: Boolean(entry.avatarConfigured),
 		createdAt: entry.createdAt,
 		updatedAt: entry.updatedAt,
 		nestVisited: Boolean(entry.nestVisited),
@@ -213,6 +232,7 @@ function createCharacter(username, rawName) {
 		id,
 		name,
 		avatar: defaultAvatar(),
+		avatarConfigured: false,
 		createdAt: now,
 		updatedAt: now,
 		nestVisited: false,
@@ -256,6 +276,7 @@ function saveCharacter(username, characterId, avatarRaw) {
 	}
 
 	character.avatar = avatar;
+	character.avatarConfigured = true;
 	character.updatedAt = new Date().toISOString();
 	saveStore(data);
 

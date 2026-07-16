@@ -1,0 +1,46 @@
+# Railway CLI upload filter for `railway up` from repo root.
+# Keeps only the signaling-server deploy bundle (see Dockerfile + railway.toml).
+# Mirror changes in .dockerignore when adjusting deploy inputs.
+
+# Godot project (not needed on Railway)
+.godot/
+.import/
+addons/
+assets/
+scenes/
+scripts/
+script_templates/
+networking/
+data/
+build/
+export/
+export.bat
+export_presets.cfg
+project.godot
+*.gd
+*.tscn
+*.godot
+*.uid
+*.import
+*.translation
+
+# Packaging, tools, local test artifacts
+distribution/
+tools/
+test_web/
+steam_appid.txt
+tmp_*.json
+gh_*.txt
+github-login.bat
+~*
+
+# Dependencies (installed in Docker build)
+node_modules/
+signaling-server/node_modules/
+
+# Local server runtime data
+signaling-server/data/
+
+# Git metadata
+.git/
+.gitignore

@@ -19,6 +19,7 @@ var _mesh: MeshInstance3D
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
+	area_entered.connect(_on_area_entered)
 
 
 func launch_player(origin: Vector3, direction: Vector3, shooter_id: int) -> void:
@@ -70,16 +71,40 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body == self:
+	_apply_hit(body)
+
+
+func _on_area_entered(area: Area3D) -> void:
+	_apply_hit(area)
+
+
+func _apply_hit(collider: Node) -> void:
+	if collider == self:
 		return
-	if not _from_enemy and body is CharacterBody3D and body.get_multiplayer_authority() == _shooter_id:
+	var target := _resolve_damage_target(collider)
+	if target == null:
 		return
-	if _from_enemy and body.has_method("get_health_snapshot"):
+	if not _from_enemy and target is CharacterBody3D and target.get_multiplayer_authority() == _shooter_id:
+		return
+	if _from_enemy and target.has_method("get_health_snapshot"):
 		return
 
-	if body.has_method("take_corrosive_slime"):
-		body.take_corrosive_slime(SlimeDamageScript.DAMAGE_PER_HIT * 0.85, _shooter_id)
-	elif body.has_method("take_damage") and body.is_multiplayer_authority():
-		body.take_damage(SPEAR_DAMAGE)
+	if target.has_method("take_corrosive_slime"):
+		target.take_corrosive_slime(SlimeDamageScript.DAMAGE_PER_HIT * 0.85, _shooter_id)
+	elif target.has_method("take_damage"):
+		target.take_damage(SPEAR_DAMAGE)
 
 	queue_free()
+
+
+func _resolve_damage_target(node: Node) -> Node:
+	if node == null:
+		return null
+	if node.has_method("take_corrosive_slime") or node.has_method("take_damage"):
+		return node
+	if node.get_parent() != null and (
+		node.get_parent().has_method("take_corrosive_slime")
+		or node.get_parent().has_method("take_damage")
+	):
+		return node.get_parent()
+	return null

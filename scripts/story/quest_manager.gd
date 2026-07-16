@@ -2,6 +2,8 @@ extends Node
 
 const Lore = preload("res://scripts/story/shawshank_lore.gd")
 const NpcCatalogScript = preload("res://scripts/npcs/npc_catalog.gd")
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
 
 signal quest_started(quest_id: String)
 signal quest_step_changed(quest_id: String, step_index: int)
@@ -77,7 +79,7 @@ func get_journal_entries() -> Array:
 	return entries
 
 
-func start_quest(quest_id: String = MAIN_QUEST_ID) -> void:
+func start_quest(quest_id: String = MAIN_QUEST_ID, silent: bool = false) -> void:
 	if _progress.has(quest_id) and not bool(_progress[quest_id].get("completed", false)):
 		return
 	_progress[quest_id] = {
@@ -89,10 +91,17 @@ func start_quest(quest_id: String = MAIN_QUEST_ID) -> void:
 	}
 	_save_progress()
 	quest_started.emit(quest_id)
-	_emit_step_toast(quest_id)
+	if not silent:
+		_emit_step_toast(quest_id)
 
 
 func on_interact(interact_id: String) -> void:
+	if interact_id.begins_with("allmakare_"):
+		_trigger_allmakare(interact_id)
+		return
+	if interact_id.begins_with("gleazer_"):
+		_trigger_gleazer(interact_id)
+		return
 	if interact_id.begins_with("npc_"):
 		NpcCatalogScript.trigger_dialogue(interact_id)
 		return
@@ -127,16 +136,11 @@ func on_enter_colony(spawn_id: String) -> void:
 	if id != "satellite_right":
 		return
 	if not _progress.has(MAIN_QUEST_ID):
-		start_quest(MAIN_QUEST_ID)
+		start_quest(MAIN_QUEST_ID, true)
 	if get_current_step_id() == "read_memo":
 		_progress[MAIN_QUEST_ID]["step_index"] = 1
 		_save_progress()
-	_complete_step(MAIN_QUEST_ID, "reach_koloni_4")
-	if is_quest_active() and get_current_step_id() == "find_annex":
-		story_toast.emit(
-			Lore.COMPANY_SHORT + " spår",
-			"Röda skyltar och höga torn nära spawn. Shawshank Annex borde vara här."
-		)
+	_complete_step(MAIN_QUEST_ID, "reach_koloni_4", true)
 
 
 func tick_hybrid_witness(player_pos: Vector3, hybrids: Array) -> void:
@@ -171,6 +175,11 @@ func get_current_step_id(quest_id: String = MAIN_QUEST_ID) -> String:
 
 
 func get_hud_quest_hint() -> String:
+	if ArrivalQuestManager.is_active() or ArrivalQuestManager.is_completed():
+		return ArrivalQuestManager.get_hud_hint()
+	if GleazerQuestManager.has_active_quest():
+		var gq: Dictionary = GleazerQuestManager.get_active_summary()
+		return "Gleazers: %s" % str(gq.get("objective", "uppdrag"))
 	if is_quest_completed():
 		return "Quest klar: SRC avslöjad"
 	if not is_quest_active():
@@ -179,6 +188,28 @@ func get_hud_quest_hint() -> String:
 	if step.is_empty():
 		return ""
 	return "Quest: %s" % _objective_text(MAIN_QUEST_ID, step)
+
+
+func _trigger_allmakare(npc_id: String) -> void:
+	for node in get_tree().get_nodes_in_group("allmakare_npc"):
+		if not is_instance_valid(node):
+			continue
+		if str(node.get_meta("npc_id", "")) != npc_id:
+			continue
+		if node.has_method("build_allmakare_talk_payload"):
+			AllmakareDebtManager.on_interact(npc_id, node.build_allmakare_talk_payload())
+		return
+
+
+func _trigger_gleazer(npc_id: String) -> void:
+	for node in get_tree().get_nodes_in_group("gleazer_npc"):
+		if not is_instance_valid(node):
+			continue
+		if str(node.get_meta("npc_id", "")) != npc_id:
+			continue
+		if node.has_method("build_gleazer_talk_payload"):
+			GleazerQuestManager.on_talk(npc_id, node.build_gleazer_talk_payload())
+		return
 
 
 func _collect_evidence(interact_id: String) -> void:
@@ -201,7 +232,7 @@ func _collect_evidence(interact_id: String) -> void:
 		_complete_step(MAIN_QUEST_ID, "collect_evidence")
 
 
-func _complete_step(quest_id: String, step_id: String) -> void:
+func _complete_step(quest_id: String, step_id: String, silent: bool = false) -> void:
 	if not _progress.has(quest_id) or bool(_progress[quest_id].get("completed", false)):
 		return
 	var quest := _get_quest_def(quest_id)
@@ -218,13 +249,16 @@ func _complete_step(quest_id: String, step_id: String) -> void:
 		_progress[quest_id]["completed"] = true
 		_save_progress()
 		quest_completed.emit(quest_id)
-		story_toast.emit(
-			"Operation Redemption avslutad",
-			Lore.SABOTAGE_SUCCESS
-		)
+		GameSfxScript.play_2d_varied(self, RpgAudioLibraryScript.quest_complete(), Vector2(-10.0, -5.0))
+		if not silent:
+			story_toast.emit(
+				"Operation Redemption avslutad",
+				Lore.SABOTAGE_SUCCESS
+			)
 	else:
 		quest_step_changed.emit(quest_id, idx)
-		_emit_step_toast(quest_id)
+		if not silent:
+			_emit_step_toast(quest_id)
 
 
 func _objective_text(quest_id: String, step: Dictionary) -> String:

@@ -1,12 +1,15 @@
 class_name GreeneryVegetationBuilder
 extends RefCounted
 
+const SpawnDensityScript = preload("res://scripts/world/spawn_density.gd")
+
 ## Stora träd och jättestora svampar i alla gröna zoner runt stadsrutnätet.
 
-const TREE_LARGE_SCALE := 28.0
-const TREE_SMALL_SCALE := 22.0
-const MUSHROOM_HEIGHT_M := 26.0
+const TREE_LARGE_SCALE := 24.0
+const TREE_SMALL_SCALE := 18.0
+const MUSHROOM_HEIGHT_M := 22.0
 const BLOCK_M := DcZoneCatalog.BLOCK_M
+const BUILDING_CLEAR_RADIUS_M := 13.0
 
 const MUSHROOM_CAP_COLORS := [
 	Color(0.82, 0.28, 0.38),
@@ -28,6 +31,8 @@ static func build(parent: Node3D, spawn_id: String = "satellite_right") -> Node3
 	for x in range(extent.x_min, extent.x_max + 1):
 		for z in range(extent.z_min, extent.z_max + 1):
 			var cell := Vector2i(x, z)
+			if DcZoneCatalog.is_reserved_landmark_cell(cell):
+				continue
 			var spec: Dictionary = DcZoneCatalog.classify_cell(cell)
 			var zone_type: String = str(spec.get("zone_type", ""))
 			if not DcZoneCatalog.is_greenery_zone(zone_type):
@@ -37,7 +42,8 @@ static func build(parent: Node3D, spawn_id: String = "satellite_right") -> Node3
 				cell,
 				zone_type,
 				str(spec.get("kit", "")),
-				theme
+				theme,
+				spec
 			)
 
 	return root
@@ -48,11 +54,19 @@ static func _populate_cell(
 	cell: Vector2i,
 	zone_type: String,
 	kit: String,
-	theme: Dictionary
+	theme: Dictionary,
+	spec: Dictionary = {}
 ) -> void:
+	if _cell_has_primary_building(cell, spec):
+		return
+
+	var density_scale := SpawnDensityScript.greenery_scale(cell)
+	if density_scale <= 0.001:
+		return
+
 	var density: Dictionary = DcZoneCatalog.greenery_density(zone_type)
-	var tree_count: int = int(density.get("trees", 0))
-	var mushroom_count: int = int(density.get("mushrooms", 0))
+	var tree_count: int = _scaled_count(int(density.get("trees", 0)), density_scale)
+	var mushroom_count: int = _scaled_count(int(density.get("mushrooms", 0)), density_scale)
 	if tree_count <= 0 and mushroom_count <= 0:
 		return
 
@@ -64,9 +78,10 @@ static func _populate_cell(
 	var edge_bias := kit != "roads"
 	var spread := BLOCK_M * 0.42 if edge_bias else BLOCK_M * 0.38
 
+	var avoid_center := _cell_has_primary_building(cell, spec) or kit != "roads"
 	for i in range(tree_count):
-		var offset := _scatter_offset(cell, i, spread, edge_bias)
-		var use_large := (hash(Vector3i(cell.x, cell.y, i * 17)) % 100) > 28
+		var offset := _scatter_offset(cell, i, spread, edge_bias, avoid_center)
+		var use_large: bool = int(hash(Vector3i(cell.x, cell.y, i * 17)) % 100) > 28
 		var tree_scale := TREE_LARGE_SCALE if use_large else TREE_SMALL_SCALE
 		var model := "tree-large" if use_large else "tree-small"
 		var rotation_y := float(hash(Vector3i(cell.x, cell.y, i * 31)) % 628) / 100.0
@@ -80,8 +95,8 @@ static func _populate_cell(
 		)
 
 	for i in range(mushroom_count):
-		var offset := _scatter_offset(cell, i + 900, spread * 0.92, edge_bias)
-		var palette_index := hash(Vector3i(cell.x, cell.y, i * 53)) % MUSHROOM_CAP_COLORS.size()
+		var offset := _scatter_offset(cell, i + 900, spread * 0.92, edge_bias, avoid_center)
+		var palette_index: int = int(hash(Vector3i(cell.x, cell.y, i * 53)) % MUSHROOM_CAP_COLORS.size())
 		var cap_color := _tinted_cap_color(palette_index, theme)
 		_build_giant_mushroom(cell_root, offset, cap_color, i, cell)
 
@@ -156,22 +171,68 @@ static func _build_giant_mushroom(
 	return mushroom
 
 
-static func _scatter_offset(cell: Vector2i, index: int, spread: float, edge_bias: bool) -> Vector3:
+static func _scatter_offset(
+	cell: Vector2i,
+	index: int,
+	spread: float,
+	edge_bias: bool,
+	avoid_center: bool = false
+) -> Vector3:
 	var hx := float(hash(Vector3i(cell.x, cell.y, index * 13)) % 10000) / 10000.0
 	var hz := float(hash(Vector3i(cell.x, cell.y, index * 29)) % 10000) / 10000.0
 	var x := (hx - 0.5) * spread * 2.0
 	var z := (hz - 0.5) * spread * 2.0
 
-	if edge_bias:
-		var center := Vector3(BLOCK_M * 0.5, 0.0, BLOCK_M * 0.5)
-		var pos := center + Vector3(x, 0.0, z)
+	var center := Vector3(BLOCK_M * 0.5, 0.0, BLOCK_M * 0.5)
+	var pos := center + Vector3(x, 0.0, z)
+	if edge_bias or avoid_center:
 		var to_edge := pos - center
-		if to_edge.length() < BLOCK_M * 0.18:
-			to_edge = to_edge.normalized() * BLOCK_M * 0.22
+		var min_radius := BLOCK_M * 0.22
+		if avoid_center:
+			min_radius = maxf(min_radius, BUILDING_CLEAR_RADIUS_M)
+		if to_edge.length() < min_radius:
+			if to_edge.length() < 0.1:
+				var angle := float(hash(Vector3i(cell.x, cell.y, index * 37)) % 628) / 100.0
+				to_edge = Vector3(cos(angle), 0.0, sin(angle))
+			to_edge = to_edge.normalized() * min_radius
 			pos = center + to_edge
 		return pos
 
 	return Vector3(BLOCK_M * 0.5 + x, 0.0, BLOCK_M * 0.5 + z)
+
+
+static func _scaled_count(base_count: int, scale: float) -> int:
+	if base_count <= 0 or scale <= 0.001:
+		return 0
+	if scale >= 0.95:
+		return base_count
+	return clampi(int(floor(float(base_count) * scale + 0.2)), 0, base_count)
+
+
+static func _cell_has_primary_building(cell: Vector2i, spec: Dictionary) -> bool:
+	if spec.is_empty():
+		spec = DcZoneCatalog.classify_cell(cell)
+	var kit := str(spec.get("kit", ""))
+	if kit == "roads" or kit == "space":
+		return false
+	return SpawnDensityScript.should_place_building(cell)
+
+
+static func scatter_cell_accent(parent: Node3D, center: Vector3, cell: Vector2i) -> void:
+	if not SpawnDensityScript.should_scatter_cell_accent(cell):
+		return
+	var accent_seed: int = int(hash(Vector3i(cell.x, cell.y, 19)))
+	var tree_count: int = 1 if (accent_seed & 1) == 1 else 0
+	for i in range(tree_count):
+		var offset := _scatter_offset(cell, i + 300, BLOCK_M * 0.34, true, true)
+		CityKitLibrary.spawn(
+			parent,
+			"suburban",
+			"tree-small",
+			offset,
+			float(hash(Vector3i(cell.x, cell.y, i * 11)) % 628) / 100.0,
+			TREE_SMALL_SCALE * 0.82
+		)
 
 
 static func scatter_in_radius(
@@ -192,7 +253,7 @@ static func scatter_in_radius(
 		var angle := float(i) / maxf(float(tree_count), 1.0) * TAU + 0.4
 		var dist := radius_m * (0.35 + float(hash(i * 97) % 55) / 100.0)
 		var offset := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
-		var use_large := (hash(i * 41) % 100) > 35
+		var use_large: bool = int(hash(i * 41) % 100) > 35
 		CityKitLibrary.spawn(
 			patch,
 			"suburban",

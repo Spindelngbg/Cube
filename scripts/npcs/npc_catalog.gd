@@ -1,6 +1,8 @@
 class_name NpcCatalog
 extends RefCounted
 
+const NpcDialogueBarkScript = preload("res://scripts/audio/npc_dialogue_bark.gd")
+
 const DcZoneCatalogScript = preload("res://scripts/city/dc_zone_catalog.gd")
 const Lore = preload("res://scripts/story/shawshank_lore.gd")
 const ZezzlorLoreScript = preload("res://scripts/story/zezzlor_lore.gd")
@@ -180,6 +182,8 @@ static func trigger_dialogue(npc_id: String) -> void:
 	var title: String = str(entry.get("dialogue_title", entry.get("name", "NPC")))
 	var body: String = str(entry.get("dialogue_body", "..."))
 	body = _append_quest_hint(npc_id, body)
+	NpcDialogueBarkScript.play_for_id(npc_id, "greeting")
+	NpcDialogueBarkScript.play_for_id(npc_id, "miscellaneous")
 	QuestManager.story_toast.emit(title, body)
 
 

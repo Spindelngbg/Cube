@@ -83,14 +83,21 @@ static func button_style(hover: bool = false, pressed: bool = false) -> StyleBox
 	)
 
 
-static func input_style(focused: bool = false) -> StyleBoxTexture:
-	var tint := SpiderTheme.UI_BORDER_FOCUS if focused else SpiderTheme.UI_BORDER_MUTED
-	return style_from_texture(
-		texture("Transparent border", "panel-transparent-border-004"),
-		tint,
-		false,
-		10
-	)
+static func input_style(focused: bool = false) -> StyleBox:
+	var flat := StyleBoxFlat.new()
+	flat.bg_color = Color(0.1, 0.11, 0.15, 0.98) if focused else Color(0.07, 0.08, 0.12, 0.96)
+	flat.border_width_left = 2
+	flat.border_width_top = 2
+	flat.border_width_right = 2
+	flat.border_width_bottom = 2
+	flat.border_color = SpiderTheme.BLOOD_BRIGHT if focused else SpiderTheme.UI_BORDER
+	flat.set_corner_radius_all(8)
+	flat.content_margin_left = 12
+	flat.content_margin_right = 12
+	flat.content_margin_top = 8
+	flat.content_margin_bottom = 8
+	flat.anti_aliasing = true
+	return flat
 
 
 static func tab_style(active: bool = false) -> StyleBoxTexture:

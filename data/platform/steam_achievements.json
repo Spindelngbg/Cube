@@ -1,0 +1,39 @@
+{
+	"achievements": {
+		"arrival_welcome": {
+			"steam_api_name": "ARRIVAL_WELCOME",
+			"display_name": "Kvitterad ankomst",
+			"description": "Läs välkomstpanelen vid spawn."
+		},
+		"arrival_journal": {
+			"steam_api_name": "ARRIVAL_JOURNAL",
+			"display_name": "Journal öppnad",
+			"description": "Öppna questjournalen för första gången."
+		},
+		"arrival_inventory": {
+			"steam_api_name": "ARRIVAL_INVENTORY",
+			"display_name": "Packning kontrollerad",
+			"description": "Öppna inventory och kolla din utrustning."
+		},
+		"arrival_contact": {
+			"steam_api_name": "ARRIVAL_CONTACT",
+			"display_name": "Första kontakt",
+			"description": "Interagera med något nära spawn."
+		},
+		"arrival_mineral": {
+			"steam_api_name": "ARRIVAL_MINERAL",
+			"display_name": "Mineralprov",
+			"description": "Samla din första mineral nära spawn."
+		},
+		"arrival_refine": {
+			"steam_api_name": "ARRIVAL_REFINE",
+			"display_name": "Raffinör",
+			"description": "Raffinera mineral till Mydrillium."
+		},
+		"arrival_protocol_complete": {
+			"steam_api_name": "ARRIVAL_PROTOCOL_COMPLETE",
+			"display_name": "Ankomstprotokoll klart",
+			"description": "Slutför alla delmål i huvuduppdraget Ankomstprotokoll."
+		}
+	}
+}

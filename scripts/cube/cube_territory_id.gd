@@ -51,14 +51,14 @@ static func parse_block(block_territory_id: String) -> Dictionary:
 
 
 static func zone_to_block_id(zone_id: String) -> String:
-	var parsed := CubeZoneId.parse(zone_id)
+	var parsed: Dictionary = CubeZoneId.parse(zone_id)
 	if parsed.is_empty():
 		return ""
-	return block_id(parsed.layer, parsed.block)
+	return block_id(int(parsed.get("layer", 0)), parsed.get("block", Vector2i.ZERO))
 
 
 static func zone_to_layer_id(zone_id: String) -> String:
-	var parsed := CubeZoneId.parse(zone_id)
+	var parsed: Dictionary = CubeZoneId.parse(zone_id)
 	if parsed.is_empty():
 		return ""
-	return layer_id(parsed.layer)
+	return layer_id(int(parsed.get("layer", 0)))

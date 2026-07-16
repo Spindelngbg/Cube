@@ -1,0 +1,20 @@
+[gd_scene load_steps=4 format=3 uid="uid://cube_zezzlor_laser_bolt"]
+
+[ext_resource type="Script" path="res://scripts/combat/zezzlor_laser_bolt.gd" id="1_bolt"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_bolt"]
+radius = 0.28
+
+[sub_resource type="BoxMesh" id="BoxMesh_bolt"]
+size = Vector3(0.18, 0.18, 1.4)
+
+[node name="ZezzlorLaserBolt" type="Area3D"]
+collision_layer = 8
+collision_mask = 1
+script = ExtResource("1_bolt")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_bolt")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_bolt")

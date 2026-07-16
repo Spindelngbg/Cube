@@ -1,0 +1,54 @@
+{
+	"quest": {
+		"id": "arrival_protocol",
+		"title": "Ankomstprotokoll",
+		"company": "Kolonisäkerhet",
+		"tagline": "Alla nya kolonister måste kvittera basfärdigheter innan de släpps ut.",
+		"max_distance_m": 42.0,
+		"steps": [
+			{
+				"id": "welcome",
+				"title": "Välkomstpanel",
+				"objective": "Läs välkomstpanelen och tryck Fortsätt",
+				"briefing": "Kontroller och översikt visas vid spawn. Allt du behöver för första timmen ligger nära dig.",
+				"achievement": "arrival_welcome"
+			},
+			{
+				"id": "open_journal",
+				"title": "Questjournal",
+				"objective": "Öppna questjournalen [J]",
+				"briefing": "Här följer du delmål och huvuduppdrag. Du behöver inte lämna spawnområdet än.",
+				"achievement": "arrival_journal"
+			},
+			{
+				"id": "open_inventory",
+				"title": "Inventory",
+				"objective": "Öppna inventory [I]",
+				"briefing": "Kolla plånbok, föremål och mineral du samlar. Startkapital: Mydrillium (Md).",
+				"achievement": "arrival_inventory"
+			},
+			{
+				"id": "first_contact",
+				"title": "Första kontakt",
+				"objective": "Interagera med något nära spawn [E]",
+				"briefing": "Prata med Pill-Bot, Stål-Sven, plocka upp ett föremål, hacka mineral eller besök en station — allt inom gångavstånd.",
+				"achievement": "arrival_contact"
+			},
+			{
+				"id": "collect_mineral",
+				"title": "Mineralprov",
+				"objective": "Hacka eller samla 1 mineral nära spawn [E]",
+				"briefing": "Gröna malmfläckar och skrothögar finns runt ankomstzonen. Borrlicens ger extra utbyte.",
+				"achievement": "arrival_mineral"
+			},
+			{
+				"id": "refine_mineral",
+				"title": "Raffinering",
+				"objective": "Raffinera mineral vid en station nära spawn [E]",
+				"briefing": "Besök raffinaderiet eller mineralhandeln och omvandla malm till Md. Koloniuppdrag ger bonus senare.",
+				"achievement": "arrival_refine"
+			}
+		],
+		"complete_achievement": "arrival_protocol_complete"
+	}
+}

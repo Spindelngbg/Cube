@@ -25,6 +25,7 @@ var _defaults: Dictionary = {
 	"audio.master": 1.0,
 	"audio.music": 1.0,
 	"audio.sfx": 1.0,
+	"audio.footsteps_enabled": true,
 	"display.window_mode": 0,        # 0 windowed, 1 fullscreen, 2 borderless
 	"display.resolution_index": 0,   # index into Settings.RESOLUTIONS
 	"display.vsync": true,
@@ -149,6 +150,7 @@ func load_settings() -> void:
 func apply_audio() -> void:
 	for key in ["master", "music", "sfx"]:
 		_apply_audio_one(key)
+	_apply_footsteps_enabled()
 
 
 func _apply_audio_one(bus_key: String) -> void:
@@ -167,6 +169,15 @@ func _apply_audio_one(bus_key: String) -> void:
 	else:
 		AudioServer.set_bus_mute(bus_idx, false)
 		AudioServer.set_bus_volume_db(bus_idx, linear_to_db(vol))
+
+
+func _apply_footsteps_enabled() -> void:
+	var bus_idx := AudioServer.get_bus_index("Footsteps")
+	if bus_idx < 0:
+		push_warning("Settings: no audio bus named 'Footsteps'; footsteps toggle will be inert.")
+		return
+	var enabled: bool = bool(get_value("audio.footsteps_enabled", true))
+	AudioServer.set_bus_mute(bus_idx, not enabled)
 
 
 # ---- display --------------------------------------------------------------
@@ -339,7 +350,9 @@ func apply_all() -> void:
 
 
 func _apply_one(key: String, _value) -> void:
-	if key.begins_with("audio."):
+	if key == "audio.footsteps_enabled":
+		_apply_footsteps_enabled()
+	elif key.begins_with("audio."):
 		var bus := key.substr(6)
 		_apply_audio_one(bus)
 	elif key.begins_with("display."):

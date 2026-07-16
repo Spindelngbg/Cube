@@ -3,6 +3,8 @@ extends Node3D
 const Lore = preload("res://scripts/story/shawshank_lore.gd")
 const StoryInteractableScript = preload("res://scripts/story/story_interactable.gd")
 const StoryToastUIScript = preload("res://scripts/ui/story_toast_ui.gd")
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
 
 const MOVE_SPEED := 4.0
 const ROOM_SIZE := Vector3(40, 18, 40)
@@ -62,6 +64,7 @@ func _ready() -> void:
 	_build_elevators()
 	_build_wayfinding()
 	_build_story_clues()
+	GuiFontLibrary.fix_label3d_tree(self)
 	_build_player()
 	_style_ui()
 	_hide_confirm()
@@ -361,6 +364,7 @@ func _build_elevator_unit(spec: Dictionary) -> void:
 		"lobby_zone": lobby_zone,
 		"cab_zone": cab_zone,
 		"door_open": 0.0,
+		"door_open_prev": 0.0,
 		"entry": entry,
 		"elevator_label": elevator_label,
 	}
@@ -379,8 +383,11 @@ func _update_elevators(delta: float) -> void:
 		var inside := cab != null and cab.overlaps_body(player)
 
 		var target_open := 1.0 if near or inside else 0.0
-		data.door_open = move_toward(float(data.door_open), target_open, delta * DOOR_OPEN_SPEED)
+		var prev_open := float(data.door_open)
+		data.door_open = move_toward(prev_open, target_open, delta * DOOR_OPEN_SPEED)
 		_apply_door_pose(data)
+		_maybe_play_elevator_door_sfx(data, prev_open, float(data.door_open))
+		data.door_open_prev = float(data.door_open)
 
 		if inside:
 			_inside_elevator_id = spawn_id
@@ -418,6 +425,23 @@ func _apply_door_pose(data: Dictionary) -> void:
 		right.position.x = 0.58 + slide
 
 
+func _maybe_play_elevator_door_sfx(data: Dictionary, prev_open: float, open_now: float) -> void:
+	if prev_open > 0.18 and open_now <= 0.18:
+		_play_elevator_door_close(data)
+
+
+func _play_elevator_door_close(data: Dictionary) -> void:
+	var car: Node3D = data.get("car") as Node3D
+	if car == null:
+		return
+	GameSfxScript.play_3d_varied(
+		self,
+		car.global_position + Vector3(0.0, 1.4, 0.0),
+		RpgAudioLibraryScript.door_close(),
+		Vector2(-9.0, -4.0)
+	)
+
+
 func _start_elevator_ride(spawn_id: String) -> void:
 	if not SpawnPoints.is_valid(spawn_id):
 		return
@@ -433,7 +457,9 @@ func _start_elevator_ride(spawn_id: String) -> void:
 	_ride_start = _ride_car.position
 	_ride_end = Vector3(0.0, RIDE_HEIGHT_M, 0.0)
 	player.velocity = Vector3.ZERO
+	_play_elevator_door_close(data)
 	data.door_open = 0.0
+	data.door_open_prev = 0.0
 	_apply_door_pose(data)
 	_set_hint(
 		"Hissen åker upp mot %s (%s)..."

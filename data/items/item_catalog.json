@@ -10,6 +10,8 @@
 	"items": {
 		"koloni_ration": {
 			"name": "Koloni-ranson",
+			"type": "food",
+			"icon": "food",
 			"rarity": "common",
 			"hp_bonus": 10,
 			"description": "Standardnäring från kubens förråd. Ger lite extra uthållighet."
@@ -49,6 +51,142 @@
 			"hp_bonus": 0,
 			"shop_price": 1200,
 			"description": "Kolonins frätslem-pistol. Skjuter grönt korrosivt slem med magasin och omladdning."
+		},
+		"laserrifle": {
+			"name": "Lasergevär",
+			"type": "weapon",
+			"weapon_kind": "laserrifle",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"shop_price": 0,
+			"description": "Energivapen från det lila lasertornet. Snabba cyan-laserstrålar med rökpuffar vid avfyrning."
+		},
+		"mountblast_3000": {
+			"name": "Mountblast 3000",
+			"type": "weapon",
+			"weapon_kind": "mountblast_3000",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"shop_price": 3400,
+			"description": "Tung smältkanon. När diplomati, slem och vett har slut på ammunition."
+		},
+		"neon_stinger_mk2": {
+			"name": "Neon Stinger Mk-II",
+			"type": "weapon",
+			"weapon_kind": "neon_stinger_mk2",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 2100,
+			"description": "Snabb neonpistol. Perfekt för dig som vill vinna argumentet före motståndaren hinner blinka."
+		},
+		"corrosion_cannon_x9": {
+			"name": "Corrosion Cannon X9",
+			"type": "weapon",
+			"weapon_kind": "corrosion_cannon_x9",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"shop_price": 2800,
+			"description": "Frätande slemgevär i tung kaliber. Lämnar inga vackra minnen."
+		},
+		"plasma_ripper_7": {
+			"name": "Plasma Ripper 7",
+			"type": "weapon",
+			"weapon_kind": "plasma_ripper_7",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 1900,
+			"description": "Plasmagevär med stabil eld. Kolonins svar på 'kan det gå lite snabbare?'"
+		},
+		"voltthrower_ultra": {
+			"name": "Voltthrower Ultra",
+			"type": "weapon",
+			"weapon_kind": "voltthrower_ultra",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"shop_price": 2500,
+			"description": "Högspänningsgevär. Brum, zapp, problem löst."
+		},
+		"shadow_fang": {
+			"name": "Shadow Fang",
+			"type": "weapon",
+			"weapon_kind": "shadow_fang",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"shop_price": 450,
+			"description": "Lätt dolk för snabba närstridsbesked."
+		},
+		"chitin_cleaver": {
+			"name": "Chitin Cleaver",
+			"type": "weapon",
+			"weapon_kind": "chitin_cleaver",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 780,
+			"description": "Tung kitinyxa från spindelkolonin. Hugger djupt."
+		},
+		"hsg_survival_axe": {
+			"name": "Överlevnadsyxan",
+			"type": "weapon",
+			"weapon_kind": "hsg_survival_axe",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 1100,
+			"description": "PSX-yxa från Horror Survival Game Project. Tung, pålitlig och perfekt när kolonin kräver ved — eller vengeance."
+		},
+		"src_stiletto": {
+			"name": "SRC Stiletto",
+			"type": "weapon",
+			"weapon_kind": "src_stiletto",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 920,
+			"description": "Corporate-stilett i rött stål. Smal, snabb, passivt aggressiv."
+		},
+		"redemption_blade": {
+			"name": "Redemption Blade",
+			"type": "weapon",
+			"weapon_kind": "redemption_blade",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"shop_price": 1650,
+			"description": "Tungt svärd med omärkt SRC-emblem. För dig som vill köpa förlåtelse i stål."
+		},
+		"zezzlor_gut_knife": {
+			"name": "Zezzlor Gut-Knife",
+			"type": "weapon",
+			"weapon_kind": "zezzlor_gut_knife",
+			"rarity": "legendary",
+			"hp_bonus": 0,
+			"shop_price": 4200,
+			"description": "Legendarisk Zezzlor-blå slaktkniv. Olaglig på papper, populär i praktiken."
+		},
+		"raw_mydrillium_ore": {
+			"name": "Rå Mydrillium-malm",
+			"type": "material",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"description": "Grönaktig mineralmalm från kubväggarna. Raffineras till Md."
+		},
+		"mydrillium_sludge": {
+			"name": "Mydrillium-slam",
+			"type": "material",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"description": "Sediment från tidalbassänger. Filtreras till rå mineral."
+		},
+		"tech_scrap": {
+			"name": "Tech-skrot",
+			"type": "material",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"description": "Återvunnet kretskort och legeringar med spår av Mydrillium."
+		},
+		"contaminated_ore": {
+			"name": "Kontaminerad malm",
+			"type": "material",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"description": "SRC-märkt malm. Farlig men värdefull på svarta marknaden."
 		}
 	}
 }

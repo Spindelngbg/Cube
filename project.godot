@@ -46,6 +46,20 @@ ZoneOwnershipManager="*res://scripts/cube/zone_ownership_manager.gd"
 GameTutorialManager="*res://scripts/tutorial/game_tutorial_manager.gd"
 PoisonManager="*res://scripts/status/poison_manager.gd"
 ZnoodManager="*res://scripts/znood/znood_manager.gd"
+HelpRobotTts="*res://scripts/audio/help_robot_tts.gd"
+ZezzlorJailManager="*res://scripts/monsters/zezzlor_jail_manager.gd"
+ZezzlorDossierManager="*res://scripts/monsters/zezzlor_dossier_manager.gd"
+ZezzlorHuntManager="*res://scripts/monsters/zezzlor_hunt_manager.gd"
+GleazerQuestManager="*res://scripts/story/gleazer_quest_manager.gd"
+AllmakareDebtManager="*res://scripts/story/allmakare_debt_manager.gd"
+MydrilliumEconomyManager="*res://scripts/economy/mydrillium_economy_manager.gd"
+ArrivalQuestManager="*res://scripts/story/arrival_quest_manager.gd"
+SteamWorks="*res://scripts/platform/steamworks.gd"
+SteamAchievements="*res://scripts/platform/steam_achievements.gd"
+DragDropSystem="*res://addons/modular_inventory_system/autoload/DragDropSystem.gd"
+InputMode="*res://addons/modular_inventory_system/autoload/InputMode.gd"
+UICoordinator="*res://addons/modular_inventory_system/autoload/UICoordinator.gd"
+UIStateManager="*res://addons/modular_inventory_system/autoload/UIStateManager.gd"
 
 [display]
 
@@ -55,7 +69,7 @@ window/stretch/mode="canvas_items"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/settings_menus/plugin.cfg")
+enabled=PackedStringArray("res://addons/settings_menus/plugin.cfg", "res://addons/modular_inventory_system/plugin.cfg", "res://addons/roommate/plugin.cfg")
 
 [input]
 
@@ -158,3 +172,14 @@ lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
 lights_and_shadows/positional_shadow/soft_shadow_filter_quality=0
 environment/defaults/default_clear_color=Color(0, 0, 0, 1)
 lights_and_shadows/positional_shadow/atlas_size=1024
+
+[steam]
+
+initialization/app_data/app_type=0
+initialization/app_data/app_id=0
+initialization/app_data/demo_id=0
+initialization/app_data/playtest_id=0
+initialization/app_data/tool_id=0
+initialization/processes/initialize_on_startup=false
+initialization/processes/embed_callbacks=false
+multiplayer_peer/max_channels=4

@@ -1,6 +1,9 @@
 class_name ZnoodDevice
 extends Node3D
 
+const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
+const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
+
 ## Kolonisternas personliga åtkomststämpel — sitter i vänster hand närmast ansiktet.
 ## Fullständig implementation är avancerad; se data/todos/znood_todo.md.
 
@@ -61,6 +64,7 @@ func play_stamp(target_global: Vector3) -> void:
 	tween.tween_property(self, "rotation", start_rot + Vector3(0.18, 0.22, -0.35), STAMP_DURATION * 0.45)\
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_pulse_stamp_ring()
+	GameSfxScript.play_3d_varied(self, global_position, RpgAudioLibraryScript.stamp())
 	tween.chain()
 	tween.set_parallel(true)
 	tween.tween_property(self, "position", start_pos, STAMP_DURATION * 0.55)\

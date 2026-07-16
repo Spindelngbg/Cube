@@ -10,6 +10,8 @@ extends Control
 
 
 func _ready() -> void:
+	InputMode.ui()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	SpiderTheme.apply_to(self)
 	SpiderTheme.style_title($Center/MainPanel/VBox/Title, 44)
 	SpiderTheme.style_subtitle($Center/MainPanel/VBox/Subtitle)

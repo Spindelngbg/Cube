@@ -97,13 +97,9 @@ void vertex() {
     // EFFECT 1: Scale blade width based on distance (X axis controls width)
     VERTEX.x *= distance_fade;
     
-    // EFFECT 2: Offset grass downward along world Y axis based on distance
+    // EFFECT 2: Sink grass toward ground as it fades (local Y; avoids inverse() on GLES3).
     float ground_offset = final_height_scale * (1.0 - distance_fade);
-    
-    // Transform world Y offset to local space
-    vec3 world_offset = vec3(0.0, -ground_offset, 0.0);
-    vec3 local_offset = (inverse(MODEL_MATRIX) * vec4(world_offset, 0.0)).xyz;
-    VERTEX += local_offset;
+    VERTEX.y -= ground_offset;
     
     // Apply enhanced wind animation to upper vertices (only if grass is visible)
     if (height_factor > 0.01 && distance_fade > 0.01) {

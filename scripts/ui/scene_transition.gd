@@ -1,8 +1,9 @@
 extends Node
 
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+const SpawnBriefingCatalogScript = preload("res://scripts/ui/spawn_briefing_catalog.gd")
 
-const LAYER := 100
+const LAYER := 128
 
 var _layer: CanvasLayer
 var _overlay: ColorRect
@@ -16,6 +17,17 @@ var _loading_subtitle: Label
 var _loading_dots_timer := 0.0
 var _loading_dots_phase := 0
 var _loading_visible := false
+var _briefing_root: Control
+var _briefing_scroll: ScrollContainer
+var _briefing_body: RichTextLabel
+var _briefing_button: Button
+var _briefing_loading_label: Label
+var _briefing_visible := false
+var _briefing_dismissed := false
+var _briefing_waiting_dismiss := false
+var _briefing_loading_phase := false
+var _briefing_loading_title := "Laddar"
+var _briefing_loading_subtitle := "Bygger koloni och värld..."
 var _busy := false
 
 
@@ -68,6 +80,7 @@ func _ready() -> void:
 
 	_overlay.color.a = 0.0
 	_build_loading_overlay()
+	_build_spawn_briefing_overlay()
 
 
 func _build_loading_overlay() -> void:
@@ -131,6 +144,10 @@ func is_loading() -> bool:
 	return _loading_visible
 
 
+func is_spawn_briefing_visible() -> bool:
+	return _briefing_visible
+
+
 func show_loading(message: String = "Laddar", subtitle: String = "Bygger koloni och värld...") -> void:
 	_loading_label.text = message
 	if _loading_subtitle:
@@ -157,7 +174,190 @@ func hide_loading() -> void:
 	_loading_root.visible = false
 
 
+func show_spawn_loading_briefing(
+	message: String = "Laddar",
+	subtitle: String = "Bygger koloni och värld..."
+) -> void:
+	if _briefing_root == null:
+		show_loading(message, subtitle)
+		return
+	_briefing_dismissed = false
+	_briefing_waiting_dismiss = false
+	_briefing_loading_phase = true
+	_briefing_loading_title = message
+	_briefing_loading_subtitle = subtitle
+	_loading_dots_phase = 0
+	_loading_dots_timer = 0.0
+	_briefing_button.visible = false
+	if _briefing_loading_label:
+		_briefing_loading_label.text = "%s — %s" % [message, subtitle]
+		_briefing_loading_label.visible = true
+	if _briefing_scroll:
+		_briefing_scroll.visible = false
+	_briefing_root.visible = true
+	_briefing_root.modulate.a = 1.0
+	_briefing_visible = true
+	_loading_visible = false
+	if _loading_root:
+		_loading_root.visible = false
+
+
+func mark_spawn_loading_ready(ready_note: String = "Världen är klar — tryck Fortsätt.") -> void:
+	if _briefing_root == null:
+		return
+	_briefing_loading_phase = false
+	_briefing_waiting_dismiss = true
+	if _briefing_loading_label:
+		_briefing_loading_label.visible = false
+	if _briefing_scroll:
+		_briefing_scroll.visible = true
+	_briefing_button.visible = true
+
+
+func show_spawn_briefing() -> void:
+	if _briefing_root == null:
+		return
+	_briefing_dismissed = false
+	_briefing_waiting_dismiss = true
+	_briefing_loading_phase = false
+	_briefing_button.visible = true
+	if _briefing_loading_label:
+		_briefing_loading_label.visible = false
+	_briefing_root.visible = true
+	_briefing_root.modulate.a = 1.0
+	_briefing_visible = true
+
+
+func dismiss_spawn_briefing() -> void:
+	if not _briefing_visible:
+		return
+	_briefing_dismissed = true
+
+
+func wait_spawn_briefing_dismissed() -> void:
+	while _briefing_waiting_dismiss and not _briefing_dismissed:
+		await get_tree().process_frame
+	_briefing_waiting_dismiss = false
+	_briefing_loading_phase = false
+	if _briefing_root == null:
+		_briefing_visible = false
+		return
+	_briefing_visible = false
+	var tween := create_tween()
+	tween.tween_property(_briefing_root, "modulate:a", 0.0, 0.22)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	await tween.finished
+	_briefing_root.visible = false
+
+
+func _build_spawn_briefing_overlay() -> void:
+	_briefing_root = Control.new()
+	_briefing_root.name = "SpawnBriefing"
+	_briefing_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_briefing_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_briefing_root.visible = false
+	_briefing_root.process_mode = Node.PROCESS_MODE_ALWAYS
+	_briefing_root.z_index = 4096
+	_layer.add_child(_briefing_root)
+
+	var backdrop := ColorRect.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.color = Color(1.0, 1.0, 1.0, 1.0)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_briefing_root.add_child(backdrop)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 48)
+	margin.add_theme_constant_override("margin_right", 48)
+	margin.add_theme_constant_override("margin_top", 40)
+	margin.add_theme_constant_override("margin_bottom", 36)
+	_briefing_root.add_child(margin)
+
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 16)
+	margin.add_child(col)
+
+	var title := Label.new()
+	title.text = SpawnBriefingCatalogScript.TITLE
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_override("font", GuiFontLibraryScript.semibold())
+	title.add_theme_font_size_override("font_size", 42)
+	title.add_theme_color_override("font_color", Color(0.05, 0.05, 0.08))
+	col.add_child(title)
+
+	_briefing_scroll = ScrollContainer.new()
+	_briefing_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_briefing_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_briefing_scroll.visible = false
+	col.add_child(_briefing_scroll)
+
+	_briefing_body = RichTextLabel.new()
+	_briefing_body.bbcode_enabled = false
+	_briefing_body.fit_content = true
+	_briefing_body.scroll_active = false
+	_briefing_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_briefing_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_briefing_body.text = SpawnBriefingCatalogScript.BODY
+	_briefing_body.add_theme_font_override("normal_font", GuiFontLibraryScript.regular())
+	_briefing_body.add_theme_font_size_override("normal_font_size", 20)
+	_briefing_body.add_theme_color_override("default_color", Color(0.08, 0.08, 0.1))
+	_briefing_scroll.add_child(_briefing_body)
+
+	_briefing_loading_label = Label.new()
+	_briefing_loading_label.text = "Laddar — Bygger koloni och värld..."
+	_briefing_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_briefing_loading_label.add_theme_font_override("font", GuiFontLibraryScript.semibold())
+	_briefing_loading_label.add_theme_font_size_override("font_size", 22)
+	_briefing_loading_label.add_theme_color_override("font_color", Color(0.12, 0.12, 0.16))
+	col.add_child(_briefing_loading_label)
+
+	var button_row := HBoxContainer.new()
+	button_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_child(button_row)
+
+	_briefing_button = Button.new()
+	_briefing_button.text = "Fortsätt"
+	_briefing_button.custom_minimum_size = Vector2(220, 44)
+	_briefing_button.visible = false
+	_briefing_button.pressed.connect(dismiss_spawn_briefing)
+	button_row.add_child(_briefing_button)
+
+	var hint := Label.new()
+	hint.text = "E eller Space fungerar också"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_override("font", GuiFontLibraryScript.regular())
+	hint.add_theme_font_size_override("font_size", 16)
+	hint.add_theme_color_override("font_color", Color(0.28, 0.28, 0.32))
+	col.add_child(hint)
+
+	_briefing_root.gui_input.connect(_on_briefing_gui_input)
+
+
+func _on_briefing_gui_input(event: InputEvent) -> void:
+	if not _briefing_visible:
+		return
+	if event.is_action_pressed("interact") or event.is_action_pressed("jump"):
+		dismiss_spawn_briefing()
+		get_viewport().set_input_as_handled()
+
+
 func _process(delta: float) -> void:
+	if _briefing_waiting_dismiss and not _briefing_dismissed and not _briefing_loading_phase:
+		if Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("jump"):
+			dismiss_spawn_briefing()
+	if _briefing_loading_phase and _briefing_loading_label:
+		_loading_dots_timer += delta
+		if _loading_dots_timer >= 0.42:
+			_loading_dots_timer = 0.0
+			_loading_dots_phase = (_loading_dots_phase + 1) % 4
+			_briefing_loading_label.text = "%s%s — %s" % [
+				_briefing_loading_title,
+				".".repeat(_loading_dots_phase),
+				_briefing_loading_subtitle,
+			]
 	if not _loading_visible:
 		return
 	_loading_dots_timer += delta

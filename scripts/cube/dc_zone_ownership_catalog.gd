@@ -42,7 +42,7 @@ static func koloni4_local_to_zone_id(local: Vector3) -> String:
 
 
 static func world_to_zone_id(world_pos: Vector3, spawn_id: String) -> String:
-	var spawn_pos := SpawnPoints.get_position(spawn_id)
+	var spawn_pos := SpawnPoints.get_position(SpawnPoints.ensure_colony_id(spawn_id))
 	var local := world_pos - spawn_pos
 	local.y = 0.0
 	if SpawnPoints.normalize_id(spawn_id) == "satellite_right":
@@ -103,12 +103,16 @@ static func is_rentable(zone_id: String, entry: Dictionary = {}) -> bool:
 
 static func zone_id_to_building_spawn(zone_id: String, spawn_id: String) -> Vector3:
 	var cell := zone_id_to_dc_cell(zone_id)
+	# Framför blockets mitt (söderut) så man inte spawnar inuti husets kollisionslåda.
 	var local := Vector3(
 		float(cell.x) * DcZoneCatalogScript.BLOCK_M + DcZoneCatalogScript.BLOCK_M * 0.5,
-		0.5,
+		0.0,
 		float(cell.y) * DcZoneCatalogScript.BLOCK_M + DcZoneCatalogScript.BLOCK_M * 0.5
+			+ DcZoneCatalogScript.BLOCK_M * 0.28
 	)
-	return SpawnPoints.get_position(spawn_id) + local
+	var world := SpawnPoints.get_position(SpawnPoints.ensure_colony_id(spawn_id)) + local
+	world.y = SpawnPoints.SPAWN_FOOT_Y
+	return world
 
 
 static func get_purchase_price(zone_id: String) -> int:

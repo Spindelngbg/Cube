@@ -1,6 +1,8 @@
 extends Node
 
 ## Musstyrning för FPS-vy. Siktet i mitten följer kamerans riktning.
+## Viktigt: titta/rotera ENDAST när musen är CAPTURED — annars "åker siktet iväg"
+## från crosshair när markören är fri (UI/chatt).
 
 const MOUSE_SENSITIVITY := 0.0022
 const PITCH_LIMIT := 1.15
@@ -9,6 +11,8 @@ var _pivot: Node3D
 var _camera: Camera3D
 var _active := false
 var _was_paused := false
+var _want_capture := true
+var _ignore_look_frames := 0
 
 
 func _ready() -> void:
@@ -24,16 +28,20 @@ func activate(pivot: Node3D, camera: Camera3D) -> void:
 	_camera = camera
 	_active = true
 	_was_paused = false
+	_want_capture = true
 	if _pivot and _camera:
 		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
 	_capture_mouse()
+	_set_input_mode_game()
 
 
 func deactivate() -> void:
 	_active = false
 	_pivot = null
 	_camera = null
+	_want_capture = false
 	_release_mouse()
+	_set_input_mode_ui()
 
 
 func get_yaw() -> float:
@@ -68,22 +76,43 @@ func get_aim_origin(fallback_position: Vector3) -> Vector3:
 func _input(event: InputEvent) -> void:
 	if not is_active() or get_tree().paused:
 		return
-	if event is InputEventMouseMotion:
-		var motion := event as InputEventMouseMotion
-		_pivot.rotation.y -= motion.relative.x * MOUSE_SENSITIVITY
-		_camera.rotation.x = clampf(
-			_camera.rotation.x - motion.relative.y * MOUSE_SENSITIVITY,
-			-PITCH_LIMIT,
-			PITCH_LIMIT
-		)
-	elif event is InputEventMouseButton:
+
+	# Klick i spelet tar tillbaka siktet (om UI inte blockerar).
+	if event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
 		if button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
-			if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			if _should_auto_capture() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 				_capture_mouse()
+		return
+
+	if not (event is InputEventMouseMotion):
+		return
+	# Endast när musen är låst till fönstret — annars roterar kameran medan
+	# markören vandrar bort från crosshair i mitten.
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		return
+	if not _want_capture or not _should_auto_capture():
+		return
+	if _ignore_look_frames > 0:
+		return
+
+	var motion := event as InputEventMouseMotion
+	# Ignorera spikar (t.ex. efter capture/alt-tab).
+	if absf(motion.relative.x) > 80.0 or absf(motion.relative.y) > 80.0:
+		return
+	if _pivot == null or _camera == null:
+		return
+	_pivot.rotation.y -= motion.relative.x * MOUSE_SENSITIVITY
+	_camera.rotation.x = clampf(
+		_camera.rotation.x - motion.relative.y * MOUSE_SENSITIVITY,
+		-PITCH_LIMIT,
+		PITCH_LIMIT
+	)
 
 
 func _process(_delta: float) -> void:
+	if _ignore_look_frames > 0:
+		_ignore_look_frames -= 1
 	if not _active:
 		return
 	var paused := get_tree().paused
@@ -92,8 +121,19 @@ func _process(_delta: float) -> void:
 	elif not paused and _was_paused:
 		_capture_mouse()
 	_was_paused = paused
-	if not paused and _should_auto_capture():
-		_capture_mouse()
+	if paused:
+		return
+
+	var want := _should_auto_capture()
+	if want != _want_capture:
+		_want_capture = want
+		if want:
+			_capture_mouse()
+		else:
+			_release_mouse()
+	elif want and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		# Tappad capture (alt-tab) — vänsterklick i _input tar tillbaka siktet.
+		pass
 
 
 func _should_auto_capture() -> bool:
@@ -106,10 +146,26 @@ func _should_auto_capture() -> bool:
 
 
 func _capture_mouse() -> void:
+	_want_capture = true
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		# Hoppa över 1–2 frames så att capture-hoppet inte vrider kameran.
+		_ignore_look_frames = 2
 
 
 func _release_mouse() -> void:
+	_want_capture = false
 	if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func _set_input_mode_game() -> void:
+	var mode = get_node_or_null("/root/InputMode")
+	if mode and mode.has_method("game"):
+		mode.game()
+
+
+func _set_input_mode_ui() -> void:
+	var mode = get_node_or_null("/root/InputMode")
+	if mode and mode.has_method("ui"):
+		mode.ui()

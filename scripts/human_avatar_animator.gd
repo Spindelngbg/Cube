@@ -1,13 +1,14 @@
 class_name HumanAvatarAnimator
 extends Node
 
-const WALK_ANIM := "Animation"
-
 var showcase_mode := false
 
 var _model_root: Node3D
+var _mesh_id := "reference_human"
 var _skeleton: Skeleton3D
 var _anim_player: AnimationPlayer
+var _walk_anim := ""
+var _uses_humanoid_punch := true
 var _moving := false
 var _attack_timer := 0.0
 var _punch_timer := 0.0
@@ -32,10 +33,15 @@ static func ensure_on(pivot: Node3D, showcase := false) -> HumanAvatarAnimator:
 
 func bind(model_root: Node3D) -> void:
 	_model_root = model_root
+	_mesh_id = str(model_root.get_meta("mesh_id", "reference_human"))
 	_skeleton = HumanCharacterLibrary.find_skeleton(model_root)
 	_anim_player = HumanCharacterLibrary.find_anim_player(model_root)
+	_walk_anim = ""
+	_uses_humanoid_punch = HumanCharacterLibrary.uses_humanoid_punch(_mesh_id)
+	if _anim_player != null:
+		_walk_anim = HumanCharacterLibrary.resolve_locomotion_anim(_anim_player, _mesh_id)
 	_cache_rest_poses()
-	_bound = _anim_player != null
+	_bound = _anim_player != null and _walk_anim != ""
 	_idle_time = randf_range(0.0, TAU)
 
 
@@ -44,11 +50,13 @@ func set_moving(moving: bool) -> void:
 
 
 func trigger_attack() -> void:
-	_attack_timer = 0.52
+	if _uses_humanoid_punch:
+		_attack_timer = 0.52
 
 
 func trigger_punch() -> void:
-	_punch_timer = PUNCH_DURATION
+	if _uses_humanoid_punch:
+		_punch_timer = PUNCH_DURATION
 
 
 func get_eye_global_position(fallback: Vector3) -> Vector3:
@@ -73,15 +81,19 @@ func _process(delta: float) -> void:
 	var locomoting := _moving or showcase_mode
 
 	if locomoting:
-		if _anim_player.current_animation != WALK_ANIM:
-			_anim_player.play(WALK_ANIM)
+		if _anim_player.current_animation != _walk_anim:
+			_anim_player.play(_walk_anim)
 		_anim_player.speed_scale = 1.05 if _moving else 0.9
 	else:
-		if _anim_player.current_animation != WALK_ANIM:
-			_anim_player.play(WALK_ANIM)
+		if _anim_player.current_animation != _walk_anim:
+			_anim_player.play(_walk_anim)
 		_anim_player.speed_scale = 0.0
 		_anim_player.seek(0.0, true)
-		_apply_idle_breathing()
+		if _uses_humanoid_punch:
+			_apply_idle_breathing()
+
+	if not _uses_humanoid_punch:
+		return
 
 	if _punch_timer > 0.0:
 		_punch_timer = maxf(0.0, _punch_timer - delta)

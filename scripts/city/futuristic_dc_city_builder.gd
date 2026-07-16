@@ -3,8 +3,17 @@ extends RefCounted
 
 const DevBuildingLabelsScript = preload("res://scripts/dev/dev_building_labels.gd")
 const ZezzlorCheckpointBuilderScript = preload("res://scripts/access/zezzlor_checkpoint_builder.gd")
+const ZezzlorHqBuilderScript = preload("res://scripts/access/zezzlor_hq_builder.gd")
 const PharmacyBuilderScript = preload("res://scripts/shops/pharmacy_builder.gd")
 const WeaponShopBuilderScript = preload("res://scripts/shops/weapon_shop_builder.gd")
+const PurpleLaserTowerBuilderScript = preload("res://scripts/city/purple_laser_tower_builder.gd")
+const StreetLampScript = preload("res://scripts/city/street_lamp.gd")
+const StreetLampServiceScript = preload("res://scripts/city/street_lamp_service.gd")
+const ZezzlorPaBuilderScript = preload("res://scripts/city/zezzlor_pa_builder.gd")
+const SpawnDensityScript = preload("res://scripts/world/spawn_density.gd")
+const WaterBuilderScript = preload("res://scripts/environment/water_builder.gd")
+const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
+const FeaturedBuildingBuilderScript = preload("res://scripts/city/featured_building_builder.gd")
 
 const AVENUE_NAMES := {
 	0: "Nationalmallen",
@@ -17,6 +26,7 @@ const STREET_LAMP_SIDE_OFFSET := 3.25
 
 static func build(parent: Node3D, spawn_pos: Vector3, spawn_id: String = "satellite_right") -> Node3D:
 	DevBuildingLabelsScript.reset()
+	StreetLampServiceScript.reset()
 	var root := Node3D.new()
 	root.name = "NeoWashington"
 	root.position = spawn_pos
@@ -28,12 +38,17 @@ static func build(parent: Node3D, spawn_pos: Vector3, spawn_id: String = "satell
 	_build_mall_axis(root)
 	_build_zoned_blocks(root)
 	_build_landmarks(root)
-	GreeneryVegetationBuilder.build(root, spawn_id)
+	_build_spawn_plaza(root)
+	WaterBuilderScript.build_city_water_features(root)
 	_build_pharmacy_near_spawn(root)
 	_build_weapon_shop_near_spawn(root)
+	_build_purple_laser_tower_near_spawn(root)
 	_build_story_sites(root)
 	_build_zezzlor_checkpoints(root)
+	_build_zezzlor_hq_sites(root)
 	_place_city_sign(root)
+	ZezzlorPaBuilderScript.build(root)
+	StreetLampServiceScript.finalize_for_city(root, get_spawn_center())
 
 	return root
 
@@ -48,13 +63,25 @@ static func _build_city_plate(root: Node3D) -> void:
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(width + 80.0, 0.35, depth + 80.0)
 	plate.mesh = mesh
-	plate.position = origin + Vector3(width * 0.5 - DcZoneCatalog.BLOCK_M * 0.5, -0.18, depth * 0.5 - DcZoneCatalog.BLOCK_M * 0.5)
+	plate.position = origin + Vector3(width * 0.5 - DcZoneCatalog.BLOCK_M * 0.5, -0.32, depth * 0.5 - DcZoneCatalog.BLOCK_M * 0.5)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.1, 0.11, 0.14)
 	mat.metallic = 0.25
 	mat.roughness = 0.82
 	plate.material_override = mat
 	root.add_child(plate)
+
+	# Under golvnivå (y≈0) så spelare inte spawnar inuti plattan.
+	var plate_pos := origin + Vector3(
+		width * 0.5 - DcZoneCatalog.BLOCK_M * 0.5,
+		-0.28,
+		depth * 0.5 - DcZoneCatalog.BLOCK_M * 0.5
+	)
+	WorldCollisionBuilderScript.attach_box(
+		root,
+		Vector3(width + 80.0, 0.35, depth + 80.0),
+		plate_pos
+	)
 
 
 static func _build_street_grid(root: Node3D, theme: Dictionary) -> void:
@@ -124,9 +151,7 @@ static func _build_zoned_blocks(root: Node3D) -> void:
 			var cell := Vector2i(x, z)
 			if cell in DcZoneCatalog.mall_cells():
 				continue
-			if cell == Vector2i(-3, 0) or cell == Vector2i(0, 0) or cell == Vector2i(-6, 0):
-				continue
-			if cell == Vector2i(-4, -3):
+			if DcZoneCatalog.is_reserved_landmark_cell(cell):
 				continue
 			_build_zone_block(zones, cell)
 
@@ -141,17 +166,27 @@ static func _build_zone_block(parent: Node3D, cell: Vector2i) -> void:
 	var center: Vector3 = Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
 	var kit: String = str(spec.get("kit", "commercial"))
 	var model: String = str(spec.get("model", "building-a"))
+	var zone_type: String = str(spec.get("zone_type", ""))
+	var rotation_y := float((cell.x + cell.y) % 4) * PI * 0.5
 
 	if kit == "roads":
 		CityKitLibrary.spawn(zone_root, kit, model, center + Vector3(0.0, 0.02, 0.0))
 		_add_park_lights(zone_root, center, ColonyCityTheme.for_spawn("satellite_right"))
 	elif kit == "space":
 		SpaceKitLibrary.spawn(zone_root, model, center)
-	else:
-		CityKitLibrary.spawn(zone_root, kit, model, center, float((cell.x + cell.y) % 4) * PI * 0.5)
+	elif SpawnDensityScript.should_place_building(cell):
+		var scale := CityKitLibrary.kit_scale(kit)
+		var building := CityKitLibrary.spawn(zone_root, kit, model, center, rotation_y)
+		if FeaturedBuildingBuilderScript.is_building_33_cell(cell) and building != null:
+			FeaturedBuildingBuilderScript.enhance(zone_root, building, center, rotation_y, scale)
 		CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+	else:
+		CityKitLibrary.spawn(zone_root, "roads", "tile-low", center + Vector3(0.0, 0.02, 0.0))
+		if SpawnDensityScript.should_scatter_cell_accent(cell):
+			GreeneryVegetationBuilder.scatter_cell_accent(zone_root, center, cell)
 
 	_add_zone_marker(zone_root, center, spec, true)
+	WaterBuilderScript.populate_zone_water(zone_root, center, cell, zone_type, kit, rotation_y)
 
 
 static func _build_pharmacy_near_spawn(root: Node3D) -> void:
@@ -175,6 +210,11 @@ static func _build_weapon_shop_near_spawn(root: Node3D) -> void:
 	WeaponShopBuilderScript.build(root, weapon_pos, "weapon_shop_dc")
 
 
+static func _build_purple_laser_tower_near_spawn(root: Node3D) -> void:
+	var spawn_center := get_spawn_center()
+	PurpleLaserTowerBuilderScript.build(root, spawn_center + Vector3(22.0, 0.0, 12.0), "dc")
+
+
 static func _build_landmarks(root: Node3D) -> void:
 	_build_capitol(root, _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5))
 	_build_memorial_west(
@@ -191,6 +231,10 @@ static func _build_zezzlor_checkpoints(root: Node3D) -> void:
 	ZezzlorCheckpointBuilderScript.place_all(root)
 
 
+static func _build_zezzlor_hq_sites(root: Node3D) -> void:
+	ZezzlorHqBuilderScript.place_all(root)
+
+
 static func _build_story_sites(root: Node3D) -> void:
 	var annex_origin := _cell_origin(Vector2i(-4, -3))
 	StoryWorldBuilder.build_annex_at(root, annex_origin + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5))
@@ -198,17 +242,52 @@ static func _build_story_sites(root: Node3D) -> void:
 	StoryWorldBuilder.place_warning_sign(root, Vector3(-20.0, 0.0, -55.0))
 
 
+static func get_spawn_center() -> Vector3:
+	return _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
+
+
+static func _build_spawn_plaza(root: Node3D) -> void:
+	var center := get_spawn_center()
+	var plaza := StaticBody3D.new()
+	plaza.name = "SpawnPlaza"
+	plaza.position = center
+	plaza.collision_layer = WorldCollisionBuilderScript.WORLD_COLLISION_LAYER
+	plaza.collision_mask = 0
+	root.add_child(plaza)
+
+	# Tunn platta under y=0 så spawn inte startar inuti kollisionen.
+	var floor_shape := CollisionShape3D.new()
+	var floor_box := BoxShape3D.new()
+	floor_box.size = Vector3(22.0, 0.24, 22.0)
+	floor_shape.shape = floor_box
+	floor_shape.position = Vector3(0.0, -0.12, 0.0)
+	plaza.add_child(floor_shape)
+
+	var floor_mesh := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(22.0, 0.14, 22.0)
+	floor_mesh.mesh = mesh
+	floor_mesh.position = Vector3(0.0, -0.07, 0.0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.18, 0.2, 0.26)
+	mat.metallic = 0.22
+	mat.roughness = 0.78
+	floor_mesh.material_override = mat
+	plaza.add_child(floor_mesh)
+
+
 static func _build_capitol(parent: Node3D, pos: Vector3) -> void:
 	var capitol := Node3D.new()
 	capitol.name = "FuturisticCapitol"
-	capitol.position = pos
+	# Kapitoliet norr om spawn-plazan — mittpunkten (pos) ska vara fri att stå på.
+	capitol.position = pos + Vector3(0.0, 0.0, -14.0)
 	parent.add_child(capitol)
 
 	SpaceKitLibrary.spawn(capitol, "template-floor-detail-a", Vector3(0, 0, 0))
 	SpaceKitLibrary.spawn(capitol, "room-large", Vector3(0, 0, 0))
-	SpaceKitLibrary.spawn(capitol, "room-large-variation", Vector3(0, 0, 6), PI)
+	SpaceKitLibrary.spawn(capitol, "room-large-variation", Vector3(0, 0, -6), PI)
 	for i in range(4):
-		SpaceKitLibrary.spawn(capitol, "template-wall-detail-a", Vector3(-8 + i * 5.0, 0, -8), 0.0)
+		SpaceKitLibrary.spawn(capitol, "template-wall-detail-a", Vector3(-8 + i * 5.0, 0, 8), PI)
 
 	var dome := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
@@ -224,8 +303,9 @@ static func _build_capitol(parent: Node3D, pos: Vector3) -> void:
 	mat.emission_energy_multiplier = 0.35
 	dome.material_override = mat
 	capitol.add_child(dome)
+	WorldCollisionBuilderScript.attach_box(capitol, Vector3(11.0, 8.0, 11.0), Vector3(0.0, 8.0, 0.0))
 
-	_add_zone_marker(capitol, Vector3(0, 0, 0), DcZoneCatalog.classify_cell(Vector2i(0, 0)), true)
+	_add_zone_marker(capitol, Vector3(0, 0, 14.0), DcZoneCatalog.classify_cell(Vector2i(0, 0)), true)
 
 
 static func _build_obelisk(parent: Node3D, pos: Vector3) -> void:
@@ -244,6 +324,7 @@ static func _build_obelisk(parent: Node3D, pos: Vector3) -> void:
 	mat.emission_energy_multiplier = 0.45
 	spire.material_override = mat
 	parent.add_child(spire)
+	WorldCollisionBuilderScript.attach_box(parent, Vector3(4.4, 42.0, 4.4), pos + Vector3(0.0, 21.0, 0.0))
 
 	var label := Label3D.new()
 	label.text = str(DcZoneCatalog.classify_cell(Vector2i(-3, 0)).get("tag", ""))
@@ -342,7 +423,20 @@ static func _add_park_lights(parent: Node3D, center: Vector3, theme: Dictionary)
 	var accent: Color = theme.get("surveillance_accent", Color(0.95, 0.18, 0.12))
 	for offset in [Vector3(-12, 0, -12), Vector3(12, 0, 12), Vector3(-12, 0, 12), Vector3(12, 0, -12)]:
 		var pole_pos: Vector3 = center + (offset as Vector3)
-		_add_light_pole(parent, pole_pos, park_color, 5.2, 0.95, 11.0)
+		StreetLampScript.mount(
+			parent,
+			{
+				"position": pole_pos,
+				"rotation_y": 0.0,
+				"color": park_color,
+				"height": 5.2,
+				"spot_energy": 1.35,
+				"spot_range": 13.0,
+				"tilt_toward": Vector3(0.0, -1.0, 0.0),
+				"broken_chance": 0.06,
+				"seed": hash(str(pole_pos)),
+			}
+		)
 		var scan := SpotLight3D.new()
 		scan.position = pole_pos + Vector3(0.0, 6.8, 0.0)
 		scan.rotation_degrees = Vector3(-88, 0, 0)
@@ -352,66 +446,6 @@ static func _add_park_lights(parent: Node3D, center: Vector3, theme: Dictionary)
 		scan.spot_angle = 14.0
 		scan.shadow_enabled = false
 		parent.add_child(scan)
-
-
-static func _add_light_pole(
-	parent: Node3D,
-	base: Vector3,
-	color: Color,
-	height: float,
-	energy: float,
-	range_m: float,
-	tilt_toward: Vector3 = Vector3.ZERO
-) -> void:
-	var pole := MeshInstance3D.new()
-	var pole_mesh := BoxMesh.new()
-	pole_mesh.size = Vector3(0.14, height, 0.14)
-	pole.mesh = pole_mesh
-	pole.position = base + Vector3(0.0, height * 0.5, 0.0)
-	var pole_mat := StandardMaterial3D.new()
-	pole_mat.albedo_color = Color(0.16, 0.18, 0.22)
-	pole_mat.metallic = 0.55
-	pole.material_override = pole_mat
-	parent.add_child(pole)
-
-	var head_pos := base + Vector3(0.0, height + 0.08, 0.0)
-	var fixture := MeshInstance3D.new()
-	var fixture_mesh := BoxMesh.new()
-	fixture_mesh.size = Vector3(0.42, 0.14, 0.28)
-	fixture.mesh = fixture_mesh
-	fixture.position = head_pos
-	var fixture_mat := StandardMaterial3D.new()
-	fixture_mat.albedo_color = Color(0.2, 0.22, 0.26)
-	fixture_mat.metallic = 0.62
-	fixture_mat.emission_enabled = true
-	fixture_mat.emission = color
-	fixture_mat.emission_energy_multiplier = 0.55
-	fixture.material_override = fixture_mat
-	parent.add_child(fixture)
-
-	var shade := MeshInstance3D.new()
-	var shade_mesh := BoxMesh.new()
-	shade_mesh.size = Vector3(0.36, 0.06, 0.34)
-	shade.mesh = shade_mesh
-	shade.position = head_pos + Vector3(0.0, 0.1, 0.0)
-	var shade_mat := StandardMaterial3D.new()
-	shade_mat.albedo_color = Color(0.12, 0.13, 0.16)
-	shade_mat.metallic = 0.48
-	shade.material_override = shade_mat
-	parent.add_child(shade)
-
-	var lamp := SpotLight3D.new()
-	lamp.position = head_pos + Vector3(0.0, 0.04, 0.0)
-	if tilt_toward.length_squared() > 0.001:
-		lamp.look_at(head_pos + tilt_toward.normalized(), Vector3.UP)
-	else:
-		lamp.rotation_degrees = Vector3(-90, 0, 0)
-	lamp.light_color = color
-	lamp.light_energy = energy
-	lamp.spot_range = range_m
-	lamp.spot_angle = 32.0
-	lamp.shadow_enabled = false
-	parent.add_child(lamp)
 
 
 static func _street_lamp_side_offsets(rotation_y: float) -> Array[Vector3]:
@@ -435,18 +469,19 @@ static func _add_street_lamp(
 	side_offset: Vector3
 ) -> void:
 	var street_color: Color = theme.get("street_light", Color(0.82, 0.9, 1.0))
-	var lamp_root := Node3D.new()
-	lamp_root.position = pos
-	lamp_root.rotation.y = rotation_y
-	parent.add_child(lamp_root)
-	_add_light_pole(
-		lamp_root,
-		Vector3.ZERO,
-		street_color,
-		4.6,
-		1.05,
-		13.0,
-		-side_offset
+	StreetLampScript.mount(
+		parent,
+		{
+			"position": pos,
+			"rotation_y": rotation_y,
+			"color": street_color,
+			"height": 4.6,
+			"spot_energy": 1.9,
+			"spot_range": 16.0,
+			"tilt_toward": -side_offset,
+			"broken_chance": StreetLampScript.BROKEN_CHANCE,
+			"seed": hash(str(pos)),
+		}
 	)
 
 
@@ -467,7 +502,7 @@ static func _spawn_road_strip(
 		else:
 			pos.z += offset
 		CityKitLibrary.spawn(parent, "roads", "road-straight", pos, rotation_y)
-		if i % 2 == 0:
+		if i % 8 == 0:
 			for side_offset in _street_lamp_side_offsets(rotation_y):
 				_add_street_lamp(parent, pos + side_offset, theme, rotation_y, side_offset)
 

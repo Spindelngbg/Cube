@@ -4,6 +4,7 @@ extends RefCounted
 const PharmacyShopScript = preload("res://scripts/shops/pharmacy_shop.gd")
 const CutePharmacyRobotScript = preload("res://scripts/npcs/cute_pharmacy_robot.gd")
 const ZnoodPoiMarkerScript = preload("res://scripts/znood/znood_poi_marker.gd")
+const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
 
 const MINT := Color(0.42, 0.88, 0.72)
 const GLASS := Color(0.72, 0.92, 0.98, 0.55)
@@ -17,6 +18,7 @@ static func build(parent: Node3D, pos: Vector3) -> Node3D:
 	parent.add_child(pharmacy)
 
 	_build_shell(pharmacy)
+	WorldCollisionBuilderScript.attach_box(pharmacy, Vector3(7.0, 3.9, 6.0), Vector3(0.0, 2.0, 0.0))
 	_build_sign(pharmacy)
 	_build_counter(pharmacy)
 

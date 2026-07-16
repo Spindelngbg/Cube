@@ -16,7 +16,7 @@ func _ready() -> void:
 	var settings := get_node_or_null("/root/Settings")
 	if settings == null:
 		return
-	settings.set_default(SETTING_KEY, 1)
+	settings.set_default(SETTING_KEY, 0)
 	if settings.has_signal("setting_changed"):
 		settings.setting_changed.connect(_on_setting_changed)
 	if settings.has_signal("settings_loaded"):
@@ -28,8 +28,8 @@ func _ready() -> void:
 func get_preset_index() -> int:
 	var settings := get_node_or_null("/root/Settings")
 	if settings == null:
-		return 1
-	return clampi(int(settings.get_value(SETTING_KEY, 1)), 0, PRESETS_M.size() - 1)
+		return 0
+	return clampi(int(settings.get_value(SETTING_KEY, 0)), 0, PRESETS_M.size() - 1)
 
 
 func get_distance_m() -> float:

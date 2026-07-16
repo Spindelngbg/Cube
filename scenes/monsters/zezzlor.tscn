@@ -3,8 +3,8 @@
 [ext_resource type="Script" path="res://scripts/monsters/zezzlor.gd" id="1_zezzlor"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_zezzlor"]
-radius = 0.38
-height = 1.7
+radius = 0.46
+height = 1.62
 
 [node name="Zezzlor" type="CharacterBody3D"]
 collision_layer = 4

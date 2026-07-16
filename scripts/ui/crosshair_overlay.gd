@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-const TEXTURE_PATH := "res://assets/ui/crosshair_cs.png"
+const GameplayHudThemeScript = preload("res://scripts/ui/gameplay_hud_theme.gd")
 
 const GAMEPLAY_SCENES := [
 	"nest_room.tscn",
@@ -17,10 +17,11 @@ func _ready() -> void:
 	_crosshair = TextureRect.new()
 	_crosshair.name = "Crosshair"
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_crosshair.texture = load(TEXTURE_PATH)
+	_crosshair.texture = GameplayHudThemeScript.crosshair_texture()
 	_crosshair.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_crosshair.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-	_crosshair.custom_minimum_size = Vector2(28, 28)
+	_crosshair.custom_minimum_size = Vector2(32, 32)
+	_crosshair.modulate = Color(0.55, 0.95, 1.0, 0.92)
 	_crosshair.set_anchors_preset(Control.PRESET_CENTER)
 	add_child(_crosshair)
 	_apply_visibility()

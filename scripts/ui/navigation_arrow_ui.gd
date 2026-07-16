@@ -1,6 +1,8 @@
 class_name NavigationArrowUI
 extends Control
 
+const GameplayHudThemeScript = preload("res://scripts/ui/gameplay_hud_theme.gd")
+
 var _arrow: Control
 var _label: Label
 
@@ -32,7 +34,7 @@ func _ready() -> void:
 	_label.offset_right = 80.0
 	_label.offset_top = -20.0
 	_label.offset_bottom = 0.0
-	SpiderTheme.style_subtitle(_label)
+	GameplayHudThemeScript.style_muted(_label)
 	add_child(_label)
 
 	visible = false

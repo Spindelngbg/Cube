@@ -9,9 +9,8 @@
 @tool
 extends MenuButton
 
-const _ROOMMATE := preload("../roommate_plugin.gd")
-
-var plugin: _ROOMMATE
+## roommate_plugin instance — assigned in roommate_plugin._enter_tree().
+var plugin
 var _actions := {}
 
 
@@ -51,7 +50,7 @@ func _add_button(label: String, shortcut_setting_id: String, action: Callable) -
 	var popup := get_popup()
 	popup.add_item(label)
 	var current_index := popup.item_count - 1
-	var item_shortcut := plugin.settings.get_shortcut(shortcut_setting_id)
+	var item_shortcut: Shortcut = plugin.settings.get_shortcut(shortcut_setting_id)
 	popup.set_item_shortcut(current_index, item_shortcut, true)
 	_actions[current_index] = action
 

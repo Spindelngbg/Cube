@@ -2,15 +2,21 @@ class_name HealthBarUI
 extends PanelContainer
 
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+const GameplayHudThemeScript = preload("res://scripts/ui/gameplay_hud_theme.gd")
+
+const TWEEN_SEC := 0.22
 
 var _hp_label: Label
 var _bonus_label: Label
 var _bar: ProgressBar
+var _fill_style: StyleBoxFlat
+var _value_tween: Tween
+var _displayed_value := 100.0
 
 
 func _ready() -> void:
 	_build()
-	SpiderTheme.apply_to(self)
+	GameplayHudThemeScript.apply_panel(self)
 	InventoryManager.inventory_changed.connect(_refresh)
 	PoisonManager.poison_changed.connect(_on_poison_changed)
 	_refresh()
@@ -31,28 +37,26 @@ func _build() -> void:
 	set_anchors_preset(Control.PRESET_CENTER_TOP)
 	anchor_left = 0.5
 	anchor_right = 0.5
-	offset_left = -190.0
-	offset_right = 190.0
-	offset_top = 8.0
-	offset_bottom = 70.0
-	custom_minimum_size = Vector2(380, 62)
+	offset_left = -200.0
+	offset_right = 200.0
+	offset_top = 10.0
+	offset_bottom = 78.0
+	custom_minimum_size = Vector2(400, 68)
 
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 5)
+	col.add_theme_constant_override("separation", 4)
 	add_child(col)
 
 	_hp_label = Label.new()
 	_hp_label.text = "HP 100 / 100"
 	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hp_label.add_theme_color_override("font_color", SpiderTheme.BONE)
-	_hp_label.add_theme_font_override("font", GuiFontLibraryScript.semibold())
-	_hp_label.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_BODY)
+	GameplayHudThemeScript.style_body(_hp_label)
 	col.add_child(_hp_label)
 
 	_bar = ProgressBar.new()
 	_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_bar.custom_minimum_size = Vector2(360, 20)
+	_bar.custom_minimum_size = Vector2(380, 22)
 	_bar.max_value = 100.0
 	_bar.value = 100.0
 	_bar.show_percentage = false
@@ -61,22 +65,14 @@ func _build() -> void:
 
 	_bonus_label = Label.new()
 	_bonus_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	SpiderTheme.style_subtitle(_bonus_label)
+	GameplayHudThemeScript.style_muted(_bonus_label)
 	col.add_child(_bonus_label)
 
 
 func _style_progress_bar() -> void:
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.06, 0.05, 0.08, 0.95)
-	bg.set_border_width_all(1)
-	bg.border_color = SpiderTheme.UI_BORDER_MUTED
-	bg.set_corner_radius_all(5)
-	_bar.add_theme_stylebox_override("background", bg)
-
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color(0.35, 0.78, 0.38)
-	fill.set_corner_radius_all(4)
-	_bar.add_theme_stylebox_override("fill", fill)
+	_bar.add_theme_stylebox_override("background", GameplayHudThemeScript.bar_track_style())
+	_fill_style = GameplayHudThemeScript.hp_fill_style(1.0)
+	_bar.add_theme_stylebox_override("fill", _fill_style)
 
 
 func _on_health_changed(current: float, maximum: float) -> void:
@@ -94,20 +90,30 @@ func _apply_values(current: float, maximum: float) -> void:
 	maximum = maxf(maximum, 1.0)
 	current = clampf(current, 0.0, maximum)
 	_bar.max_value = maximum
-	_bar.value = current
 	_hp_label.text = "HP %d / %d" % [int(round(current)), int(round(maximum))]
 	var ratio := current / maximum
-	var fill := _bar.get_theme_stylebox("fill") as StyleBoxFlat
-	if fill == null:
-		fill = StyleBoxFlat.new()
-		_bar.add_theme_stylebox_override("fill", fill)
-	if ratio > 0.55:
-		fill.bg_color = Color(0.35, 0.78, 0.38)
-	elif ratio > 0.25:
-		fill.bg_color = Color(0.9, 0.72, 0.2)
+	_apply_fill_color(ratio)
+	if _value_tween != null and _value_tween.is_valid():
+		_value_tween.kill()
+	if is_inside_tree() and absf(_displayed_value - current) > 0.5:
+		_value_tween = create_tween()
+		_value_tween.set_ease(Tween.EASE_OUT)
+		_value_tween.set_trans(Tween.TRANS_CUBIC)
+		_value_tween.tween_method(_set_bar_value, _displayed_value, current, TWEEN_SEC)
 	else:
-		fill.bg_color = Color(0.9, 0.22, 0.18)
+		_set_bar_value(current)
 	_refresh_bonus_label()
+
+
+func _set_bar_value(value: float) -> void:
+	_displayed_value = value
+	_bar.value = value
+
+
+func _apply_fill_color(ratio: float) -> void:
+	_fill_style = GameplayHudThemeScript.hp_fill_style(ratio)
+	_bar.add_theme_stylebox_override("fill", _fill_style)
+	_hp_label.add_theme_color_override("font_color", GameplayHudThemeScript.hp_text_color(ratio))
 
 
 func _refresh() -> void:

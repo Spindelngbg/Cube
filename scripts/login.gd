@@ -28,9 +28,12 @@ var _flow_kind := ""
 
 
 func _ready() -> void:
+	InputMode.ui()
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	SpiderTheme.apply_to(self)
 	SpiderTheme.style_title($Center/MainPanel/VBox/Title)
 	SpiderTheme.style_subtitle($Center/MainPanel/VBox/Subtitle)
+	_style_form_fields()
 	_setup_progress_labels()
 
 	GlobalChat.set_login_screen_active(true)
@@ -59,6 +62,11 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	GlobalChat.set_login_screen_active(false)
+
+
+func _style_form_fields() -> void:
+	for field in [login_username, login_password, register_username, register_password]:
+		SpiderTheme.style_line_edit(field)
 
 
 func _setup_progress_labels() -> void:
@@ -260,16 +268,17 @@ func _enter_account_flow() -> void:
 		_stop_auth_watchdog()
 		_set_login_progress(6, 6, "Öppnar karaktärsskapare...", "Steg 6/6 · Ny karaktär skapad")
 		_go_to_scene("res://scenes/avatar_builder.tscn")
-	elif Profile.characters.size() == 1:
-		_account_flow_running = false
-		_stop_auth_watchdog()
-		_set_login_progress(6, 6, "Öppnar karaktärsskapare...", "Steg 6/6 · 1 karaktär hittad")
-		_go_to_scene("res://scenes/avatar_builder.tscn")
 	else:
 		_account_flow_running = false
 		_stop_auth_watchdog()
-		_set_login_progress(6, 6, "Öppnar karaktärsval...", "Steg 6/6 · %d karaktärer" % Profile.characters.size())
-		_go_to_scene("res://scenes/character_select.tscn")
+		var count := Profile.characters.size()
+		_set_login_progress(
+			6,
+			6,
+			"Öppnar karaktärsval...",
+			"Steg 6/6 · %d sparad%s karaktär%s" % [count, "e" if count != 1 else "", "er" if count != 1 else ""]
+		)
+		_go_to_scene(CharacterFlow.login_scene_after_characters_loaded())
 
 
 func _go_to_scene(path: String) -> void:
