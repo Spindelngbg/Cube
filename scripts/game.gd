@@ -97,6 +97,8 @@ var _interaction_timer := 0.0
 var _world_tick_timer := 0.0
 var _znood_ui_timer := 0.0
 var _mouse_capture_allowed := true
+var _camera_anchor_smooth := Vector3.INF
+const CAMERA_ANCHOR_SMOOTH_RATE := 48.0
 
 @onready var _minimap: MinimapPanel = %Minimap
 @onready var _owdb_bridge: Node = %WorldState
@@ -158,9 +160,12 @@ func _boot_world() -> void:
 	call_deferred("_finish_world_bootstrap")
 
 
+func _physics_process(delta: float) -> void:
+	_follow_local_player_camera(delta)
+
+
 func _process(delta: float) -> void:
 	_refresh_mouse_capture_cache()
-	_follow_local_player_camera(delta)
 	_hud_timer += delta
 	if _hud_timer >= HUD_UPDATE_INTERVAL:
 		_hud_timer = 0.0
@@ -347,22 +352,35 @@ func _exit_tree() -> void:
 	MouseLook.deactivate()
 
 
-func _follow_local_player_camera(_delta: float) -> void:
+func reset_camera_anchor_smooth(pos: Vector3 = Vector3.INF) -> void:
+	_camera_anchor_smooth = pos
+
+
+func _follow_local_player_camera(delta: float) -> void:
 	var local_id := multiplayer.get_unique_id()
 	if not players.has(local_id):
 		return
 	var player: Node3D = players[local_id]
+	var target_pos: Vector3
 	if player.has_method("is_piloting_vehicle") and player.is_piloting_vehicle():
 		var vehicle: Node3D = player.get_piloting_vehicle()
 		player.global_position = vehicle.global_position
 		if vehicle.has_method("get_camera_anchor_global_position"):
-			_camera_pivot.global_position = vehicle.get_camera_anchor_global_position()
+			target_pos = vehicle.get_camera_anchor_global_position()
 		else:
-			_camera_pivot.global_position = vehicle.global_position + Vector3(0.0, 1.75, 0.35)
+			target_pos = vehicle.global_position + Vector3(0.0, 1.75, 0.35)
+		_camera_anchor_smooth = target_pos
 	elif player.has_method("get_camera_anchor_global_position"):
-		_camera_pivot.global_position = player.get_camera_anchor_global_position()
+		target_pos = player.get_camera_anchor_global_position()
 	else:
-		_camera_pivot.global_position = player.global_position + Vector3(0.0, 1.62, 0.08)
+		target_pos = player.global_position + Vector3(0.0, 1.62, 0.08)
+
+	if _camera_anchor_smooth == Vector3.INF:
+		_camera_anchor_smooth = target_pos
+	var blend := 1.0 - exp(-CAMERA_ANCHOR_SMOOTH_RATE * maxf(delta, 0.0001))
+	_camera_anchor_smooth = _camera_anchor_smooth.lerp(target_pos, blend)
+	_camera_pivot.global_position = _camera_anchor_smooth
+
 	var fill := get_node_or_null("FillLight") as OmniLight3D
 	if fill:
 		fill.global_position = player.global_position + Vector3(0.0, 10.0, 0.0)
@@ -1467,6 +1485,7 @@ func _spawn_player(peer_id: int) -> void:
 	$Players.add_child(player, true)
 	if peer_id == multiplayer.get_unique_id():
 		player.set_spawn_anchor(spawn_pos)
+		reset_camera_anchor_smooth()
 		_align_player_to_floor.call_deferred(player)
 
 		if player.has_signal("died") and not player.died.is_connected(_on_local_player_died):

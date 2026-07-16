@@ -1,11 +1,11 @@
 extends Node
 
 ## Musstyrning för FPS-vy via scenens CameraPivot.
-## Roterar direkt i _input. Alt = fri pekare, vänsterklick = lås igen.
+## Roterar direkt på musrörelse (samma bildruta). Alt = fri pekare.
 
-const DEFAULT_MOUSE_SENSITIVITY := 0.0022
+const DEFAULT_MOUSE_SENSITIVITY := 0.0024
 const PITCH_LIMIT := 1.15
-const MOTION_SPIKE_LIMIT := 120.0
+const MOTION_SPIKE_LIMIT := 200.0
 const RAW_MOUSE_SETTING := "controls.raw_mouse_input"
 
 var _pivot: Node3D
@@ -22,6 +22,7 @@ var _input_mode: Node
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	process_priority = -80
 	_input_mode = get_node_or_null("/root/InputMode")
 	_connect_settings()
 	_apply_mouse_input_mode()
@@ -31,7 +32,6 @@ func _ready() -> void:
 
 
 func _on_scene_changed() -> void:
-	# Lämna aldrig CONFINED_HIDDEN/CAPTURED kvar på login/menyer.
 	deactivate()
 	_release_pointer()
 	if _input_mode and _input_mode.has_method("ui"):
@@ -80,6 +80,7 @@ func activate(pivot: Node3D, camera: Camera3D) -> void:
 		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
 		_camera.current = true
 		_enter_game_input_mode()
+		_apply_mouse_input_mode()
 		_capture_mouse()
 
 
@@ -171,16 +172,7 @@ func _input(event: InputEvent) -> void:
 	if _pivot == null or _camera == null:
 		return
 
-	var rel := (event as InputEventMouseMotion).relative
-	if absf(rel.x) > MOTION_SPIKE_LIMIT or absf(rel.y) > MOTION_SPIKE_LIMIT:
-		return
-	var sensitivity := _get_mouse_sensitivity()
-	_pivot.rotation.y -= rel.x * sensitivity
-	_camera.rotation.x = clampf(
-		_camera.rotation.x - rel.y * sensitivity,
-		-PITCH_LIMIT,
-		PITCH_LIMIT
-	)
+	_apply_look_delta(_scaled_mouse_relative(event as InputEventMouseMotion))
 
 
 func _process(delta: float) -> void:
@@ -207,6 +199,32 @@ func _process(delta: float) -> void:
 			_capture_mouse()
 
 
+func _scaled_mouse_relative(motion: InputEventMouseMotion) -> Vector2:
+	var rel := motion.relative
+	var viewport := get_viewport()
+	if viewport == null:
+		return rel
+	var stretch := viewport.get_stretch_transform()
+	var scale := stretch.get_scale()
+	if scale.x > 0.0001 and is_equal_approx(scale.x, scale.y):
+		return rel / scale.x
+	return motion.xformed_by(stretch).relative
+
+
+func _apply_look_delta(rel: Vector2) -> void:
+	if rel == Vector2.ZERO:
+		return
+	if absf(rel.x) > MOTION_SPIKE_LIMIT or absf(rel.y) > MOTION_SPIKE_LIMIT:
+		return
+	var sensitivity := _get_mouse_sensitivity()
+	_pivot.rotation.y -= rel.x * sensitivity
+	_camera.rotation.x = clampf(
+		_camera.rotation.x - rel.y * sensitivity,
+		-PITCH_LIMIT,
+		PITCH_LIMIT
+	)
+
+
 func _toggle_user_cursor() -> void:
 	_user_cursor_free = not _user_cursor_free
 	if _user_cursor_free:
@@ -230,6 +248,7 @@ func _is_drag_active() -> bool:
 
 
 func _capture_mouse() -> void:
+	_apply_mouse_input_mode()
 	_set_tracking_mode(true)
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
