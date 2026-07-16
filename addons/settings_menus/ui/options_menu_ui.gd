@@ -264,6 +264,25 @@ func _build_controls_tab() -> Control:
 	if settings == null:
 		return tab
 
+	var competitive_row := _row(tab, "Tävlingsläge")
+	var competitive_cb := CheckBox.new()
+	competitive_cb.button_pressed = bool(settings.get_value("gameplay.competitive_mode", false))
+	competitive_cb.toggled.connect(func(enabled: bool) -> void:
+		var s := _settings()
+		if s != null:
+			s.set_value("gameplay.competitive_mode", enabled))
+	competitive_row.add_child(competitive_cb)
+
+	var competitive_note := Label.new()
+	competitive_note.text = (
+		"För ranked/multiplayer-tävling: 60 Hz spelarsynk, snabbare fjärrinterpolation, "
+		+ "ingen kameraskakning, alltid rå musinput. Stäng av VSync under Grafik för lägsta input-lag."
+	)
+	competitive_note.add_theme_font_size_override("font_size", 11)
+	competitive_note.add_theme_color_override("font_color", theme_data.text_dim)
+	competitive_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(competitive_note)
+
 	var raw_row := _row(tab, "Rå musinput")
 	var raw_cb := CheckBox.new()
 	raw_cb.button_pressed = bool(settings.get_value("controls.raw_mouse_input", true))

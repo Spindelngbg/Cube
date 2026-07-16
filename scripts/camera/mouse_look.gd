@@ -20,10 +20,26 @@ var _camera_rest_offset := Vector3.ZERO
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	Input.set_use_accumulated_input(false)
+	_apply_input_policy()
+	_connect_settings()
 	var tree := get_tree()
 	if tree and not tree.scene_changed.is_connected(_on_scene_changed):
 		tree.scene_changed.connect(_on_scene_changed)
+
+
+func _connect_settings() -> void:
+	var settings := get_node_or_null("/root/Settings")
+	if settings == null:
+		return
+	if settings.has_signal("settings_loaded") and not settings.settings_loaded.is_connected(_apply_input_policy):
+		settings.settings_loaded.connect(_apply_input_policy)
+	if settings.has_signal("setting_changed") and not settings.setting_changed.is_connected(_on_setting_changed):
+		settings.setting_changed.connect(_on_setting_changed)
+
+
+func _on_setting_changed(key: String, _value) -> void:
+	if key == "controls.raw_mouse_input" or key == "gameplay.competitive_mode":
+		_apply_input_policy()
 
 
 func _on_scene_changed() -> void:
@@ -47,6 +63,7 @@ func activate(pivot: Node3D, camera: Camera3D) -> void:
 	if _active:
 		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
 		_camera.current = true
+		_apply_input_policy()
 		_set_input_mode_game()
 		_capture_mouse()
 
@@ -97,6 +114,8 @@ func get_aim_origin(fallback_position: Vector3) -> Vector3:
 
 
 func request_shake(strength: float, duration_hint: float = 0.12) -> void:
+	if not CompetitiveMode.camera_shake_enabled():
+		return
 	var settings := get_node_or_null("/root/Settings")
 	if settings != null and bool(settings.get_value("a11y.reduce_motion", false)):
 		strength *= 0.35
@@ -150,9 +169,10 @@ func _input(event: InputEvent) -> void:
 	var motion := event as InputEventMouseMotion
 	if absf(motion.relative.x) > MOTION_SPIKE_LIMIT or absf(motion.relative.y) > MOTION_SPIKE_LIMIT:
 		return
-	_pivot.rotation.y -= motion.relative.x * MOUSE_SENSITIVITY
+	var sensitivity := _get_mouse_sensitivity()
+	_pivot.rotation.y -= motion.relative.x * sensitivity
 	_camera.rotation.x = clampf(
-		_camera.rotation.x - motion.relative.y * MOUSE_SENSITIVITY,
+		_camera.rotation.x - motion.relative.y * sensitivity,
 		-PITCH_LIMIT,
 		PITCH_LIMIT
 	)
@@ -212,6 +232,28 @@ func _set_input_mode_ui() -> void:
 		mode.set_tracking_mode(false)
 	elif mode and mode.has_method("ui"):
 		mode.ui()
+
+
+func _apply_input_policy() -> void:
+	var raw := true
+	if CompetitiveMode.force_raw_mouse_input():
+		raw = true
+	else:
+		var settings := get_node_or_null("/root/Settings")
+		if settings != null:
+			raw = bool(settings.get_value("controls.raw_mouse_input", true))
+	Input.set_use_accumulated_input(not raw)
+
+
+func _get_mouse_sensitivity() -> float:
+	var settings := get_node_or_null("/root/Settings")
+	if settings == null:
+		return MOUSE_SENSITIVITY
+	return clampf(
+		float(settings.get_value("controls.mouse_sensitivity", MOUSE_SENSITIVITY)),
+		0.0008,
+		0.006
+	)
 
 
 func _apply_camera_shake(delta: float) -> void:

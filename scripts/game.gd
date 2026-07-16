@@ -464,6 +464,8 @@ func _update_hud_text() -> void:
 		parts.append(interact_note.strip_edges().trim_prefix("|").strip_edges())
 	if MouseLook.is_active() and MouseLook.is_cursor_user_free():
 		parts.append("Alt = lås sikt igen")
+	if CompetitiveMode.is_enabled():
+		parts.append("Tävlingsläge")
 	hint.text = " | ".join(parts)
 
 

@@ -77,9 +77,10 @@ var _last_sync_pos := Vector3.ZERO
 var _last_sent_pos := Vector3.ZERO
 var _last_sent_yaw := 0.0
 var _sync_timer := 0.0
-const SYNC_INTERVAL := 1.0 / 15.0
-const SYNC_MOVE_THRESHOLD := 0.04
-const SYNC_TURN_THRESHOLD := 0.05
+var _net_target_pos := Vector3.ZERO
+var _net_target_yaw := 0.0
+var _net_has_target := false
+const REMOTE_TELEPORT_SQ := 16.0
 var _footsteps: PlayerFootsteps
 var _piloting_vehicle: Node3D
 var _saved_collision_layer := 1
@@ -430,6 +431,7 @@ func _refresh_pilot_collision() -> void:
 
 func _physics_process(delta: float) -> void:
 	if not is_multiplayer_authority():
+		_interpolate_remote_state(delta)
 		return
 
 	if is_piloting_vehicle():
@@ -541,9 +543,11 @@ func _physics_process(delta: float) -> void:
 		)
 	_sync_timer += delta
 	var yaw := rotation.y
-	var moved := position.distance_to(_last_sent_pos) > SYNC_MOVE_THRESHOLD
-	var turned := absf(wrapf(yaw - _last_sent_yaw, -PI, PI)) > SYNC_TURN_THRESHOLD
-	if _sync_timer >= SYNC_INTERVAL or moved or turned:
+	var move_threshold := CompetitiveMode.player_sync_move_threshold()
+	var turn_threshold := CompetitiveMode.player_sync_turn_threshold()
+	var moved := position.distance_to(_last_sent_pos) > move_threshold
+	var turned := absf(wrapf(yaw - _last_sent_yaw, -PI, PI)) > turn_threshold
+	if _sync_timer >= CompetitiveMode.player_sync_interval_sec() or moved or turned:
 		_sync_timer = 0.0
 		_last_sent_pos = position
 		_last_sent_yaw = yaw
@@ -556,10 +560,24 @@ func _sync_position(pos: Vector3, yaw: float) -> void:
 		return
 	var moved := pos.distance_to(_last_sync_pos) > 0.03
 	_last_sync_pos = pos
-	position = pos
-	rotation.y = yaw
+	_net_target_pos = pos
+	_net_target_yaw = yaw
+	_net_has_target = true
+	if global_position.distance_squared_to(pos) >= REMOTE_TELEPORT_SQ:
+		global_position = pos
+		rotation.y = yaw
 	if _human_animator:
 		_human_animator.set_moving(moved)
+
+
+func _interpolate_remote_state(delta: float) -> void:
+	if not _net_has_target:
+		return
+	var blend := 1.0 - exp(-CompetitiveMode.remote_interp_rate() * maxf(delta, 0.0001))
+	global_position = global_position.lerp(_net_target_pos, blend)
+	rotation.y = lerp_angle(rotation.y, _net_target_yaw, blend)
+	if _human_animator:
+		_human_animator.set_moving(global_position.distance_squared_to(_net_target_pos) > 0.0025)
 
 
 @rpc("any_peer", "reliable")

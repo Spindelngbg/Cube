@@ -39,6 +39,7 @@ Settings="*uid://br3e768wqf8sw"
 DrawDistance="*res://scripts/rendering/draw_distance_manager.gd"
 CrosshairOverlay="*res://scripts/ui/crosshair_overlay.gd"
 MouseLook="*res://scripts/camera/mouse_look.gd"
+CompetitiveMode="*res://scripts/competitive/competitive_mode.gd"
 QuestManager="*res://scripts/story/quest_manager.gd"
 InventoryManager="*res://scripts/inventory/inventory_manager.gd"
 WeaponManager="*res://scripts/inventory/weapon_manager.gd"
@@ -70,6 +71,10 @@ UIStateManager="*res://addons/modular_inventory_system/autoload/UIStateManager.g
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+
+[physics]
+
+common/physics_ticks_per_second=60
 
 [editor_plugins]
 
