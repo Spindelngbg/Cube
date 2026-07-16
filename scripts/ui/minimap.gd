@@ -1,6 +1,8 @@
 class_name MinimapPanel
 extends PanelContainer
 
+const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+
 var _world_size := 30.0
 var _spawn_id := ""
 var _players: Dictionary = {}
@@ -11,7 +13,7 @@ var _map_input_enabled := false
 
 
 func _ready() -> void:
-	SpiderTheme.apply_hud_clean(self)
+	SpiderTheme.apply_gui(self)
 	custom_minimum_size = Vector2(188, 188)
 
 	_canvas = Control.new()
@@ -68,13 +70,11 @@ func _on_canvas_draw() -> void:
 		znood.get_blink_alpha() if znood else 1.0
 	)
 	if _map_input_enabled:
-		_canvas.draw_string(
-			ThemeDB.fallback_font,
-			inner.position + Vector2(inner.size.x * 0.5 - 48, inner.position.y + 18),
+		GuiFontLibraryScript.draw(
+			_canvas,
+			inner.position + Vector2(inner.size.x * 0.5 - 56, inner.position.y + 20),
 			"Klicka vägpunkt",
-			HORIZONTAL_ALIGNMENT_LEFT,
-			-1,
-			10,
+			GuiFontLibraryScript.FONT_SMALL,
 			Color(0.55, 0.9, 1.0, 0.85)
 		)
 

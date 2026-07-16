@@ -16,6 +16,7 @@ var api_url: String = DEFAULT_API_URL
 signal login_succeeded(username: String, is_guest: bool)
 signal login_failed(message: String)
 signal logged_out()
+signal auth_progress(phase: String, detail: String)
 
 var _http := HTTPRequest.new()
 var _pending_action := ""
@@ -90,6 +91,7 @@ func _post(path: String, body: Dictionary, action: String) -> void:
 	_pending_path = path
 	_pending_body = body
 	_retry_count = 0
+	_emit_progress("start", _action_label(action))
 	call_deferred("_dispatch_request", send_id)
 
 
@@ -106,9 +108,11 @@ func _dispatch_request(send_id: int) -> void:
 		"Accept: application/json",
 		"User-Agent: CubeGodot/1.0",
 	])
+	_emit_progress("connecting", "%s%s" % [api_url, _pending_path])
 	var err := _http.request(api_url + _pending_path, headers, HTTPClient.METHOD_POST, json_body)
 	if err == ERR_BUSY and _retry_count < MAX_RETRIES:
 		_retry_count += 1
+		_emit_progress("retry", "HTTP upptagen — försök %d/%d" % [_retry_count, MAX_RETRIES])
 		get_tree().create_timer(0.2).timeout.connect(
 			func() -> void: _dispatch_request(send_id),
 			CONNECT_ONE_SHOT
@@ -128,6 +132,7 @@ func _retry_or_fail(send_id: int, message: String) -> void:
 		return
 	if _retry_count < MAX_RETRIES:
 		_retry_count += 1
+		_emit_progress("retry", "%s (försök %d/%d)" % [message, _retry_count, MAX_RETRIES])
 		_request_in_flight = false
 		_inflight_send_id = 0
 		get_tree().create_timer(0.25).timeout.connect(
@@ -152,11 +157,14 @@ func _on_request_completed(
 	_inflight_send_id = 0
 
 	if result == HTTPRequest.RESULT_TIMEOUT:
+		_emit_progress("timeout", "Ingen respons inom %d s" % int(REQUEST_TIMEOUT_SEC))
 		_retry_or_fail(send_id, "Servern svarade inte i tid – vänta och försök igen")
 		return
 	if result != HTTPRequest.RESULT_SUCCESS:
+		_emit_progress("network_error", "HTTP-resultat %d" % result)
 		_retry_or_fail(send_id, "Nätverksfel – kunde inte nå servern (kod %d)" % result)
 		return
+	_emit_progress("response", "HTTP %d · %d byte" % [response_code, body.size()])
 	if response_code < 200 or response_code >= 300:
 		_emit_failed("Serverfel (%d)" % response_code)
 		return
@@ -174,7 +182,24 @@ func _on_request_completed(
 	call_deferred("_emit_success", data)
 
 
+func _emit_progress(phase: String, detail: String = "") -> void:
+	auth_progress.emit(phase, detail)
+
+
+func _action_label(action: String) -> String:
+	match action:
+		"login":
+			return "Loggar in konto"
+		"register":
+			return "Skapar konto"
+		"guest":
+			return "Startar gästsession"
+		_:
+			return action
+
+
 func _emit_success(data: Dictionary) -> void:
+	_emit_progress("success", "Inloggning godkänd")
 	username = str(data.get("username", ""))
 	is_guest = bool(data.get("isGuest", false))
 	session_token = str(data.get("sessionToken", ""))
@@ -187,4 +212,5 @@ func _emit_failed(message: String) -> void:
 
 
 func _emit_failed_deferred(message: String) -> void:
+	_emit_progress("failed", message)
 	login_failed.emit(message)

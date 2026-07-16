@@ -3,6 +3,7 @@ extends RefCounted
 
 const ZEZZLOR_SCENE := preload("res://scenes/monsters/zezzlor.tscn")
 const ZezzlorLoreScript = preload("res://scripts/story/zezzlor_lore.gd")
+const MultiplayerEntityAuthorityScript = preload("res://scripts/multiplayer_entity_authority.gd")
 
 
 static func spawn_for_crime(
@@ -34,7 +35,7 @@ static func spawn_for_crime(
 		zezzlor.name = "Zezzlor_%s_%d" % [rank_id, spawn_index]
 		var tree := Engine.get_main_loop() as SceneTree
 		if tree != null and tree.get_multiplayer().multiplayer_peer != null:
-			zezzlor.set_multiplayer_authority(1)
+			zezzlor.set_multiplayer_authority(MultiplayerEntityAuthorityScript.simulation_peer_id())
 		root.add_child(zezzlor)
 		zezzlor.setup(target, crime_pos + offset, rank_id)
 		if game.has_method("register_zezzlor"):

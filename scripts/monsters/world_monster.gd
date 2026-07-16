@@ -59,7 +59,21 @@ func is_alive() -> bool:
 func take_damage(amount: float) -> void:
 	if not _alive or amount <= 0.0:
 		return
+	if multiplayer.multiplayer_peer == null:
+		_apply_damage_local(amount)
+		return
+	_apply_damage.rpc(amount)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _apply_damage(amount: float) -> void:
 	if not _is_simulation_authority():
+		return
+	_apply_damage_local(amount)
+
+
+func _apply_damage_local(amount: float) -> void:
+	if not _alive or amount <= 0.0:
 		return
 	_hp -= amount
 	_flash_hit()

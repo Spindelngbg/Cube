@@ -3,6 +3,7 @@ extends RefCounted
 
 const WORLD_NPC_SCENE := preload("res://scenes/npcs/world_npc.tscn")
 const NpcCatalogScript = preload("res://scripts/npcs/npc_catalog.gd")
+const MultiplayerEntityAuthorityScript = preload("res://scripts/multiplayer_entity_authority.gd")
 
 
 static func populate(
@@ -29,7 +30,7 @@ static func populate(
 		npc.name = "NPC_%s" % str(entry.get("id", spawn_index))
 		var tree := Engine.get_main_loop() as SceneTree
 		if tree != null and tree.get_multiplayer().multiplayer_peer != null:
-			npc.set_multiplayer_authority(1)
+			npc.set_multiplayer_authority(MultiplayerEntityAuthorityScript.simulation_peer_id())
 		root.add_child(npc)
 		npc.setup(entry, world_pos, hash("%s_npc_%d" % [spawn_id, spawn_index]))
 		if owdb_bridge != null and owdb_bridge.has_method("register_runtime_entity"):

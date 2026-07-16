@@ -1,6 +1,8 @@
 class_name CubeNetworkMap
 extends PanelContainer
 
+const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+
 const NODE_LAYOUT := {
 	"hub": Vector2(120, 78),
 	"satellite_left": Vector2(28, 78),
@@ -55,14 +57,12 @@ func set_active_spawn(spawn_id: String) -> void:
 func _on_draw() -> void:
 	var rect := _canvas.get_rect()
 	_canvas.draw_rect(rect, Color(0.04, 0.05, 0.07, 0.94), true)
-	_canvas.draw_rect(rect, Color(SpiderTheme.BLOOD.r, SpiderTheme.BLOOD.g, SpiderTheme.BLOOD.b, 0.45), false, 2.0)
-	_canvas.draw_string(
-		ThemeDB.fallback_font,
-		Vector2(8, 18),
+	_canvas.draw_rect(rect, SpiderTheme.UI_BORDER, false, 1.0)
+	GuiFontLibraryScript.draw(
+		_canvas,
+		Vector2(8, 20),
 		"Kubnätverk",
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		13,
+		GuiFontLibraryScript.FONT_BODY,
 		Color(SpiderTheme.BONE.r, SpiderTheme.BONE.g, SpiderTheme.BONE.b, 0.9)
 	)
 
@@ -81,14 +81,13 @@ func _on_draw() -> void:
 		_canvas.draw_circle(pos, NODE_RADIUS, color)
 
 		var label := _label_for(node_id)
-		_canvas.draw_string(
-			ThemeDB.fallback_font,
-			pos + Vector2(-36, 24),
+		GuiFontLibraryScript.draw(
+			_canvas,
+			pos + Vector2(-36, 26),
 			label,
-			HORIZONTAL_ALIGNMENT_LEFT,
-			72,
-			9,
-			Color(1, 1, 1, 0.55)
+			GuiFontLibraryScript.FONT_MAP,
+			Color(1, 1, 1, 0.55),
+			72.0
 		)
 
 

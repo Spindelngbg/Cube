@@ -32,6 +32,15 @@ var _leap_cooldown := 0.0
 var _strafe_dir := 1.0
 var _strafe_timer := 0.0
 var _rng := RandomNumberGenerator.new()
+var _deflect_flash := false
+
+
+func take_corrosive_slime(_amount: float, _shooter_id: int) -> void:
+	_flash_deflect()
+
+
+func take_damage(_amount: float) -> void:
+	_flash_deflect()
 
 
 func setup(
@@ -291,6 +300,18 @@ func _attach_laser_pistol() -> void:
 func _update_animation() -> void:
 	if _avatar_animator:
 		_avatar_animator.set_moving(velocity.length() > 0.5 or not is_on_floor())
+
+
+func _flash_deflect() -> void:
+	if _deflect_flash or _model_pivot == null:
+		return
+	_deflect_flash = true
+	var tween := create_tween()
+	tween.tween_property(_model_pivot, "scale", Vector3(1.05, 0.95, 1.05), 0.06)
+	tween.tween_property(_model_pivot, "scale", Vector3.ONE, 0.1)
+	tween.tween_callback(func() -> void:
+		_deflect_flash = false
+	)
 
 
 func _is_simulation_authority() -> bool:

@@ -1,6 +1,8 @@
 class_name HealthBarUI
 extends PanelContainer
 
+const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+
 var _hp_label: Label
 var _bonus_label: Label
 var _bar: ProgressBar
@@ -44,7 +46,8 @@ func _build() -> void:
 	_hp_label.text = "HP 100 / 100"
 	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hp_label.add_theme_color_override("font_color", SpiderTheme.BONE)
-	_hp_label.add_theme_font_size_override("font_size", 16)
+	_hp_label.add_theme_font_override("font", GuiFontLibraryScript.semibold())
+	_hp_label.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_BODY)
 	col.add_child(_hp_label)
 
 	_bar = ProgressBar.new()
@@ -66,7 +69,7 @@ func _style_progress_bar() -> void:
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0.06, 0.05, 0.08, 0.95)
 	bg.set_border_width_all(1)
-	bg.border_color = Color(SpiderTheme.BLOOD.r, SpiderTheme.BLOOD.g, SpiderTheme.BLOOD.b, 0.65)
+	bg.border_color = SpiderTheme.UI_BORDER_MUTED
 	bg.set_corner_radius_all(5)
 	_bar.add_theme_stylebox_override("background", bg)
 

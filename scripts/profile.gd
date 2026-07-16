@@ -7,6 +7,7 @@ signal character_saved()
 signal nest_intro_completed()
 signal home_spawn_set(spawn_id: String)
 signal operation_failed(message: String)
+signal profile_progress(phase: String, detail: String)
 
 const REQUEST_TIMEOUT_SEC := 20.0
 
@@ -72,10 +73,12 @@ func characters_list_ready() -> bool:
 func load_characters() -> void:
 	if _busy:
 		cancel_request()
+	_emit_progress("list_start", "Hämtar karaktärslista")
 	_post("/characters/list", {}, "list")
 
 
 func create_character(name: String = "") -> void:
+	_emit_progress("create_start", "Skapar karaktär \"%s\"" % name.strip_edges())
 	_post("/characters/create", { "name": name.strip_edges() }, "create")
 
 
@@ -188,10 +191,15 @@ func is_busy() -> bool:
 	return _busy
 
 
+func _emit_progress(phase: String, detail: String = "") -> void:
+	profile_progress.emit(phase, detail)
+
+
 func _post(path: String, body: Dictionary, action: String) -> void:
 	_send_id += 1
 	var send_id := _send_id
 	_pending_action = action
+	_emit_progress("request", "%s%s" % [Auth.api_url, path])
 	body["token"] = Auth.session_token
 	var json_body := JSON.stringify(body)
 	var headers := PackedStringArray([
@@ -237,13 +245,17 @@ func _on_request_completed(
 	_busy = false
 	_inflight_send_id = 0
 
+	_emit_progress("response", "HTTP %d · %d byte" % [response_code, body.size()])
 	if result == HTTPRequest.RESULT_TIMEOUT:
+		_emit_progress("timeout", "Karaktärs-API timeout")
 		operation_failed.emit("Servern svarade inte i tid – försök igen")
 		return
 	if result != HTTPRequest.RESULT_SUCCESS:
+		_emit_progress("network_error", "HTTP-resultat %d" % result)
 		operation_failed.emit("Nätverksfel – kunde inte nå servern")
 		return
 	if response_code != 200:
+		_emit_progress("http_error", "Status %d" % response_code)
 		operation_failed.emit("Serverfel (%d) – karaktärer kanske inte är deployade ännu" % response_code)
 		return
 
@@ -260,6 +272,7 @@ func _on_request_completed(
 	match _pending_action:
 		"list":
 			_apply_character_list(data)
+			_emit_progress("list_done", "%d karaktärer hittades" % characters.size())
 			characters_loaded.emit()
 		"create":
 			var created: Dictionary = data.get("character", {})
@@ -270,6 +283,7 @@ func _on_request_completed(
 				character_created.emit(active_character_id)
 				character_selected.emit()
 			_list_synced = true
+			_emit_progress("create_done", "Karaktär skapad: %s" % active_character_name)
 			characters_loaded.emit()
 		"select":
 			var selected: Dictionary = data.get("character", {})

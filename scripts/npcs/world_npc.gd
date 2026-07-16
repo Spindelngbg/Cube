@@ -46,6 +46,7 @@ var _src_block_timer := 0.0
 var _src_harass_timer := 0.0
 var _src_block_pos := Vector3.ZERO
 var _src_is_blocking := false
+var _is_zezzlor := false
 
 
 func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
@@ -58,7 +59,8 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 	_wander_enabled = bool(entry.get("wander", true)) and _move_speed > 0.01
 	_bounds_radius = float(entry.get("wander_radius", 8.0))
 	_name_label.text = _display_name
-	if bool(entry.get("zezzlor", false)):
+	_is_zezzlor = bool(entry.get("zezzlor", false))
+	if _is_zezzlor:
 		var rank_id := str(entry.get("zezzlor_rank", "patrol"))
 		_name_label.modulate = ZezzlorLoreScript.rank_color(rank_id)
 	elif bool(entry.get("src_guard", false)):
@@ -292,17 +294,17 @@ func _resolve_display_name(entry: Dictionary) -> String:
 func take_corrosive_slime(amount: float, shooter_id: int) -> void:
 	if _dead or amount <= 0.0:
 		return
-	if not _is_simulation_authority():
-		_apply_corrosive_slime.rpc_id(get_multiplayer_authority(), amount, shooter_id)
+	if multiplayer.multiplayer_peer == null:
+		_apply_corrosive_slime_local(amount, shooter_id)
 		return
-	_apply_corrosive_slime_local(amount, shooter_id)
+	_apply_corrosive_slime.rpc(amount, shooter_id)
 
 
 func take_damage(amount: float) -> void:
 	take_corrosive_slime(amount, -1)
 
 
-@rpc("any_peer", "call_remote", "reliable")
+@rpc("any_peer", "call_local", "reliable")
 func _apply_corrosive_slime(amount: float, shooter_id: int) -> void:
 	if not _is_simulation_authority():
 		return
@@ -311,6 +313,9 @@ func _apply_corrosive_slime(amount: float, shooter_id: int) -> void:
 
 func _apply_corrosive_slime_local(amount: float, shooter_id: int) -> void:
 	if _dead or amount <= 0.0:
+		return
+	if _is_zezzlor:
+		_flash_corrosion_hit()
 		return
 	_health = maxf(0.0, _health - amount)
 	_corrosion = minf(1.0, _corrosion + SlimeDamageScript.CORROSION_BUILDUP)

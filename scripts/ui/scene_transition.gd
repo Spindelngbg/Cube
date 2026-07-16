@@ -1,5 +1,7 @@
 extends Node
 
+const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+
 const LAYER := 100
 
 var _layer: CanvasLayer
@@ -42,7 +44,8 @@ func _ready() -> void:
 	_title.offset_left = -400.0
 	_title.offset_right = 400.0
 	_title.offset_bottom = 260.0
-	_title.add_theme_font_size_override("font_size", 34)
+	_title.add_theme_font_override("font", GuiFontLibraryScript.semibold())
+	_title.add_theme_font_size_override("font_size", 40)
 	_title.add_theme_color_override("font_color", Color(0.95, 0.9, 0.78))
 	_title.modulate.a = 0.0
 	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -56,7 +59,8 @@ func _ready() -> void:
 	_subtitle.offset_left = -360.0
 	_subtitle.offset_right = 360.0
 	_subtitle.offset_bottom = 360.0
-	_subtitle.add_theme_font_size_override("font_size", 18)
+	_subtitle.add_theme_font_override("font", GuiFontLibraryScript.regular())
+	_subtitle.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_BODY)
 	_subtitle.add_theme_color_override("font_color", Color(0.78, 0.72, 0.62, 0.9))
 	_subtitle.modulate.a = 0.0
 	_subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -115,7 +119,7 @@ func _build_loading_overlay() -> void:
 	_loading_subtitle.text = "Bygger koloni och värld..."
 	_loading_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	SpiderTheme.style_subtitle(_loading_subtitle)
-	_loading_subtitle.add_theme_font_size_override("font_size", 18)
+
 	col.add_child(_loading_subtitle)
 
 

@@ -2,6 +2,7 @@ class_name LawEnforcementSpawner
 extends RefCounted
 
 const LAW_ENFORCER_SCENE := preload("res://scenes/monsters/law_enforcer.tscn")
+const MultiplayerEntityAuthorityScript = preload("res://scripts/multiplayer_entity_authority.gd")
 
 
 static func spawn_for_crime(
@@ -28,7 +29,7 @@ static func spawn_for_crime(
 		enforcer.name = "Enforcer_%d_%d" % [spawn_index, i]
 		var tree := Engine.get_main_loop() as SceneTree
 		if tree != null and tree.get_multiplayer().multiplayer_peer != null:
-			enforcer.set_multiplayer_authority(1)
+			enforcer.set_multiplayer_authority(MultiplayerEntityAuthorityScript.simulation_peer_id())
 		root.add_child(enforcer)
 		enforcer.setup(target, crime_pos + offset)
 		if game.has_method("register_law_enforcer"):

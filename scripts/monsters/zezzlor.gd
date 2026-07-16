@@ -16,6 +16,7 @@ var _model_root: Node3D
 var _baton_socket: Node3D
 var _rank_id := "patrol"
 var _display_name := ""
+var _deflect_flash := false
 
 
 func setup(
@@ -38,6 +39,14 @@ func setup(
 
 func get_rank_id() -> String:
 	return _rank_id
+
+
+func take_corrosive_slime(_amount: float, _shooter_id: int) -> void:
+	_flash_deflect()
+
+
+func take_damage(_amount: float) -> void:
+	_flash_deflect()
 
 
 func _physics_process(delta: float) -> void:
@@ -121,6 +130,18 @@ func _attach_baton() -> void:
 func _update_animation(moving: bool) -> void:
 	if _avatar_animator:
 		_avatar_animator.set_moving(moving)
+
+
+func _flash_deflect() -> void:
+	if _deflect_flash or _model_pivot == null:
+		return
+	_deflect_flash = true
+	var tween := create_tween()
+	tween.tween_property(_model_pivot, "scale", Vector3(1.04, 0.96, 1.04), 0.06)
+	tween.tween_property(_model_pivot, "scale", Vector3.ONE, 0.1)
+	tween.tween_callback(func() -> void:
+		_deflect_flash = false
+	)
 
 
 @rpc("any_peer", "unreliable")

@@ -4,7 +4,7 @@ extends Area3D
 
 
 func _ready() -> void:
-	collision_layer = 4
+	collision_layer = 8
 	collision_mask = 0
 	monitorable = true
 	monitoring = false

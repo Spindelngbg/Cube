@@ -2,8 +2,8 @@ class_name FantasyBorderLibrary
 extends RefCounted
 
 const BASE := "res://assets/ui/fantasy-borders/PNG/Default/"
-const SLICE := 16
-const CONTENT := 14
+const SLICE := 8
+const CONTENT := 10
 
 static var _cache: Dictionary = {}
 
@@ -47,49 +47,49 @@ static func style_from_texture(
 	return style
 
 
-static func panel_style(tint: Color = Color(0.82, 0.38, 0.42, 0.95)) -> StyleBoxTexture:
+static func panel_style(tint: Color = SpiderTheme.UI_BORDER) -> StyleBoxTexture:
 	return style_from_texture(
 		texture("Transparent border", "panel-transparent-border-008"),
 		tint,
 		false,
-		20
+		12
 	)
 
 
-static func panel_filled_style(tint: Color = Color(0.42, 0.2, 0.24, 0.96)) -> StyleBoxTexture:
-	return style_from_texture(texture("Panel", "panel-012"), tint, true, 12)
+static func panel_filled_style(tint: Color = Color(0.14, 0.15, 0.19, 0.96)) -> StyleBoxTexture:
+	return style_from_texture(texture("Panel", "panel-012"), tint, true, 10)
 
 
 static func button_style(hover: bool = false, pressed: bool = false) -> StyleBoxTexture:
 	if pressed:
 		return style_from_texture(
 			texture("Panel", "panel-018"),
-			Color(0.55, 0.18, 0.22, 1.0),
+			Color(0.2, 0.21, 0.26, 1.0),
 			true,
-			10
+			8
 		)
 	if hover:
 		return style_from_texture(
 			texture("Panel", "panel-014"),
-			Color(0.48, 0.22, 0.26, 1.0),
+			Color(0.18, 0.19, 0.24, 1.0),
 			true,
-			10
+			8
 		)
 	return style_from_texture(
 		texture("Panel", "panel-010"),
-		Color(0.34, 0.16, 0.19, 0.98),
+		Color(0.12, 0.13, 0.17, 0.98),
 		true,
-		10
+		8
 	)
 
 
 static func input_style(focused: bool = false) -> StyleBoxTexture:
-	var tint := Color(0.5, 0.24, 0.28, 0.98) if focused else Color(0.28, 0.14, 0.17, 0.95)
+	var tint := SpiderTheme.UI_BORDER_FOCUS if focused else SpiderTheme.UI_BORDER_MUTED
 	return style_from_texture(
 		texture("Transparent border", "panel-transparent-border-004"),
 		tint,
 		false,
-		12
+		10
 	)
 
 
@@ -97,15 +97,15 @@ static func tab_style(active: bool = false) -> StyleBoxTexture:
 	if active:
 		return style_from_texture(
 			texture("Border", "panel-border-006"),
-			Color(0.88, 0.32, 0.36, 1.0),
+			SpiderTheme.UI_BORDER_FOCUS,
 			false,
-			8
+			6
 		)
 	return style_from_texture(
 		texture("Border", "panel-border-002"),
-		Color(0.45, 0.4, 0.44, 0.65),
+		SpiderTheme.UI_BORDER_MUTED,
 		false,
-		8
+		6
 	)
 
 
@@ -113,22 +113,38 @@ static func row_style(selected: bool = false) -> StyleBoxTexture:
 	if selected:
 		return style_from_texture(
 			texture("Border", "panel-border-010"),
-			Color(0.9, 0.35, 0.38, 0.95),
+			SpiderTheme.UI_BORDER_FOCUS,
 			false,
-			10
+			8
 		)
 	return style_from_texture(
 		texture("Border", "panel-border-004"),
-		Color(0.55, 0.48, 0.52, 0.75),
+		SpiderTheme.UI_BORDER,
 		false,
-		10
+		8
 	)
 
 
 static func hud_style() -> StyleBoxTexture:
 	return style_from_texture(
 		texture("Transparent border", "panel-transparent-border-012"),
-		Color(0.78, 0.34, 0.38, 0.92),
+		SpiderTheme.UI_BORDER,
 		false,
-		12
+		10
 	)
+
+
+static func overlay_panel_style(content: int = 8) -> StyleBoxTexture:
+	return style_from_texture(
+		texture("Transparent border", "panel-transparent-border-008"),
+		SpiderTheme.UI_BORDER,
+		false,
+		content
+	)
+
+
+static func filled_panel_style(
+	tint: Color = Color(0.07, 0.08, 0.12, 0.93),
+	content: int = 14
+) -> StyleBoxTexture:
+	return style_from_texture(texture("Panel", "panel-014"), tint, true, content)

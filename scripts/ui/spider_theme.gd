@@ -1,12 +1,17 @@
 class_name SpiderTheme
 extends RefCounted
 
+const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
+
 const BG_TOP := Color(0.04, 0.03, 0.06)
 const BG_BOTTOM := Color(0.1, 0.05, 0.09)
 const CHITIN := Color(0.12, 0.1, 0.14, 0.94)
 const WEB := Color(0.82, 0.8, 0.88, 0.09)
 const BLOOD := Color(0.77, 0.12, 0.22)
 const BLOOD_BRIGHT := Color(0.95, 0.22, 0.28)
+const UI_BORDER := Color(0.24, 0.26, 0.32, 0.7)
+const UI_BORDER_FOCUS := Color(0.42, 0.44, 0.52, 0.88)
+const UI_BORDER_MUTED := Color(0.14, 0.15, 0.19, 0.55)
 const VENOM := Color(0.45, 0.72, 0.28)
 const BONE := Color(0.9, 0.86, 0.82)
 const MUTED := Color(0.55, 0.5, 0.56)
@@ -20,7 +25,7 @@ static func hud_panel_style(alpha: float = 0.78) -> StyleBoxFlat:
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.border_color = Color(0.24, 0.28, 0.36, 0.5)
+	style.border_color = UI_BORDER_MUTED
 	style.set_corner_radius_all(8)
 	style.content_margin_left = 10
 	style.content_margin_right = 10
@@ -30,24 +35,13 @@ static func hud_panel_style(alpha: float = 0.78) -> StyleBoxFlat:
 	return style
 
 
+## Snygg fantasy-GUI — tunna kanter, inte platt HUD.
+static func apply_gui(root: Control) -> void:
+	apply_to(root)
+
+
 static func apply_hud_clean(root: Control) -> void:
-	var theme := Theme.new()
-	var panel := hud_panel_style()
-	theme.set_stylebox("panel", "PanelContainer", panel)
-	theme.set_stylebox("normal", "Button", _hud_button_style(false))
-	theme.set_stylebox("hover", "Button", _hud_button_style(true))
-	theme.set_stylebox("pressed", "Button", _hud_button_style(true))
-	theme.set_stylebox("normal", "LineEdit", _hud_input_style(false))
-	theme.set_stylebox("focus", "LineEdit", _hud_input_style(true))
-	theme.set_color("font_color", "Label", BONE)
-	theme.set_color("font_placeholder_color", "LineEdit", MUTED)
-	theme.set_color("font_color", "LineEdit", BONE)
-	theme.set_color("font_color", "Button", BONE)
-	theme.set_color("font_hover_color", "Button", Color(0.82, 0.88, 0.95))
-	theme.set_font_size("font_size", "Label", 14)
-	theme.set_font_size("font_size", "Button", 14)
-	theme.set_font_size("font_size", "LineEdit", 14)
-	root.theme = theme
+	apply_gui(root)
 
 
 static func apply_to(root: Control) -> void:
@@ -69,33 +63,37 @@ static func apply_to(root: Control) -> void:
 	theme.set_color("font_color", "Button", BONE)
 	theme.set_color("font_hover_color", "Button", BLOOD_BRIGHT)
 	theme.set_color("font_disabled_color", "Button", MUTED)
-	theme.set_font_size("font_size", "Label", 14)
-	theme.set_font_size("font_size", "Button", 15)
-	theme.set_font_size("font_size", "LineEdit", 15)
+	GuiFontLibraryScript.apply_to_theme(theme)
 	root.theme = theme
 
 
-static func style_title(label: Label, size: int = 52) -> void:
+static func style_title(label: Label, size: int = GuiFontLibraryScript.FONT_TITLE_DEFAULT) -> void:
+	label.add_theme_font_override("font", GuiFontLibraryScript.semibold())
 	label.add_theme_color_override("font_color", BLOOD_BRIGHT)
 	label.add_theme_font_size_override("font_size", size)
 
 
 static func style_subtitle(label: Label) -> void:
+	label.add_theme_font_override("font", GuiFontLibraryScript.regular())
 	label.add_theme_color_override("font_color", Color(BONE.r, BONE.g, BONE.b, 0.55))
-	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_SUBTITLE)
 
 
 static func style_status(label: Label) -> void:
+	label.add_theme_font_override("font", GuiFontLibraryScript.regular())
 	label.add_theme_color_override("font_color", Color(VENOM.r, VENOM.g, VENOM.b, 0.85))
-	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_STATUS)
 
 
 static func style_section(label: Label) -> void:
+	label.add_theme_font_override("font", GuiFontLibraryScript.semibold())
 	label.add_theme_color_override("font_color", BLOOD)
-	label.add_theme_font_size_override("font_size", 11)
+	label.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_SECTION)
 
 
 static func style_tab_button(button: Button, active: bool) -> void:
+	button.add_theme_font_override("font", GuiFontLibraryScript.semibold() if active else GuiFontLibraryScript.regular())
+	button.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_BUTTON)
 	if active:
 		button.add_theme_color_override("font_color", BLOOD_BRIGHT)
 		button.add_theme_stylebox_override("normal", FantasyBorderLibrary.tab_style(true))
@@ -148,7 +146,7 @@ static func _hud_input_style(focused: bool) -> StyleBoxFlat:
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.border_color = Color(0.35, 0.42, 0.55, 0.75) if focused else Color(0.2, 0.24, 0.3, 0.45)
+	style.border_color = UI_BORDER_FOCUS if focused else UI_BORDER_MUTED
 	style.set_corner_radius_all(6)
 	style.content_margin_left = 8
 	style.content_margin_right = 8

@@ -36,7 +36,7 @@ func _build() -> void:
 
 	var header := Label.new()
 	header.text = "Inventory"
-	SpiderTheme.style_title(header, 22)
+	SpiderTheme.style_title(header, 28)
 	col.add_child(header)
 
 	_summary = Label.new()

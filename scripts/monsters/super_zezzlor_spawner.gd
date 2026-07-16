@@ -3,6 +3,7 @@ extends RefCounted
 
 const SUPER_ZEZZLOR_SCENE := preload("res://scenes/monsters/super_zezzlor.tscn")
 const DcZoneCatalogScript = preload("res://scripts/city/dc_zone_catalog.gd")
+const MultiplayerEntityAuthorityScript = preload("res://scripts/multiplayer_entity_authority.gd")
 
 const BRUCE_NAMES := [
 	"Bruce",
@@ -34,7 +35,7 @@ static func populate(
 		var hero := SUPER_ZEZZLOR_SCENE.instantiate()
 		hero.name = "SuperZezzlor_%d" % index
 		if tree != null and tree.get_multiplayer().multiplayer_peer != null:
-			hero.set_multiplayer_authority(1)
+			hero.set_multiplayer_authority(MultiplayerEntityAuthorityScript.simulation_peer_id())
 		root.add_child(hero)
 		var personal_name: String = BRUCE_NAMES[index % BRUCE_NAMES.size()]
 		hero.setup(

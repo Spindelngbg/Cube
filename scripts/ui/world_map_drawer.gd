@@ -1,6 +1,7 @@
 class_name WorldMapDrawer
 extends RefCounted
 
+const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
 const MAP_PADDING := 10.0
 
 
@@ -65,7 +66,7 @@ static func draw(
 	)
 
 	canvas.draw_rect(inner, Color(0.05, 0.06, 0.08, 0.92), true)
-	canvas.draw_rect(inner, Color(SpiderTheme.BLOOD.r, SpiderTheme.BLOOD.g, SpiderTheme.BLOOD.b, 0.55), false, 2.0)
+	canvas.draw_rect(inner, SpiderTheme.UI_BORDER, false, 1.0)
 
 	var grid_step := inner.size.x / 6.0
 	for i in range(1, 6):
@@ -81,13 +82,11 @@ static func draw(
 		var elev_px := _world_to_map(elevator_pos, inner, map_center, half_extent, true)
 		canvas.draw_rect(Rect2(elev_px - Vector2(5, 5), Vector2(10, 10)), Color(0.95, 0.75, 0.2, 0.9), true)
 
-	canvas.draw_string(
-		ThemeDB.fallback_font,
-		inner.position + Vector2(4, 14),
+	GuiFontLibraryScript.draw(
+		canvas,
+		inner.position + Vector2(4, 16),
 		"N",
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		11,
+		GuiFontLibraryScript.FONT_SMALL,
 		Color(1, 1, 1, 0.35)
 	)
 
@@ -100,13 +99,11 @@ static func draw(
 			clampf(px.x + 6.0, inner.position.x + 2.0, inner.end.x - 72.0),
 			clampf(px.y - 4.0, inner.position.y + 12.0, inner.end.y - 4.0)
 		)
-		canvas.draw_string(
-			ThemeDB.fallback_font,
+		GuiFontLibraryScript.draw(
+			canvas,
 			label_pos,
 			str(poi.get("name", "")),
-			HORIZONTAL_ALIGNMENT_LEFT,
-			-1,
-			9,
+			GuiFontLibraryScript.FONT_MAP,
 			Color(color.r, color.g, color.b, 0.9)
 		)
 
@@ -146,13 +143,11 @@ static func draw(
 		var title := SpawnPoints.get_spawn_name(spawn_id)
 		if title == "":
 			title = "Karta"
-		canvas.draw_string(
-			ThemeDB.fallback_font,
-			inner.position + Vector2(4, inner.size.y - 6),
+		GuiFontLibraryScript.draw(
+			canvas,
+			inner.position + Vector2(4, inner.size.y - 4),
 			title,
-			HORIZONTAL_ALIGNMENT_LEFT,
-			-1,
-			10,
+			GuiFontLibraryScript.FONT_SMALL,
 			Color(SpiderTheme.BONE.r, SpiderTheme.BONE.g, SpiderTheme.BONE.b, 0.7)
 		)
 

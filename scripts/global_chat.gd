@@ -1,5 +1,6 @@
 extends CanvasLayer
 
+const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
 const VISITOR_PREFIX := "Besökare_"
 const RECONNECT_DELAY := 2.0
 
@@ -99,12 +100,13 @@ func set_login_screen_active(active: bool) -> void:
 
 
 func _ready() -> void:
-	SpiderTheme.apply_hud_clean(chat_panel)
+	SpiderTheme.apply_gui(chat_panel)
 	chat_title.add_theme_color_override("font_color", SpiderTheme.BONE)
-	chat_title.add_theme_font_size_override("font_size", 12)
+	chat_title.add_theme_font_override("font", GuiFontLibraryScript.semibold())
+	chat_title.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_BODY)
 	SpiderTheme.style_status(status_label)
-	_style_tab_button_clean(chat_tab_button, true)
-	_style_tab_button_clean(friends_tab_button, false)
+	SpiderTheme.style_tab_button(chat_tab_button, true)
+	SpiderTheme.style_tab_button(friends_tab_button, false)
 
 	messages.meta_clicked.connect(_on_message_meta_clicked)
 	messages.scroll_following = true
@@ -115,8 +117,8 @@ func _ready() -> void:
 	minimize_button.pressed.connect(_toggle_minimize)
 	chat_panel.mouse_entered.connect(_on_panel_mouse_entered)
 	chat_panel.mouse_exited.connect(_on_panel_mouse_exited)
-	_panel_style_open = SpiderTheme.hud_panel_style(0.82)
-	_panel_style_compact = _make_compact_panel_style()
+	_panel_style_open = FantasyBorderLibrary.filled_panel_style()
+	_panel_style_compact = FantasyBorderLibrary.overlay_panel_style(6)
 
 	Auth.login_succeeded.connect(_on_auth_changed)
 	Auth.logged_out.connect(_on_auth_logged_out)
@@ -354,8 +356,8 @@ func _show_tab(tab: String) -> void:
 	_active_tab = tab
 	chat_view.visible = tab == "chat"
 	friends_view.visible = tab == "friends"
-	_style_tab_button_clean(chat_tab_button, tab == "chat")
-	_style_tab_button_clean(friends_tab_button, tab == "friends")
+	SpiderTheme.style_tab_button(chat_tab_button, tab == "chat")
+	SpiderTheme.style_tab_button(friends_tab_button, tab == "friends")
 	if tab == "friends":
 		_send_json({ "type": "friends_refresh" })
 
@@ -504,30 +506,15 @@ func _apply_layout_mode() -> void:
 
 	if _minimized:
 		chat_title.text = "Chatt  [C]"
-		chat_title.add_theme_font_size_override("font_size", 11)
+		chat_title.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_SMALL)
 		chat_title.add_theme_color_override("font_color", Color(SpiderTheme.BONE.r, SpiderTheme.BONE.g, SpiderTheme.BONE.b, 0.55))
 		header_row.add_theme_constant_override("separation", 4)
 	else:
 		chat_title.text = "Global chatt"
-		chat_title.add_theme_font_size_override("font_size", 14)
+		chat_title.add_theme_font_size_override("font_size", GuiFontLibraryScript.FONT_BODY)
 		chat_title.remove_theme_color_override("font_color")
 		header_row.add_theme_constant_override("separation", 6)
 		minimize_button.text = "—"
 		minimize_button.tooltip_text = "Minimera chatt [C]"
 
 
-func _style_tab_button_clean(button: Button, active: bool) -> void:
-	button.flat = true
-	if active:
-		button.add_theme_color_override("font_color", Color(0.82, 0.88, 0.95))
-	else:
-		button.add_theme_color_override("font_color", SpiderTheme.MUTED)
-
-
-func _make_compact_panel_style() -> StyleBox:
-	var style := SpiderTheme.hud_panel_style(0.42)
-	style.content_margin_left = 6
-	style.content_margin_right = 6
-	style.content_margin_top = 3
-	style.content_margin_bottom = 3
-	return style

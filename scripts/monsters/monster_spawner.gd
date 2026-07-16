@@ -57,7 +57,8 @@ static func populate(
 				monster.name = "Monster_%d" % spawn_index
 				var tree := Engine.get_main_loop() as SceneTree
 				if tree != null and tree.get_multiplayer().multiplayer_peer != null:
-					monster.set_multiplayer_authority(1)
+					var AuthorityScript = preload("res://scripts/multiplayer_entity_authority.gd")
+					monster.set_multiplayer_authority(AuthorityScript.simulation_peer_id())
 				root.add_child(monster)
 				monster.setup(
 					entry,
