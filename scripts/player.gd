@@ -199,6 +199,10 @@ func _format_display_name(username: String, character_name: String) -> String:
 
 
 func get_slime_status_text() -> String:
+	if not WeaponManager.can_use_slimeshooter():
+		if InventoryManager.has_item(WeaponManager.SLIMESHOOTER_ID):
+			return "Slimeshooter i inventory — utrusta vid vapenbutik [E]"
+		return "Inget vapen — hämta Slimeshooter vid vapenbutiken"
 	return _slime_blaster.get_status_text()
 
 
@@ -306,6 +310,8 @@ func _sync_znood_stamp(target: Vector3) -> void:
 
 func _handle_combat_input() -> void:
 	if get_tree().paused or not MouseLook.is_active():
+		return
+	if not WeaponManager.can_use_slimeshooter():
 		return
 	if Input.is_action_just_pressed("reload"):
 		_slime_blaster.try_reload()

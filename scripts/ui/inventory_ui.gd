@@ -63,14 +63,17 @@ func _refresh() -> void:
 		child.queue_free()
 
 	var items := InventoryManager.get_items()
+	var equipped := WeaponManager.get_equipped_display_name()
+	var equipped_note := " | Utrustat: %s" % equipped if equipped != "" else ""
 	_summary.text = (
-		"%s: %s | Max HP: %d (bas %d + bonus %d)"
+		"%s: %s | Max HP: %d (bas %d + bonus %d)%s"
 		% [
 			ItemCatalog.currency_name(),
 			_format_mydrillium(InventoryManager.get_mydrillium()),
 			int(round(InventoryManager.get_max_hp())),
 			int(round(ItemCatalog.base_hp())),
 			int(round(InventoryManager.get_hp_bonus_total())),
+			equipped_note,
 		]
 	)
 

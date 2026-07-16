@@ -40,10 +40,17 @@ func try_collect() -> bool:
 
 func _on_collected() -> void:
 	var item_name := ItemCatalog.get_display_name(item_id)
-	QuestManager.story_toast.emit(
-		"Upplockat",
-		"%s\n+%d max-HP" % [item_name, int(ItemCatalog.get_hp_bonus(item_id))]
-	)
+	if ItemCatalog.is_weapon(item_id):
+		WeaponManager.on_weapon_acquired(item_id, true)
+		QuestManager.story_toast.emit(
+			"Vapen upplockat",
+			"%s utrustad." % item_name
+		)
+	else:
+		QuestManager.story_toast.emit(
+			"Upplockat",
+			"%s\n+%d max-HP" % [item_name, int(ItemCatalog.get_hp_bonus(item_id))]
+		)
 	if one_shot:
 		visible = false
 		monitoring = false

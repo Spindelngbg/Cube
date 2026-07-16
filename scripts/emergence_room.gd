@@ -530,6 +530,7 @@ func _enter_world() -> void:
 func _on_world_ready() -> void:
 	_stop_connect_watchdog()
 	_set_hint("Går in i världen...")
+	SceneTransition.show_loading("Laddar", "Går in i kolonin...")
 	get_tree().change_scene_to_file("res://scenes/game.tscn")
 
 

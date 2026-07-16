@@ -70,6 +70,14 @@ static func get_item_type(item_id: String) -> String:
 	return str(get_item(item_id).get("type", "consumable"))
 
 
+static func is_weapon(item_id: String) -> bool:
+	return get_item_type(item_id) == "weapon"
+
+
+static func get_weapon_kind(item_id: String) -> String:
+	return str(get_item(item_id).get("weapon_kind", item_id))
+
+
 static func cures_poison(item_id: String) -> bool:
 	return bool(get_item(item_id).get("cures_poison", false))
 

@@ -2,6 +2,8 @@ class_name WeaponShopBuilder
 extends RefCounted
 
 const ZnoodPoiMarkerScript = preload("res://scripts/znood/znood_poi_marker.gd")
+const WeaponShopScript = preload("res://scripts/shops/weapon_shop.gd")
+const WeaponPickupScript = preload("res://scripts/items/weapon_pickup.gd")
 
 const STEEL := Color(0.62, 0.66, 0.72)
 const ACCENT := Color(0.9, 0.35, 0.22)
@@ -60,5 +62,16 @@ static func build(parent: Node3D, pos: Vector3, poi_id: String = "weapon_shop") 
 	marker.keywords = PackedStringArray(["vapen", "weapon", "butik", "ammo", "gevär"])
 	marker.map_color = ACCENT
 	shop.add_child(marker)
+
+	var shop_area: WeaponShop = WeaponShopScript.new()
+	shop_area.name = "ShopArea"
+	shop.add_child(shop_area)
+
+	var pickup: WeaponPickup = WeaponPickupScript.new()
+	pickup.name = "SlimeshooterPickup"
+	pickup.item_id = "slimeshooter"
+	pickup.prompt_text = "Plocka upp Slimeshooter [E]"
+	pickup.position = Vector3(4.2, 0.0, 2.4)
+	shop.add_child(pickup)
 
 	return shop

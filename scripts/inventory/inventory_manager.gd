@@ -5,6 +5,7 @@ signal item_added(item_id: String)
 signal currency_changed(amount: int)
 
 var _items: Array[String] = []
+var _equipped_weapon := ""
 var _mydrillium := 0
 var _save_slot := "guest"
 var _hydrated := false
@@ -33,6 +34,21 @@ func has_item(item_id: String) -> bool:
 	return item_id in _items
 
 
+func get_equipped_weapon() -> String:
+	return _equipped_weapon
+
+
+func set_equipped_weapon(weapon_id: String) -> void:
+	var next := weapon_id.strip_edges()
+	if next != "" and (not ItemCatalog.is_weapon(next) or not has_item(next)):
+		return
+	if _equipped_weapon == next:
+		return
+	_equipped_weapon = next
+	_save_inventory()
+	inventory_changed.emit()
+
+
 func get_max_hp() -> float:
 	return ItemCatalog.compute_max_hp(_items)
 
@@ -58,6 +74,8 @@ func remove_item(item_id: String) -> bool:
 	if not has_item(item_id):
 		return false
 	_items.erase(item_id)
+	if _equipped_weapon == item_id:
+		_equipped_weapon = ""
 	_save_inventory()
 	inventory_changed.emit()
 	return true
@@ -144,6 +162,11 @@ func _load_inventory() -> void:
 		if not ItemCatalog.get_item(item_id).is_empty() and item_id not in _items:
 			_items.append(item_id)
 	_mydrillium = int(parsed.get("mydrillium", 0))
+	var equipped := str(parsed.get("equipped_weapon", ""))
+	if equipped != "" and equipped in _items and ItemCatalog.is_weapon(equipped):
+		_equipped_weapon = equipped
+	else:
+		_equipped_weapon = ""
 	inventory_changed.emit()
 	currency_changed.emit(_mydrillium)
 
@@ -155,6 +178,7 @@ func _save_inventory() -> void:
 	file.store_string(JSON.stringify({
 		"items": _items,
 		"mydrillium": _mydrillium,
+		"equipped_weapon": _equipped_weapon,
 	}, "\t"))
 
 

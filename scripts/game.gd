@@ -15,6 +15,7 @@ const ZezzlorSpawnerScript = preload("res://scripts/monsters/zezzlor_spawner.gd"
 const GameTutorialUIScript = preload("res://scripts/ui/game_tutorial_ui.gd")
 const ZnoodUIScript = preload("res://scripts/ui/znood_ui.gd")
 const NavigationArrowUIScript = preload("res://scripts/ui/navigation_arrow_ui.gd")
+const DevWeaponToolsScript = preload("res://scripts/dev/dev_weapon_tools.gd")
 
 var players: Dictionary = {}
 var _active_spawn_id := ""
@@ -28,6 +29,7 @@ var _near_story: Area3D
 var _near_znood_door: Node3D
 var _near_item_pickup: Node3D
 var _near_pharmacy: Node3D
+var _near_weapon_shop: Node3D
 var _health_bar: PanelContainer
 var _inventory_ui: PanelContainer
 var _hybrid_bite_cooldowns: Dictionary = {}
@@ -48,8 +50,17 @@ func _ready() -> void:
 		call_deferred("_redirect_to_play_scene")
 		return
 
+	SceneTransition.show_loading("Laddar", "Bygger koloni och värld...")
+	await get_tree().process_frame
+	call_deferred("_boot_world")
+
+
+func _boot_world() -> void:
 	_hide_legacy_floor()
-	_resolve_spawn_context()
+	if not _resolve_spawn_context():
+		await SceneTransition.hide_loading()
+		return
+
 	_build_world()
 	_style_hud()
 	_setup_minimap()
@@ -71,6 +82,7 @@ func _ready() -> void:
 	for peer_id in multiplayer.get_peers():
 		_spawn_player(peer_id)
 		_request_avatars_from_peer.rpc_id(peer_id)
+	await SceneTransition.hide_loading()
 	call_deferred("_maybe_show_tutorial")
 
 
@@ -91,18 +103,21 @@ func _process(delta: float) -> void:
 		GameTutorialManager.toggle()
 	if Input.is_action_just_pressed("toggle_znood") and _znood_ui:
 		_znood_ui.toggle()
+	if OS.is_debug_build() and Input.is_action_just_pressed("dev_grant_weapon"):
+		DevWeaponToolsScript.grant_slimeshooter()
 	if Input.is_action_just_pressed("interact"):
 		_try_interact()
 	_update_znood_door_interaction()
 	_update_item_pickup_interaction()
 	_update_story_interaction()
 	_update_pharmacy_interaction()
+	_update_weapon_shop_interaction()
 	_tick_story_witness()
 	_tick_hybrid_bites(delta)
 	_tick_poison(delta)
 
 
-func _resolve_spawn_context() -> void:
+func _resolve_spawn_context() -> bool:
 	if Profile.has_home_spawn():
 		_active_spawn_id = SpawnPoints.normalize_id(Profile.active_home_spawn_id)
 	elif Auth.is_guest:
@@ -110,7 +125,8 @@ func _resolve_spawn_context() -> void:
 	else:
 		push_error("Spelare utan vald koloni hamnade i game.tscn")
 		get_tree().change_scene_to_file("res://scenes/emergence_room.tscn")
-		return
+		return false
+	return true
 
 
 func _hide_legacy_floor() -> void:
@@ -271,6 +287,8 @@ func _update_hud_text() -> void:
 		interact_note = " | %s" % _near_story.get_prompt()
 	elif _near_pharmacy and _near_pharmacy.has_method("get_prompt"):
 		interact_note = " | %s" % _near_pharmacy.get_prompt()
+	elif _near_weapon_shop and _near_weapon_shop.has_method("get_prompt"):
+		interact_note = " | %s" % _near_weapon_shop.get_prompt()
 	elif players.has(local_id):
 		var zone_mgr := RuntimeGlobals.zone_ownership()
 		var zone_buy_hint := ""
@@ -517,6 +535,9 @@ func _try_interact() -> void:
 	if _near_pharmacy and _near_pharmacy.has_method("try_purchase"):
 		if _near_pharmacy.try_purchase():
 			return
+	if _near_weapon_shop and _near_weapon_shop.has_method("try_purchase"):
+		if _near_weapon_shop.try_purchase():
+			return
 	if _near_story and _near_story.has_method("trigger"):
 		_near_story.trigger()
 		return
@@ -581,6 +602,24 @@ func _tick_poison(delta: float) -> void:
 	if not players.has(local_id):
 		return
 	PoisonManager.tick_dot(delta, players[local_id])
+
+
+func _update_weapon_shop_interaction() -> void:
+	_near_weapon_shop = null
+	var local_id := multiplayer.get_unique_id()
+	if not players.has(local_id):
+		return
+	var player: Node3D = players[local_id]
+	var best_dist := 999999.0
+	for node in get_tree().get_nodes_in_group("weapon_shop"):
+		if not node.has_method("is_player_nearby"):
+			continue
+		if not node.is_player_nearby():
+			continue
+		var dist := player.global_position.distance_to(node.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			_near_weapon_shop = node as Node3D
 
 
 func _update_pharmacy_interaction() -> void:

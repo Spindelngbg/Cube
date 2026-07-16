@@ -2,13 +2,16 @@ extends Area3D
 
 const SlimeDamageScript = preload("res://scripts/combat/slime_damage.gd")
 const CorrosiveSplatScene = preload("res://scripts/combat/corrosive_splat.gd")
+const ProjectileTrailFxScript = preload("res://scripts/combat/projectile_trail_fx.gd")
 
-const SPEED := 22.0
-const MAX_LIFETIME := 3.5
+const SPEED := 30.0
+const MAX_LIFETIME := 5.2
+const TRAIL_INTERVAL := 0.024
 
 var _velocity := Vector3.ZERO
 var _shooter_id := -1
 var _alive := 0.0
+var _trail_timer := 0.0
 var _mesh: MeshInstance3D
 var _shape: Shape3D
 var _hit_ids: Dictionary = {}
@@ -29,8 +32,10 @@ func launch(origin: Vector3, direction: Vector3, shooter_id: int) -> void:
 	_velocity = direction.normalized() * SPEED
 	_shooter_id = shooter_id
 	_alive = 0.0
+	_trail_timer = TRAIL_INTERVAL
 	_hit_ids.clear()
 	look_at(origin + _velocity, Vector3.UP)
+	_spawn_trail()
 
 
 func _physics_process(delta: float) -> void:
@@ -46,12 +51,31 @@ func _physics_process(delta: float) -> void:
 		return
 
 	global_position = to_pos
+
+	_trail_timer -= delta
+	if _trail_timer <= 0.0:
+		_trail_timer = TRAIL_INTERVAL
+		_spawn_trail()
+
 	if _mesh:
-		var pulse := 1.0 + sin(_alive * 18.0) * 0.12
-		_mesh.scale = Vector3.ONE * pulse
+		var wobble := 1.0 + sin(_alive * 22.0) * 0.07
+		var stretch := 1.55 + sin(_alive * 16.0) * 0.18
+		_mesh.scale = Vector3(0.78 * wobble, 0.78 * wobble, stretch * wobble)
 		if _mesh.material_override is StandardMaterial3D:
 			var mat := _mesh.material_override as StandardMaterial3D
 			mat.emission_energy_multiplier = 0.55 + sin(_alive * 24.0) * 0.25
+
+
+func _spawn_trail() -> void:
+	var parent := get_parent()
+	if parent == null or _velocity.length_squared() <= 0.01:
+		return
+	var back := _velocity.normalized()
+	ProjectileTrailFxScript.spawn_slime(
+		parent,
+		global_position - back * randf_range(0.12, 0.22),
+		back
+	)
 
 
 func _sweep_hit(from_pos: Vector3, to_pos: Vector3) -> bool:
