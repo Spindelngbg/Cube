@@ -395,8 +395,8 @@ func release_from_zezzlor_jail() -> void:
 	_spawn_anchor = pos
 	snap_to_floor()
 	if game != null and game.has_method("should_capture_mouse") and game.should_capture_mouse():
-		if game.has_method("activate_gameplay_mouse"):
-			game.activate_gameplay_mouse()
+		if game.has_method("get_camera_pivot") and game.has_method("get_camera"):
+			MouseLook.activate(game.get_camera_pivot(), game.get_camera())
 
 
 func get_piloting_vehicle() -> Node3D:
@@ -405,10 +405,6 @@ func get_piloting_vehicle() -> Node3D:
 
 func set_piloting_vehicle(vehicle: Node3D) -> void:
 	_piloting_vehicle = vehicle
-	if vehicle == null:
-		var mount := get_node_or_null("CameraMount") as Node3D
-		if mount:
-			mount.position = FIRST_PERSON_FALLBACK_EYE
 	_refresh_pilot_visibility()
 	_refresh_pilot_collision()
 
@@ -626,7 +622,10 @@ func _apply_avatar(data: AvatarData) -> void:
 
 
 func get_camera_anchor_global_position() -> Vector3:
-	return global_transform * FIRST_PERSON_FALLBACK_EYE
+	var fallback := global_position + FIRST_PERSON_FALLBACK_EYE
+	if _human_animator:
+		return _human_animator.get_eye_global_position(fallback)
+	return fallback
 
 
 func _refresh_first_person_visibility() -> void:

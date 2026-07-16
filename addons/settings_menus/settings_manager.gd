@@ -38,7 +38,7 @@ var _defaults: Dictionary = {
 	"a11y.colorblind_filter": "none",  # none | protanopia | deuteranopia | tritanopia
 	"a11y.reduce_motion": false,
 	"controls.raw_mouse_input": true,
-	"controls.mouse_sensitivity": 0.0024,
+	"controls.mouse_sensitivity": 0.0022,
 	"keybinds": {},
 }
 

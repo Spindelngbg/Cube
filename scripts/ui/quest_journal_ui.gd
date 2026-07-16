@@ -46,8 +46,11 @@ func toggle() -> void:
 	else:
 		if not get_tree().paused:
 			var game := get_tree().current_scene
-			if game and game.has_method("activate_gameplay_mouse"):
-				game.activate_gameplay_mouse()
+			if game and game.has_node("CameraPivot/Camera3D"):
+				MouseLook.activate(
+					game.get_node("CameraPivot") as Node3D,
+					game.get_node("CameraPivot/Camera3D") as Camera3D
+				)
 
 
 func _build() -> void:

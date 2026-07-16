@@ -233,9 +233,9 @@ func _speak_line(text: String) -> void:
 
 func _restore_mouse() -> void:
 	var game := get_tree().get_first_node_in_group("game_director")
-	if game != null and game.has_method("should_capture_mouse") and game.has_method("activate_gameplay_mouse"):
-		if game.should_capture_mouse():
-			game.activate_gameplay_mouse()
+	if game != null and game.has_method("should_capture_mouse") and game.has_method("get_camera_pivot"):
+		if game.should_capture_mouse() and game.has_method("get_camera"):
+			MouseLook.activate(game.get_camera_pivot(), game.get_camera())
 
 
 func _unhandled_input(event: InputEvent) -> void:

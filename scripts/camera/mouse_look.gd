@@ -1,6 +1,7 @@
 extends Node
 
-## Musstyrning för FPS-vy. Yaw på spelaren, pitch på kameran. Alt = fri pekare.
+## Musstyrning för FPS-vy via scenens CameraPivot.
+## Roterar direkt i _input. Alt = fri pekare, vänsterklick = lås igen.
 
 const DEFAULT_MOUSE_SENSITIVITY := 0.0022
 const PITCH_LIMIT := 1.15
@@ -30,6 +31,7 @@ func _ready() -> void:
 
 
 func _on_scene_changed() -> void:
+	# Lämna aldrig CONFINED_HIDDEN/CAPTURED kvar på login/menyer.
 	deactivate()
 	_release_pointer()
 	if _input_mode and _input_mode.has_method("ui"):
@@ -78,7 +80,6 @@ func activate(pivot: Node3D, camera: Camera3D) -> void:
 		_camera.rotation.x = clampf(_camera.rotation.x, -PITCH_LIMIT, PITCH_LIMIT)
 		_camera.current = true
 		_enter_game_input_mode()
-		_apply_mouse_input_mode()
 		_capture_mouse()
 
 
@@ -171,7 +172,15 @@ func _input(event: InputEvent) -> void:
 		return
 
 	var rel := (event as InputEventMouseMotion).relative
-	_apply_look_delta(rel)
+	if absf(rel.x) > MOTION_SPIKE_LIMIT or absf(rel.y) > MOTION_SPIKE_LIMIT:
+		return
+	var sensitivity := _get_mouse_sensitivity()
+	_pivot.rotation.y -= rel.x * sensitivity
+	_camera.rotation.x = clampf(
+		_camera.rotation.x - rel.y * sensitivity,
+		-PITCH_LIMIT,
+		PITCH_LIMIT
+	)
 
 
 func _process(delta: float) -> void:
@@ -198,20 +207,6 @@ func _process(delta: float) -> void:
 			_capture_mouse()
 
 
-func _apply_look_delta(rel: Vector2) -> void:
-	if rel == Vector2.ZERO:
-		return
-	if absf(rel.x) > MOTION_SPIKE_LIMIT or absf(rel.y) > MOTION_SPIKE_LIMIT:
-		return
-	var sensitivity := _get_mouse_sensitivity()
-	_pivot.rotation.y -= rel.x * sensitivity
-	_camera.rotation.x = clampf(
-		_camera.rotation.x - rel.y * sensitivity,
-		-PITCH_LIMIT,
-		PITCH_LIMIT
-	)
-
-
 func _toggle_user_cursor() -> void:
 	_user_cursor_free = not _user_cursor_free
 	if _user_cursor_free:
@@ -235,7 +230,6 @@ func _is_drag_active() -> bool:
 
 
 func _capture_mouse() -> void:
-	_apply_mouse_input_mode()
 	_set_tracking_mode(true)
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

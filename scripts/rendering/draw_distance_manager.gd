@@ -56,8 +56,6 @@ func apply_colony(game_root: Node3D, is_exposed_city: bool) -> void:
 	var distance_m := get_distance_m()
 
 	var camera := game_root.get_viewport().get_camera_3d()
-	if camera == null and game_root.has_method("get_camera"):
-		camera = game_root.get_camera()
 	if camera == null:
 		camera = game_root.get_node_or_null("CameraPivot/Camera3D") as Camera3D
 	if camera:

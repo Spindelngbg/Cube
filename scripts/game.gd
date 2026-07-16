@@ -100,14 +100,12 @@ var _mouse_capture_allowed := true
 
 @onready var _minimap: MinimapPanel = %Minimap
 @onready var _owdb_bridge: Node = %WorldState
-@onready var _scene_camera_pivot: Node3D = $CameraPivot
+@onready var _camera_pivot: Node3D = $CameraPivot
 @onready var _camera: Camera3D = $CameraPivot/Camera3D
-var _camera_pivot: Node3D
 
 
 func _ready() -> void:
 	add_to_group("game_director")
-	_camera_pivot = _scene_camera_pivot
 	if not GameFlow.can_enter_world():
 		call_deferred("_redirect_to_play_scene")
 		return
@@ -156,16 +154,13 @@ func _boot_world() -> void:
 	await SceneTransition.wait_spawn_briefing_dismissed()
 	ArrivalQuestManager.on_briefing_dismissed()
 	ArmamentQuestManager.on_briefing_dismissed()
-	activate_gameplay_mouse()
+	MouseLook.activate(_camera_pivot, _camera)
 	restore_gameplay_mouse()
-
-
-func _physics_process(delta: float) -> void:
-	_follow_local_player_camera(delta)
 
 
 func _process(delta: float) -> void:
 	_refresh_mouse_capture_cache()
+	_follow_local_player_camera(delta)
 	_hud_timer += delta
 	if _hud_timer >= HUD_UPDATE_INTERVAL:
 		_hud_timer = 0.0
@@ -360,11 +355,6 @@ func _redirect_to_play_scene() -> void:
 func _exit_tree() -> void:
 	PoiGuideManager.stop_guide()
 	MouseLook.deactivate()
-	_detach_camera_from_player()
-
-
-func reset_camera_anchor_smooth(_pos: Vector3 = Vector3.INF) -> void:
-	pass
 
 
 func _follow_local_player_camera(_delta: float) -> void:
@@ -375,12 +365,14 @@ func _follow_local_player_camera(_delta: float) -> void:
 	if player.has_method("is_piloting_vehicle") and player.is_piloting_vehicle():
 		var vehicle: Node3D = player.get_piloting_vehicle()
 		player.global_position = vehicle.global_position
-		var mount := player.get_node_or_null("CameraMount") as Node3D
-		if mount != null:
-			if vehicle.has_method("get_camera_anchor_global_position"):
-				mount.global_position = vehicle.get_camera_anchor_global_position()
-			else:
-				mount.global_position = vehicle.global_position + Vector3(0.0, 1.75, 0.35)
+		if vehicle.has_method("get_camera_anchor_global_position"):
+			_camera_pivot.global_position = vehicle.get_camera_anchor_global_position()
+		else:
+			_camera_pivot.global_position = vehicle.global_position + Vector3(0.0, 1.75, 0.35)
+	elif player.has_method("get_camera_anchor_global_position"):
+		_camera_pivot.global_position = player.get_camera_anchor_global_position()
+	else:
+		_camera_pivot.global_position = player.global_position + Vector3(0.0, 1.62, 0.08)
 
 	var fill := get_node_or_null("FillLight") as OmniLight3D
 	if fill:
@@ -697,43 +689,6 @@ func get_camera() -> Camera3D:
 	return _camera
 
 
-func activate_gameplay_mouse() -> void:
-	var player := get_local_player()
-	if player:
-		_attach_camera_to_player(player)
-	if _camera_pivot and _camera:
-		MouseLook.activate(_camera_pivot, _camera)
-
-
-func _attach_camera_to_player(player: Node3D) -> void:
-	if player == null or _camera == null:
-		return
-	var mount := player.get_node_or_null("CameraMount") as Node3D
-	if mount == null:
-		mount = Node3D.new()
-		mount.name = "CameraMount"
-		mount.position = PlayerScript.FIRST_PERSON_FALLBACK_EYE
-		player.add_child(mount)
-	if _camera.get_parent() != mount:
-		var saved_pitch := _camera.rotation.x
-		_camera.reparent(mount)
-		_camera.position = Vector3.ZERO
-		_camera.rotation = Vector3(saved_pitch, 0.0, 0.0)
-	_camera_pivot = player
-
-
-func _detach_camera_from_player() -> void:
-	if _camera == null or _scene_camera_pivot == null:
-		return
-	if _camera.get_parent() == _scene_camera_pivot:
-		return
-	var saved_pitch := _camera.rotation.x
-	_camera.reparent(_scene_camera_pivot)
-	_camera.position = Vector3.ZERO
-	_camera.rotation = Vector3(saved_pitch, 0.0, 0.0)
-	_camera_pivot = _scene_camera_pivot
-
-
 func _refresh_mouse_capture_cache() -> void:
 	_mouse_capture_allowed = _compute_mouse_capture_allowed()
 
@@ -779,7 +734,8 @@ func _compute_mouse_capture_allowed() -> bool:
 
 
 func _on_pause_resumed() -> void:
-	activate_gameplay_mouse()
+	if _camera_pivot and _camera:
+		MouseLook.activate(_camera_pivot, _camera)
 
 
 func is_inventory_open() -> bool:
@@ -918,8 +874,8 @@ func restore_gameplay_mouse() -> void:
 
 
 func _restore_gameplay_mouse_now() -> void:
-	if should_capture_mouse():
-		activate_gameplay_mouse()
+	if should_capture_mouse() and _camera_pivot and _camera:
+		MouseLook.activate(_camera_pivot, _camera)
 
 
 func _notify_arrival_interact() -> void:
@@ -1522,7 +1478,6 @@ func _spawn_player(peer_id: int) -> void:
 	$Players.add_child(player, true)
 	if peer_id == multiplayer.get_unique_id():
 		player.set_spawn_anchor(spawn_pos)
-		_attach_camera_to_player(player)
 
 		if player.has_signal("died") and not player.died.is_connected(_on_local_player_died):
 			player.died.connect(_on_local_player_died)

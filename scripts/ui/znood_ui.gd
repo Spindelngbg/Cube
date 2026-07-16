@@ -443,7 +443,7 @@ func _restore_mouse_look() -> void:
 		return
 	var game := get_tree().get_first_node_in_group("game_director")
 	if game and game.has_method("should_capture_mouse") and game.should_capture_mouse():
-		game.activate_gameplay_mouse()
+		MouseLook.activate(game.get_camera_pivot(), game.get_camera())
 
 
 func _inventory_blocks_mouse() -> bool:
