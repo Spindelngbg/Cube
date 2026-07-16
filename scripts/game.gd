@@ -1,6 +1,7 @@
 extends Node3D
 
 const PLAYER_SCENE := preload("res://scenes/player.tscn")
+const PlayerScript = preload("res://scripts/player.gd")
 const ONLINE_TOAST_SCENE := preload("res://scenes/ui/online_players_toast.tscn")
 const NETWORK_MAP_SCENE := preload("res://scenes/ui/cube_network_map.tscn")
 const MENU_THEME := preload("res://addons/settings_menus/resources/default_menu_theme.tres")
@@ -619,6 +620,13 @@ func _logical_world(shifted: Vector3) -> Vector3:
 	if _active_spawn_id == "":
 		return shifted
 	return SpawnPoints.to_logical_world(shifted, _active_spawn_id)
+
+
+func _is_shifted_spawn_usable(feet_pos: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	if space == null:
+		return true
+	return PlayerScript.is_shifted_spawn_usable(space, feet_pos)
 
 
 func get_camera_pivot() -> Node3D:
@@ -1349,9 +1357,13 @@ func _resolve_player_spawn_position(peer_id: int) -> Vector3:
 		var zone_mgr := RuntimeGlobals.zone_ownership()
 		if zone_mgr:
 			var building_pos := zone_mgr.get_preferred_building_spawn_position(colony_id)
-			if building_pos != Vector3.ZERO:
+			if building_pos != Vector3.ZERO and _is_logical_spawn_usable(building_pos):
 				spawn_pos = building_pos
 	return _shift_world(spawn_pos)
+
+
+func _is_logical_spawn_usable(logical_feet_pos: Vector3) -> bool:
+	return _is_shifted_spawn_usable(_shift_world(logical_feet_pos))
 
 
 func _on_building_spawn_set(world_pos: Vector3) -> void:
@@ -1367,30 +1379,29 @@ func _align_player_to_floor(player: Node3D) -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	# Vänta tills statisk kollision från världen finns i physics-servern.
-	for _i in range(10):
+	for _i in range(24):
 		await get_tree().physics_frame
 	if not is_instance_valid(player):
 		return
-	if player.has_method("ensure_safe_ground"):
-		player.ensure_safe_ground()
-	elif player.has_method("snap_to_floor"):
-		player.snap_to_floor()
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	if not is_instance_valid(player):
-		return
-	if player.has_method("ensure_safe_ground"):
-		player.ensure_safe_ground()
-	elif player.has_method("snap_to_floor"):
-		player.snap_to_floor()
+	for _pass in range(3):
+		if not is_instance_valid(player):
+			return
+		if player.has_method("ensure_safe_ground"):
+			player.ensure_safe_ground()
+		elif player.has_method("snap_to_floor"):
+			player.snap_to_floor()
+		for _i in range(4):
+			await get_tree().physics_frame
 
 
 func _spawn_player(peer_id: int) -> void:
 	if players.has(peer_id):
 		return
 
+	var colony_id := SpawnPoints.ensure_colony_id(_active_spawn_id)
 	var spawn_pos := _resolve_player_spawn_position(peer_id)
-	# Se till att Y inte är under/inuti golvplattor.
+	if not _is_shifted_spawn_usable(spawn_pos):
+		spawn_pos = SpawnPoints.get_shifted_play_spawn(colony_id)
 	spawn_pos.y = maxf(spawn_pos.y, SpawnPoints.SPAWN_FOOT_Y)
 
 	var player := PLAYER_SCENE.instantiate()

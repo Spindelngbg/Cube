@@ -88,6 +88,9 @@ var _zezzlor_jail_active := false
 var _zezzlor_jail_node: Node3D
 var _zezzlor_jail_spawn_id := ""
 var _water_volumes: Array[Node] = []
+var _ground_snap_remaining := 0.0
+const GROUND_SNAP_GRACE_SEC := 5.0
+const MIN_WALKABLE_FLOOR_Y := -0.05
 
 
 func _ready() -> void:
@@ -109,6 +112,7 @@ func _ready() -> void:
 		name_label.text = "..."
 	if is_multiplayer_authority():
 		_footsteps = PlayerFootstepsScript.ensure_on(self)
+		_ground_snap_remaining = GROUND_SNAP_GRACE_SEC
 		call_deferred("ensure_safe_ground")
 
 
@@ -161,29 +165,75 @@ func ensure_safe_ground() -> void:
 
 
 func _try_place_on_floor(space: PhysicsDirectSpaceState3D, xz_pos: Vector3) -> Vector3:
-	var probe_x := xz_pos.x
-	var probe_z := xz_pos.z
 	var anchor_y := _spawn_anchor.y if _spawn_anchor != Vector3.ZERO else SpawnPoints.SPAWN_FOOT_Y
-	var probe_top := maxf(maxf(xz_pos.y, anchor_y), SpawnPoints.SPAWN_FOOT_Y) + 32.0
-	var from := Vector3(probe_x, probe_top, probe_z)
-	var to := Vector3(probe_x, -6.0, probe_z)
-	var hit := _ray_floor(space, from, to)
-	if hit.is_empty():
+	var floor_y := find_highest_floor_y(space, xz_pos, anchor_y, [get_rid()])
+	if floor_y == -INF:
 		return Vector3.INF
-	var floor_y := float(hit.position.y)
-	var normal: Vector3 = hit.get("normal", Vector3.UP)
-	if normal.y < 0.45:
-		return Vector3.INF
-	# CharacterBody-origin = fötter (kapsel offset y=1, height=2).
-	return Vector3(probe_x, floor_y + 0.12, probe_z)
+	return Vector3(xz_pos.x, floor_y + 0.12, xz_pos.z)
 
 
-func _ray_floor(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Dictionary:
-	var query := PhysicsRayQueryParameters3D.create(from, to)
-	query.collision_mask = 1
-	query.exclude = [get_rid()]
-	query.hit_from_inside = true
-	return space.intersect_ray(query)
+## Hitta högsta gångbara golv under en XZ-punkt (undvik platta under vägar).
+static func find_highest_floor_y(
+	space: PhysicsDirectSpaceState3D,
+	xz_pos: Vector3,
+	hint_y: float,
+	exclude: Array[RID] = []
+) -> float:
+	if space == null:
+		return -INF
+	var probe_top := maxf(maxf(xz_pos.y, hint_y), SpawnPoints.SPAWN_FOOT_Y) + 32.0
+	var from := Vector3(xz_pos.x, probe_top, xz_pos.z)
+	var to := Vector3(xz_pos.x, -6.0, xz_pos.z)
+	var best_y := -INF
+	var seen: Array[RID] = exclude.duplicate()
+	for _pass in range(16):
+		var query := PhysicsRayQueryParameters3D.create(from, to)
+		query.collision_mask = 1
+		query.exclude = seen
+		query.hit_from_inside = true
+		var hit := space.intersect_ray(query)
+		if hit.is_empty():
+			break
+		var normal: Vector3 = hit.get("normal", Vector3.UP)
+		if normal.y >= 0.45:
+			var floor_y := float(hit.position.y)
+			if floor_y >= MIN_WALKABLE_FLOOR_Y:
+				best_y = maxf(best_y, floor_y)
+		var rid: RID = hit.get("rid", RID())
+		if not rid.is_valid() or rid in seen:
+			break
+		seen.append(rid)
+	return best_y
+
+
+static func probe_feet_blocked(
+	space: PhysicsDirectSpaceState3D,
+	feet_pos: Vector3,
+	exclude: Array[RID] = []
+) -> bool:
+	if space == null:
+		return false
+	var shape := CapsuleShape3D.new()
+	shape.radius = 0.42
+	shape.height = 1.9
+	var params := PhysicsShapeQueryParameters3D.new()
+	params.shape = shape
+	params.transform = Transform3D(Basis(), feet_pos + Vector3(0.0, 1.0, 0.0))
+	params.collision_mask = 1
+	params.exclude = exclude
+	params.margin = 0.02
+	return not space.intersect_shape(params, 4).is_empty()
+
+
+static func is_shifted_spawn_usable(
+	space: PhysicsDirectSpaceState3D,
+	feet_pos: Vector3,
+	exclude: Array[RID] = []
+) -> bool:
+	if probe_feet_blocked(space, feet_pos, exclude):
+		return false
+	var floor_y := find_highest_floor_y(space, feet_pos, feet_pos.y, exclude)
+	return floor_y > MIN_WALKABLE_FLOOR_Y
 
 
 func _capsule_is_blocked(space: PhysicsDirectSpaceState3D, feet_pos: Vector3) -> bool:
@@ -403,6 +453,11 @@ func _physics_process(delta: float) -> void:
 		_process_slap_physics(delta)
 		return
 
+	if _ground_snap_remaining > 0.0:
+		_ground_snap_remaining = maxf(0.0, _ground_snap_remaining - delta)
+		if not is_on_floor() or global_position.y < MIN_WALKABLE_FLOOR_Y + 0.2:
+			ensure_safe_ground()
+
 	# Nödlösning: under mark / långt under spawn → knuffa upp till säkert golv.
 	if global_position.y < SpawnPoints.SPAWN_FOOT_Y - 1.0 or (
 		_spawn_anchor != Vector3.ZERO and global_position.y < _spawn_anchor.y - 2.0
@@ -614,6 +669,8 @@ func get_health_snapshot() -> Dictionary:
 
 func set_spawn_anchor(pos: Vector3) -> void:
 	_spawn_anchor = pos
+	if is_multiplayer_authority():
+		_ground_snap_remaining = GROUND_SNAP_GRACE_SEC
 
 
 func get_spawn_anchor() -> Vector3:

@@ -105,12 +105,12 @@ static func is_rentable(zone_id: String, entry: Dictionary = {}) -> bool:
 
 static func zone_id_to_building_spawn(zone_id: String, spawn_id: String) -> Vector3:
 	var cell := zone_id_to_dc_cell(zone_id)
-	# Framför blockets mitt (söderut) så man inte spawnar inuti husets kollisionslåda.
+	# Framför blockets mitt (söderut), utanför byggnadens kollisionslåda.
 	var local := Vector3(
 		float(cell.x) * DcZoneCatalogScript.BLOCK_M + DcZoneCatalogScript.BLOCK_M * 0.5,
 		0.0,
 		float(cell.y) * DcZoneCatalogScript.BLOCK_M + DcZoneCatalogScript.BLOCK_M * 0.5
-			+ DcZoneCatalogScript.BLOCK_M * 0.28
+			+ DcZoneCatalogScript.BLOCK_M * 0.44
 	)
 	var world := SpawnPoints.get_position(SpawnPoints.ensure_colony_id(spawn_id)) + local
 	world.y = SpawnPoints.SPAWN_FOOT_Y
