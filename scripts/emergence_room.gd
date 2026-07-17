@@ -5,6 +5,9 @@ const StoryInteractableScript = preload("res://scripts/story/story_interactable.
 const StoryToastUIScript = preload("res://scripts/ui/story_toast_ui.gd")
 const GameSfxScript = preload("res://scripts/audio/game_sfx.gd")
 const RpgAudioLibraryScript = preload("res://scripts/audio/rpg_audio_library.gd")
+const ThreadedLoaderScript = preload("res://scripts/loading/threaded_loader.gd")
+const CityKitLibraryScript = preload("res://scripts/assets/city_kit_library.gd")
+const SpaceKitLibraryScript = preload("res://scripts/assets/space_kit_library.gd")
 
 const MOVE_SPEED := 4.0
 const ROOM_SIZE := Vector3(40, 18, 40)
@@ -549,6 +552,10 @@ func _on_profile_error(message: String) -> void:
 func _enter_world() -> void:
 	_transitioning = true
 	_set_hint("Ansluter till din koloni — väntar på servern...")
+	## Starta trådad scenladdning samtidigt som nätverket ansluter.
+	SceneTransition.begin_threaded_scene_load("res://scenes/game.tscn")
+	ThreadedLoaderScript.request_many(CityKitLibraryScript.dc_warmup_paths(), true)
+	ThreadedLoaderScript.request_many(SpaceKitLibraryScript.common_warmup_paths(), true)
 	_start_connect_watchdog()
 	Network.connect_to_world()
 
@@ -556,8 +563,12 @@ func _enter_world() -> void:
 func _on_world_ready() -> void:
 	_stop_connect_watchdog()
 	_set_hint("Går in i världen...")
-	SceneTransition.show_loading("Laddar", "Går in i kolonin...")
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
+	SceneTransition.show_loading("Laddar", "Går in i kolonin (trådad laddning)...")
+	var packed: PackedScene = await SceneTransition.await_threaded_scene("res://scenes/game.tscn")
+	if packed != null:
+		get_tree().change_scene_to_packed(packed)
+	else:
+		get_tree().change_scene_to_file("res://scenes/game.tscn")
 
 
 func _on_connection_failed(reason: String) -> void:

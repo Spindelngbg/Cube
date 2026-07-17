@@ -1,6 +1,10 @@
 class_name CharacterFlow
 extends RefCounted
 
+const ThreadedLoaderScript = preload("res://scripts/loading/threaded_loader.gd")
+const CityKitLibraryScript = preload("res://scripts/assets/city_kit_library.gd")
+const SpaceKitLibraryScript = preload("res://scripts/assets/space_kit_library.gd")
+
 const AVATAR_BUILDER_SCENE := "res://scenes/avatar_builder.tscn"
 const CHARACTER_SELECT_SCENE := "res://scenes/character_select.tscn"
 const GAME_SCENE := "res://scenes/game.tscn"
@@ -55,15 +59,30 @@ static func continue_as(caller: Node) -> Dictionary:
 
 	var path := destination_scene_path()
 	if path == GAME_SCENE:
+		## Överlappa nätverksanslutning med trådad scenladdning.
+		SceneTransition.begin_threaded_scene_load(GAME_SCENE)
+		ThreadedLoaderScript.request_many(CityKitLibraryScript.dc_warmup_paths(), true)
+		ThreadedLoaderScript.request_many(SpaceKitLibraryScript.common_warmup_paths(), true)
 		var connected := await _connect_to_world(caller)
 		if not connected.ok:
 			result.error = connected.error
 			return result
-		caller.get_tree().change_scene_to_file(GAME_SCENE)
+		var packed: PackedScene = await SceneTransition.await_threaded_scene(GAME_SCENE)
+		if packed != null:
+			var err := caller.get_tree().change_scene_to_packed(packed)
+			if err != OK:
+				caller.get_tree().change_scene_to_file(GAME_SCENE)
+		else:
+			caller.get_tree().change_scene_to_file(GAME_SCENE)
 		result.ok = true
 		return result
 
-	caller.get_tree().change_scene_to_file(path)
+	SceneTransition.begin_threaded_scene_load(path)
+	var packed_other: PackedScene = await SceneTransition.await_threaded_scene(path)
+	if packed_other != null:
+		caller.get_tree().change_scene_to_packed(packed_other)
+	else:
+		caller.get_tree().change_scene_to_file(path)
 	result.ok = true
 	return result
 
@@ -71,7 +90,12 @@ static func continue_as(caller: Node) -> Dictionary:
 static func open_avatar_editor(caller: Node) -> void:
 	if caller == null or caller.get_tree() == null:
 		return
-	caller.get_tree().change_scene_to_file(AVATAR_BUILDER_SCENE)
+	SceneTransition.begin_threaded_scene_load(AVATAR_BUILDER_SCENE)
+	var packed: PackedScene = await SceneTransition.await_threaded_scene(AVATAR_BUILDER_SCENE)
+	if packed != null:
+		caller.get_tree().change_scene_to_packed(packed)
+	else:
+		caller.get_tree().change_scene_to_file(AVATAR_BUILDER_SCENE)
 
 
 static func _connect_to_world(caller: Node) -> Dictionary:

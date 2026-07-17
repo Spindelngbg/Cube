@@ -283,8 +283,14 @@ func _enter_account_flow() -> void:
 
 
 func _go_to_scene(path: String) -> void:
-	_set_login_progress(_progress_total, _progress_total, "Byter skärm...", "Laddar %s" % path.get_file())
-	var err := get_tree().change_scene_to_file(path)
+	_set_login_progress(_progress_total, _progress_total, "Byter skärm...", "Laddar %s (trådar)" % path.get_file())
+	SceneTransition.begin_threaded_scene_load(path)
+	var packed: PackedScene = await SceneTransition.await_threaded_scene(path)
+	var err := OK
+	if packed != null:
+		err = get_tree().change_scene_to_packed(packed)
+	else:
+		err = get_tree().change_scene_to_file(path)
 	if err != OK:
 		_reset_auth_ui("Kunde inte ladda nästa skärm (fel %d)" % err, path)
 

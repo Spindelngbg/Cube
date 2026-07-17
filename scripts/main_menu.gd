@@ -1,5 +1,8 @@
 extends Control
 
+const ThreadedLoaderScript = preload("res://scripts/loading/threaded_loader.gd")
+const CityKitLibraryScript = preload("res://scripts/assets/city_kit_library.gd")
+
 @onready var lobby_input: LineEdit = %LobbyInput
 @onready var status_label: Label = %StatusLabel
 @onready var host_button: Button = %HostButton
@@ -79,7 +82,13 @@ func _on_connection_failed(reason: String) -> void:
 
 
 func _on_game_started() -> void:
-	get_tree().change_scene_to_file("res://scenes/game.tscn")
+	SceneTransition.begin_threaded_scene_load("res://scenes/game.tscn")
+	ThreadedLoaderScript.request_many(CityKitLibraryScript.dc_warmup_paths(), true)
+	var packed: PackedScene = await SceneTransition.await_threaded_scene("res://scenes/game.tscn")
+	if packed != null:
+		get_tree().change_scene_to_packed(packed)
+	else:
+		get_tree().change_scene_to_file("res://scenes/game.tscn")
 
 
 func _on_logout_pressed() -> void:

@@ -2,6 +2,7 @@ extends Node
 
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
 const SpawnBriefingCatalogScript = preload("res://scripts/ui/spawn_briefing_catalog.gd")
+const ThreadedLoaderScript = preload("res://scripts/loading/threaded_loader.gd")
 
 const LAYER := 128
 
@@ -410,10 +411,45 @@ func change_scene(path: String, fade_out_sec: float = 0.6, fade_in_sec: float = 
 		return
 	_busy = true
 	await fade_out(fade_out_sec, out_color)
-	get_tree().change_scene_to_file(path)
+	await _change_scene_threaded_impl(path)
 	await get_tree().process_frame
 	await fade_in(fade_in_sec)
 	_busy = false
+
+
+## Ladda scener i bakgrundstrådar medan loading-UI visas (ingen fade).
+func change_scene_threaded(
+	path: String,
+	message: String = "Laddar",
+	subtitle: String = "Läser scener i bakgrunden..."
+) -> Error:
+	if _busy:
+		return ERR_BUSY
+	_busy = true
+	show_loading(message, subtitle)
+	var err := await _change_scene_threaded_impl(path)
+	await hide_loading()
+	_busy = false
+	return err
+
+
+## Starta trådad laddning tidigt (t.ex. under nätverksanslutning).
+func begin_threaded_scene_load(path: String) -> void:
+	ThreadedLoaderScript.request(path, true)
+
+
+func await_threaded_scene(path: String) -> PackedScene:
+	return await ThreadedLoaderScript.await_packed_scene(self, path, true)
+
+
+func _change_scene_threaded_impl(path: String) -> Error:
+	var scene: PackedScene = await ThreadedLoaderScript.await_packed_scene(self, path, true)
+	if scene != null:
+		var err := get_tree().change_scene_to_packed(scene)
+		if err == OK:
+			return OK
+	# Fallback om trådad laddning fallerar.
+	return get_tree().change_scene_to_file(path)
 
 
 func white_flash_then_scene(path: String) -> void:
@@ -421,7 +457,7 @@ func white_flash_then_scene(path: String) -> void:
 		return
 	_busy = true
 	await white_flash(0.5)
-	get_tree().change_scene_to_file(path)
+	await _change_scene_threaded_impl(path)
 	await get_tree().process_frame
 	await fade_in_from_white(1.4)
 	_busy = false

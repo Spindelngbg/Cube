@@ -144,7 +144,7 @@ func _boot_world() -> void:
 		await SceneTransition.wait_spawn_briefing_dismissed()
 		return
 
-	_build_world_geometry()
+	await _build_world_geometry()
 	DrawDistance.refresh_active_scenes()
 	_style_hud()
 	_setup_minimap()
@@ -273,8 +273,11 @@ func _hide_legacy_floor() -> void:
 
 
 func _build_world_geometry() -> void:
-	CityKitLibraryScript.warmup_dc_city_models()
-	SpaceKitLibraryScript.warmup_common_models()
+	SceneTransition.set_spawn_loading_status("Laddar", "Laddar byggnadsmodeller (trådar)...")
+	await CityKitLibraryScript.warmup_dc_city_models_threaded(self)
+	SceneTransition.set_spawn_loading_status("Laddar", "Laddar space-kit (trådar)...")
+	await SpaceKitLibraryScript.warmup_common_models_threaded(self)
+	SceneTransition.set_spawn_loading_status("Laddar", "Bygger koloni och värld...")
 	if _active_spawn_id != "":
 		SatelliteCubeBuilder.build(self, _active_spawn_id)
 		_configure_colony_rendering()

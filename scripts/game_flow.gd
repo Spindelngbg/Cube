@@ -1,6 +1,8 @@
 class_name GameFlow
 extends RefCounted
 
+const ThreadedLoaderScript = preload("res://scripts/loading/threaded_loader.gd")
+
 ## Dev/test: tillfällig koloni-override (t.ex. /spawn 1 för spelaren Test).
 static var debug_spawn_override := ""
 
@@ -34,5 +36,13 @@ static func set_debug_spawn_and_reload(spawn_id: String, tree: SceneTree) -> boo
 	if id == "" or not SpawnPoints.is_valid(id):
 		return false
 	debug_spawn_override = id
+	## Sync reload for cheats — kick threaded load then fall back immediately if needed.
+	ThreadedLoaderScript.request("res://scenes/game.tscn", true)
+	var status := ResourceLoader.load_threaded_get_status("res://scenes/game.tscn")
+	if status == ResourceLoader.THREAD_LOAD_LOADED:
+		var packed := ResourceLoader.load_threaded_get("res://scenes/game.tscn") as PackedScene
+		if packed != null:
+			tree.change_scene_to_packed(packed)
+			return true
 	tree.change_scene_to_file("res://scenes/game.tscn")
 	return true

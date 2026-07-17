@@ -3,6 +3,7 @@ extends RefCounted
 
 const DevBuildingLabelsScript = preload("res://scripts/dev/dev_building_labels.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
+const ThreadedLoaderScript = preload("res://scripts/loading/threaded_loader.gd")
 
 const BASE_PATH := "res://assets/models/modular-space-kit/Models/GLB format/"
 
@@ -70,12 +71,40 @@ static func load_model(name: String) -> PackedScene:
 	return scene
 
 
-static func warmup_common_models() -> void:
-	for model_name in [
+static func common_warmup_names() -> PackedStringArray:
+	return PackedStringArray([
 		"room-large", "room-small", "corridor-wide", "gate-door-window",
 		"template-floor-big", "template-floor-detail-a", "stairs-wide",
-	]:
-		load_model(model_name)
+	])
+
+
+static func common_warmup_paths() -> PackedStringArray:
+	var paths: PackedStringArray = []
+	for model_name in common_warmup_names():
+		var path := model_path(str(model_name))
+		if path != "" and ResourceLoader.exists(path):
+			paths.append(path)
+	return paths
+
+
+static func warmup_common_models() -> void:
+	for model_name in common_warmup_names():
+		load_model(str(model_name))
+
+
+## Laddar space-kit-modeller i bakgrundstrådar.
+static func warmup_common_models_threaded(host: Node) -> void:
+	if host == null:
+		warmup_common_models()
+		return
+	var paths := common_warmup_paths()
+	var loaded: Dictionary = await ThreadedLoaderScript.await_paths(host, paths, true)
+	for path in loaded:
+		var scene: PackedScene = loaded[path] as PackedScene
+		if scene == null:
+			continue
+		var name := str(path).get_file().get_basename()
+		_scene_cache[name] = scene
 
 
 static func spawn(parent: Node3D, name: String, position: Vector3 = Vector3.ZERO, rotation_y: float = 0.0) -> Node3D:

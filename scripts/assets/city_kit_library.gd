@@ -3,6 +3,7 @@ extends RefCounted
 
 const DevBuildingLabelsScript = preload("res://scripts/dev/dev_building_labels.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
+const ThreadedLoaderScript = preload("res://scripts/loading/threaded_loader.gd")
 
 const KITS := {
 	"commercial": "res://assets/models/city-kit-commercial/Models/GLB format/",
@@ -47,7 +48,7 @@ static func load_model(kit: String, name: String) -> PackedScene:
 	return scene
 
 
-static func warmup_dc_city_models() -> void:
+static func dc_warmup_paths() -> PackedStringArray:
 	var models := {
 		"commercial": ["building-a", "building-b", "building-c", "building-d", "building-e"],
 		"suburban": ["building-type-a", "building-type-b", "building-type-c"],
@@ -55,9 +56,49 @@ static func warmup_dc_city_models() -> void:
 		"roads": ["tile-low", "road-square", "road-straight", "road-curve", "road-bend"],
 		"building": ["wall-doorway-square", "floor"],
 	}
+	var paths: PackedStringArray = []
 	for kit in models:
 		for model_name in models[kit]:
-			load_model(str(kit), str(model_name))
+			var path := model_path(str(kit), str(model_name))
+			if path != "" and ResourceLoader.exists(path):
+				paths.append(path)
+	return paths
+
+
+static func warmup_dc_city_models() -> void:
+	for path in dc_warmup_paths():
+		var kit_and_name := _cache_key_from_path(path)
+		if kit_and_name == "":
+			continue
+		var parts := kit_and_name.split("/", false, 1)
+		if parts.size() < 2:
+			continue
+		load_model(parts[0], parts[1])
+
+
+## Laddar DC-modeller i bakgrundstrådar. Kräver host med SceneTree (await).
+static func warmup_dc_city_models_threaded(host: Node) -> void:
+	if host == null:
+		warmup_dc_city_models()
+		return
+	var paths := dc_warmup_paths()
+	var loaded: Dictionary = await ThreadedLoaderScript.await_paths(host, paths, true)
+	for path in loaded:
+		var scene: PackedScene = loaded[path] as PackedScene
+		if scene == null:
+			continue
+		var key := _cache_key_from_path(str(path))
+		if key != "":
+			_scene_cache[key] = scene
+
+
+static func _cache_key_from_path(path: String) -> String:
+	for kit in KITS:
+		var base: String = str(KITS[kit])
+		if path.begins_with(base):
+			var file := path.substr(base.length()).get_basename()
+			return "%s/%s" % [kit, file]
+	return ""
 
 
 static func kit_scale(kit: String) -> float:
