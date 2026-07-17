@@ -14,10 +14,10 @@ const USE_LIGHT_RAYS := true
 const RAY_VISIBILITY_END_M := 38.0
 const RAY_VISIBILITY_END_GLES_M := 28.0
 ## Cull real lights early so hundreds of lamps don't kill FPS.
-const LIGHT_FADE_BEGIN_M := 28.0
-const LIGHT_FADE_LENGTH_M := 12.0
-const LIGHT_FADE_BEGIN_GLES_M := 18.0
-const LIGHT_FADE_LENGTH_GLES_M := 8.0
+const LIGHT_FADE_BEGIN_M := 22.0
+const LIGHT_FADE_LENGTH_M := 10.0
+const LIGHT_FADE_BEGIN_GLES_M := 14.0
+const LIGHT_FADE_LENGTH_GLES_M := 6.0
 
 ## Delade resurser — noll per-lampa mesh/material-allokering efter första.
 static var _shared_cone_mesh: CylinderMesh
@@ -79,9 +79,11 @@ func configure(config: Dictionary) -> void:
 	_base_spot_lumens = PhysicalLightingScript.STREET_SPOT_LUMENS * energy_norm
 	_base_omni_lumens = PhysicalLightingScript.STREET_BULB_LUMENS * energy_norm
 	_light_temp_k = float(config.get("temperature_k", PhysicalLightingScript.STREET_TEMP_K))
-	## GLES: skip real lights on some lamps to keep budget (still emissive fixture).
+	## GLES: färre real lights (emissive fixture räcker) — stor FPS-vinst.
 	var use_lights := USE_DYNAMIC_LIGHTS
-	if GlesPerformanceScript.is_active() and (_rng.randi() % 3) != 0:
+	if GlesPerformanceScript.is_active() and (_rng.randi() % 4) != 0:
+		use_lights = false
+	elif GlesPerformanceScript.low_spec_city() and not GlesPerformanceScript.is_active() and (_rng.randi() % 2) != 0:
 		use_lights = false
 	_build_geometry(height)
 	if use_lights:

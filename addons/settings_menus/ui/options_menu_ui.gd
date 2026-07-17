@@ -173,15 +173,49 @@ func _build_display_tab() -> Control:
 			s.set_value("display.resolution_index", idx))
 	res_row.add_child(res_opt)
 
-	# VSync.
+	# VSync-läge (Av/Mailbox rekommenderas för 144 Hz).
 	var vsync_row := _row(tab, "VSync")
-	var vsync_cb := CheckBox.new()
-	vsync_cb.button_pressed = bool(settings.get_value("display.vsync", true))
-	vsync_cb.toggled.connect(func(p):
+	var vsync_opt := OptionButton.new()
+	var vsync_labels: Array = settings.get("VSYNC_MODE_LABELS") if settings.get("VSYNC_MODE_LABELS") != null else [
+		"Av (bäst för 144 Hz)", "På (låser till skärm)", "Adaptive", "Mailbox (låg latens)"
+	]
+	for label in vsync_labels:
+		vsync_opt.add_item(String(label))
+	var vsync_mode_idx := int(settings.get_value("display.vsync_mode_index", -1))
+	if vsync_mode_idx < 0:
+		vsync_mode_idx = 1 if bool(settings.get_value("display.vsync", false)) else 0
+	vsync_opt.selected = clampi(vsync_mode_idx, 0, vsync_opt.item_count - 1)
+	vsync_opt.item_selected.connect(func(idx):
 		var s := _settings()
 		if s != null:
-			s.set_value("display.vsync", p))
-	vsync_row.add_child(vsync_cb)
+			s.set_value("display.vsync_mode_index", idx)
+			s.set_value("display.vsync", idx != 0))
+	vsync_row.add_child(vsync_opt)
+
+	# Max FPS / 144 Hz-stöd.
+	var max_fps_row := _row(tab, "Max FPS")
+	var max_fps_opt := OptionButton.new()
+	var fps_labels: Array = settings.get("MAX_FPS_LABELS") if settings.get("MAX_FPS_LABELS") != null else [
+		"Obegränsat", "60 FPS", "120 FPS", "144 FPS (144 Hz)", "165 FPS", "240 FPS"
+	]
+	for label in fps_labels:
+		max_fps_opt.add_item(String(label))
+	max_fps_opt.selected = clampi(int(settings.get_value("display.max_fps_index", 3)), 0, max_fps_opt.item_count - 1)
+	max_fps_opt.item_selected.connect(func(idx):
+		var s := _settings()
+		if s != null:
+			s.set_value("display.max_fps_index", idx))
+	max_fps_row.add_child(max_fps_opt)
+
+	var hz_note := Label.new()
+	hz_note.text = (
+		"För 144 Hz-skärm: sätt Max FPS till 144 (eller Obegränsat) och VSync till Av eller Mailbox. "
+		+ "Windows kan också behöva spelet i helskärm."
+	)
+	hz_note.add_theme_font_size_override("font_size", 11)
+	hz_note.add_theme_color_override("font_color", theme_data.text_dim)
+	hz_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(hz_note)
 
 	# FPS counter.
 	var fps_row := _row(tab, "Show FPS")
@@ -233,14 +267,25 @@ func _build_display_tab() -> Control:
 
 	var scale_row := _row(tab, "Render scale")
 	var scale_opt := OptionButton.new()
-	scale_opt.add_item("75 %")
-	scale_opt.add_item("100 %")
-	var current_scale := float(settings.get_value("display.render_scale", 1.0))
-	scale_opt.selected = 0 if current_scale < 0.99 else 1
+	## Lägre scale = mer FPS (speciellt GLES/Compatibility).
+	var scale_values: Array[float] = [0.5, 0.55, 0.65, 0.75, 1.0]
+	var scale_labels: Array[String] = ["50 % (max FPS)", "55 %", "65 %", "75 %", "100 %"]
+	for label in scale_labels:
+		scale_opt.add_item(label)
+	var current_scale := float(settings.get_value("display.render_scale", 0.55))
+	var scale_sel := 1
+	var best_diff := 999.0
+	for i in scale_values.size():
+		var d := absf(current_scale - scale_values[i])
+		if d < best_diff:
+			best_diff = d
+			scale_sel = i
+	scale_opt.selected = scale_sel
 	scale_opt.item_selected.connect(func(idx):
 		var s := _settings()
 		if s != null:
-			s.set_value("display.render_scale", 0.75 if idx == 0 else 1.0))
+			var vals: Array[float] = [0.5, 0.55, 0.65, 0.75, 1.0]
+			s.set_value("display.render_scale", vals[clampi(idx, 0, vals.size() - 1)]))
 	scale_row.add_child(scale_opt)
 
 	# --- Physics ---

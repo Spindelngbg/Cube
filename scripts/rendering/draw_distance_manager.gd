@@ -47,9 +47,9 @@ func _ready() -> void:
 	settings.set_default(SHADOWS_KEY, GlesPerformanceScript.shadows_default())
 	settings.set_default(SSAO_GLOW_KEY, false)
 	settings.set_default(RENDER_SCALE_KEY, GlesPerformanceScript.default_render_scale())
-	settings.set_default(MESH_LOD_KEY, 1) ## Balanserad
+	settings.set_default(MESH_LOD_KEY, 0) ## Prestanda
 	settings.set_default(DISTANCE_CULLING_KEY, true)
-	settings.set_default(CULLING_STRENGTH_KEY, 1) ## Normal
+	settings.set_default(CULLING_STRENGTH_KEY, 2) ## Aggressiv
 	if settings.has_signal("setting_changed"):
 		settings.setting_changed.connect(_on_setting_changed)
 	if settings.has_signal("settings_loaded"):

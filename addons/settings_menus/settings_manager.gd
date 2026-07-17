@@ -28,16 +28,18 @@ var _defaults: Dictionary = {
 	"audio.footsteps_enabled": true,
 	"display.window_mode": 0,        # 0 windowed, 1 fullscreen, 2 borderless
 	"display.resolution_index": 0,   # index into Settings.RESOLUTIONS
-	"display.vsync": true,
+	"display.vsync": false,          # av = låter 144 Hz / max_fps styra
+	"display.vsync_mode_index": 0,   # 0 off, 1 on, 2 adaptive, 3 mailbox
+	"display.max_fps_index": 3,      # 0 unlimited, 1=60, 2=120, 3=144, 4=165, 5=240
 	"display.fps_visible": false,
 	"display.draw_distance_index": 0,
 	"display.shadows_enabled": false,
 	"display.ssao_glow_enabled": false,
-	"display.render_scale": 0.6,
-	"display.mesh_lod_index": 1,
+	"display.render_scale": 0.55,
+	"display.mesh_lod_index": 0,     # Prestanda
 	"display.distance_culling_enabled": true,
-	"display.culling_strength_index": 1,
-	"physics.rate_index": 1,
+	"display.culling_strength_index": 2, ## Aggressiv
+	"physics.rate_index": 0,         # 60 Hz — mer CPU till rendering
 	"physics.run_on_separate_thread": true,
 	"a11y.font_scale": 1.0,
 	"a11y.colorblind_filter": "none",  # none | protanopia | deuteranopia | tritanopia
@@ -54,6 +56,25 @@ const RESOLUTIONS: Array = [
 	Vector2i(1600, 900),
 	Vector2i(1920, 1080),
 	Vector2i(2560, 1440),
+]
+
+## Max FPS-cap (0 = obegränsat). 144 = standard för 144 Hz-skärmar.
+const MAX_FPS_VALUES: Array[int] = [0, 60, 120, 144, 165, 240]
+const MAX_FPS_LABELS: Array[String] = [
+	"Obegränsat",
+	"60 FPS",
+	"120 FPS",
+	"144 FPS (144 Hz)",
+	"165 FPS",
+	"240 FPS",
+]
+
+## VSync-läge (Mailbox = låg latens, bra till höga Hz).
+const VSYNC_MODE_LABELS: Array[String] = [
+	"Av (bäst för 144 Hz)",
+	"På (låser till skärm)",
+	"Adaptive",
+	"Mailbox (låg latens)",
 ]
 
 const COLORBLIND_FILTERS: Array = ["none", "protanopia", "deuteranopia", "tritanopia"]
@@ -237,9 +258,34 @@ func _apply_display_post_mode(mode: int) -> void:
 		var idx: int = clampi(int(get_value("display.resolution_index", 0)), 0, RESOLUTIONS.size() - 1)
 		var size: Vector2i = RESOLUTIONS[idx]
 		DisplayServer.window_set_size(size)
-	var vsync: bool = bool(get_value("display.vsync", true))
-	DisplayServer.window_set_vsync_mode(
-		DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
+	_apply_vsync_and_max_fps()
+
+
+func _apply_vsync_and_max_fps() -> void:
+	## VSync-läge: nyckel vsync_mode_index, med bakåtkompat för display.vsync bool.
+	var mode_idx := int(get_value("display.vsync_mode_index", -1))
+	if mode_idx < 0:
+		mode_idx = 1 if bool(get_value("display.vsync", false)) else 0
+	mode_idx = clampi(mode_idx, 0, VSYNC_MODE_LABELS.size() - 1)
+	var vsync_mode := DisplayServer.VSYNC_DISABLED
+	match mode_idx:
+		1:
+			vsync_mode = DisplayServer.VSYNC_ENABLED
+		2:
+			vsync_mode = DisplayServer.VSYNC_ADAPTIVE
+		3:
+			vsync_mode = DisplayServer.VSYNC_MAILBOX
+		_:
+			vsync_mode = DisplayServer.VSYNC_DISABLED
+	DisplayServer.window_set_vsync_mode(vsync_mode)
+	## Spegla bool för äldre UI/kod.
+	_data["display.vsync"] = mode_idx != 0
+
+	var fps_idx := clampi(int(get_value("display.max_fps_index", 3)), 0, MAX_FPS_VALUES.size() - 1)
+	var max_fps: int = MAX_FPS_VALUES[fps_idx]
+	Engine.max_fps = max_fps
+	if ProjectSettings.has_setting("application/run/max_fps"):
+		ProjectSettings.set_setting("application/run/max_fps", max_fps)
 
 
 # ---- accessibility --------------------------------------------------------
@@ -440,7 +486,9 @@ func _process(delta: float) -> void:
 	if _fps_accum < 0.25 or _fps_label == null:
 		return
 	_fps_accum = 0.0
-	_fps_label.text = "%d FPS" % Engine.get_frames_per_second()
+	var cap := Engine.max_fps
+	var cap_txt := "∞" if cap <= 0 else str(cap)
+	_fps_label.text = "%d FPS (cap %s)" % [Engine.get_frames_per_second(), cap_txt]
 
 
 func _notification(what: int) -> void:
@@ -465,10 +513,10 @@ func _normalize_loaded_values() -> void:
 
 func _coerce_setting_value(key: String, value):
 	match key:
-		"display.window_mode", "display.resolution_index", "display.draw_distance_index", "display.mesh_lod_index", "display.culling_strength_index", "physics.rate_index":
+		"display.window_mode", "display.resolution_index", "display.draw_distance_index", "display.mesh_lod_index", "display.culling_strength_index", "display.max_fps_index", "display.vsync_mode_index", "physics.rate_index":
 			return clampi(int(value), 0, 999)
 		"display.render_scale":
-			return clampf(float(value), 0.5, 1.0)
+			return clampf(float(value), 0.45, 1.0)
 		"display.vsync", "display.fps_visible", "display.shadows_enabled", "display.ssao_glow_enabled", "display.distance_culling_enabled", "physics.run_on_separate_thread", "audio.footsteps_enabled", "a11y.reduce_motion", "controls.raw_mouse_input", "gameplay.competitive_mode":
 			return bool(value)
 		"audio.master", "audio.music", "audio.sfx", "a11y.font_scale", "controls.mouse_sensitivity":

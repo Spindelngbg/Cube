@@ -112,7 +112,7 @@ const MINIMAP_UPDATE_INTERVAL := 0.45
 const INTERACTION_SCAN_INTERVAL := 0.4
 const WORLD_TICK_INTERVAL := 0.35
 const ZNOOD_UI_UPDATE_INTERVAL := 0.45
-const ENTITY_BUDGET_INTERVAL := 0.28
+const ENTITY_BUDGET_INTERVAL := 0.36
 const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.gd")
 const RuntimeVisibilityBudgetScript = preload("res://scripts/rendering/runtime_visibility_budget.gd")
 var _hud_timer := 0.0
@@ -242,7 +242,8 @@ func _process(delta: float) -> void:
 		_update_harvest_node_interaction()
 		_tick_story_witness()
 	_entity_budget_timer += delta
-	if _entity_budget_timer >= ENTITY_BUDGET_INTERVAL:
+	var budget_iv := GlesPerformanceScript.entity_budget_interval_s()
+	if _entity_budget_timer >= budget_iv:
 		_entity_budget_timer = 0.0
 		_apply_entity_simulation_budget()
 	_world_tick_timer += delta

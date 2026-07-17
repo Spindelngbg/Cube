@@ -16,7 +16,8 @@ const RATE_LABELS := [
 func _ready() -> void:
 	var settings := get_node_or_null("/root/Settings")
 	if settings != null:
-		settings.set_default(RATE_KEY, 1) ## 90 Hz default
+		## 60 Hz default — sparar CPU till rendering (bättre FPS på 144 Hz-skärm).
+		settings.set_default(RATE_KEY, 0)
 		settings.set_default(THREAD_KEY, true)
 		if settings.has_signal("setting_changed"):
 			settings.setting_changed.connect(_on_setting_changed)
@@ -30,8 +31,8 @@ func _ready() -> void:
 func get_rate_index() -> int:
 	var settings := get_node_or_null("/root/Settings")
 	if settings == null:
-		return 1
-	return clampi(int(settings.get_value(RATE_KEY, 1)), 0, RATE_HZ.size() - 1)
+		return 0
+	return clampi(int(settings.get_value(RATE_KEY, 0)), 0, RATE_HZ.size() - 1)
 
 
 func get_physics_hz() -> int:
