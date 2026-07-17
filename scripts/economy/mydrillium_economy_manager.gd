@@ -166,16 +166,16 @@ func try_pay_allmakare_with_ore(creditor_id: String) -> bool:
 	ore_need = mini(ore_need, ORE_PER_DEBT_UNIT * 4)
 	if not InventoryManager.remove_material("raw_mydrillium_ore", ore_need):
 		QuestManager.story_toast.emit(
-			"Allmakare â€” malmbetalning",
-			"Du behÃ¶ver %d rÃ¥ malm fÃ¶r att betala skulden med mineral."
+			"Allmakare · Zezzlor — malmbetalning",
+			"Du behöver %d rå malm för att betala skulden med mineral."
 			% ore_need
 		)
 		return false
 	AllmakareDebtManager.clear_debt_for_peer(peer_id)
 	NpcDialogueBarkScript.play_for_id(creditor_id, "completion")
 	QuestManager.story_toast.emit(
-		"Allmakare â€” malm mottagen",
-		"%d malm ersatte %d %s skuld. LuktspÃ¥ret slÃ¤ppt."
+		"Allmakare · Zezzlor — malm mottagen",
+		"%d malm ersatte %d %s skuld. Luktspåret släppt."
 		% [ore_need, amount_md, ItemCatalog.currency_symbol()]
 	)
 	return true

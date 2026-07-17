@@ -3,16 +3,28 @@ extends Node3D
 
 const StreetLampServiceScript = preload("res://scripts/city/street_lamp_service.gd")
 const MultiplayerEntityAuthorityScript = preload("res://scripts/multiplayer_entity_authority.gd")
+const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.gd")
 
 const BROKEN_CHANCE := 0.11
 ## Real Spot/Omni lights tank FPS in large cities — emissive fixtures are enough.
 const USE_DYNAMIC_LIGHTS := false
+## God-rays: billiga meshar (delad mesh/material), ingen Light3D, ingen process.
+const USE_LIGHT_RAYS := true
+const RAY_VISIBILITY_END_M := 38.0
+const RAY_VISIBILITY_END_GLES_M := 28.0
+
+## Delade resurser — noll per-lampa mesh/material-allokering efter första.
+static var _shared_cone_mesh: CylinderMesh
+static var _shared_plane_mesh: QuadMesh
+static var _shared_ray_mat: StandardMaterial3D
+static var _shared_plane_mat: StandardMaterial3D
 
 var _spot: SpotLight3D
 var _bulb_omni: OmniLight3D
 var _fixture_mesh: MeshInstance3D
 var _pool_mesh: MeshInstance3D
 var _spark_omni: OmniLight3D
+var _ray_root: Node3D
 
 var _color := Color(0.82, 0.9, 1.0)
 var _base_spot_energy := 1.85
@@ -56,6 +68,8 @@ func configure(config: Dictionary) -> void:
 	_build_geometry(height)
 	if USE_DYNAMIC_LIGHTS:
 		_build_lights(height, spot_range, tilt_toward)
+	if USE_LIGHT_RAYS and not GlesPerformanceScript.skip_light_rays():
+		_build_light_rays(height)
 	_broken = _rng.randf() < broken_chance
 	_apply_light_level(1.0 if not _broken else 0.0)
 	if _broken and USE_DYNAMIC_LIGHTS:
@@ -135,6 +149,90 @@ func _build_geometry(height: float) -> void:
 	pool_mat.albedo_color.a = 0.55
 	_pool_mesh.material_override = pool_mat
 	add_child(_pool_mesh)
+
+
+## Ljusstrålar som rena meshar — ingen realtidsljus, ingen CPU-tick.
+func _build_light_rays(height: float) -> void:
+	_ensure_shared_ray_resources()
+	_ray_root = Node3D.new()
+	_ray_root.name = "LightRays"
+	add_child(_ray_root)
+
+	var head_y := height + 0.02
+	var ray_len := clampf(height * 0.85, 2.8, 4.2)
+	var cull_end := GlesPerformanceScript.light_ray_cull_m()
+	if cull_end <= 1.0:
+		cull_end = RAY_VISIBILITY_END_M
+
+	# En kon räcker — plan-strålar är valfria och dyra i stora städer.
+	var cone := MeshInstance3D.new()
+	cone.name = "RayCone"
+	cone.mesh = _shared_cone_mesh
+	cone.material_override = _shared_ray_mat
+	cone.position = Vector3(0.0, head_y - ray_len * 0.5, 0.0)
+	cone.scale = Vector3(0.85, ray_len / 4.0, 0.85)
+	_configure_ray_instance(cone, cull_end)
+	_ray_root.add_child(cone)
+
+	var plane_count := GlesPerformanceScript.light_ray_plane_count()
+	for i in plane_count:
+		var plane := MeshInstance3D.new()
+		plane.name = "RayPlane_%d" % i
+		plane.mesh = _shared_plane_mesh
+		plane.material_override = _shared_plane_mat
+		plane.position = Vector3(0.0, head_y - ray_len * 0.5, 0.0)
+		plane.rotation.y = float(i) * (PI / float(maxi(plane_count, 1)))
+		plane.scale = Vector3(1.0, ray_len / 4.0, 1.0)
+		_configure_ray_instance(plane, cull_end)
+		_ray_root.add_child(plane)
+
+
+static func _ensure_shared_ray_resources() -> void:
+	if _shared_cone_mesh == null:
+		_shared_cone_mesh = CylinderMesh.new()
+		_shared_cone_mesh.top_radius = 0.04
+		_shared_cone_mesh.bottom_radius = 1.15
+		_shared_cone_mesh.height = 4.0
+		_shared_cone_mesh.radial_segments = 6 # lågt polytal
+		_shared_cone_mesh.rings = 1
+
+	if _shared_plane_mesh == null:
+		_shared_plane_mesh = QuadMesh.new()
+		_shared_plane_mesh.size = Vector2(1.6, 4.0)
+
+	if _shared_ray_mat == null:
+		_shared_ray_mat = StandardMaterial3D.new()
+		_shared_ray_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_shared_ray_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_shared_ray_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_shared_ray_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_shared_ray_mat.albedo_color = Color(1.0, 1.0, 1.0, 0.14)
+		_shared_ray_mat.emission_enabled = true
+		_shared_ray_mat.emission = Color(0.85, 0.92, 1.0)
+		_shared_ray_mat.emission_energy_multiplier = 0.55
+		_shared_ray_mat.no_depth_test = false
+		_shared_ray_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+
+	if _shared_plane_mat == null:
+		_shared_plane_mat = StandardMaterial3D.new()
+		_shared_plane_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_shared_plane_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_shared_plane_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_shared_plane_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_shared_plane_mat.albedo_color = Color(0.85, 0.92, 1.0, 0.1)
+		_shared_plane_mat.emission_enabled = true
+		_shared_plane_mat.emission = Color(0.9, 0.95, 1.0)
+		_shared_plane_mat.emission_energy_multiplier = 0.4
+		_shared_plane_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+
+
+static func _configure_ray_instance(mi: MeshInstance3D, cull_end: float) -> void:
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	mi.visibility_range_begin = 0.0
+	mi.visibility_range_end = cull_end
+	mi.visibility_range_end_margin = 12.0
+	mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 
 
 func _build_lights(height: float, spot_range: float, tilt_toward: Vector3) -> void:
@@ -230,6 +328,9 @@ func _apply_light_level(level: float) -> void:
 		var pool_mat := _pool_mesh.material_override as StandardMaterial3D
 		pool_mat.emission_energy_multiplier = 0.22 * clamped
 		pool_mat.albedo_color.a = 0.12 + clamped * 0.48
+	# Trasiga lampor: dölj strålar (ingen process — bara synlighet).
+	if _ray_root:
+		_ray_root.visible = clamped > 0.08
 
 
 func _break_again() -> void:

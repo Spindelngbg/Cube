@@ -88,6 +88,14 @@ func _on_hotbar_selection_changed(local_index: int) -> void:
 	var item_id: String = str(slot.item.id)
 	if ItemCatalog.is_weapon(item_id):
 		WeaponManager.equip(item_id)
+	elif ItemCatalog.is_footwear(item_id):
+		if InventoryManager.equip_footwear(item_id):
+			QuestManager.story_toast.emit(
+				"Skor på",
+				"%s utrustade." % ItemCatalog.get_display_name(item_id)
+			)
+	elif FurniturePlacementManager.is_furniture(item_id):
+		FurniturePlacementManager.begin_placement(item_id)
 
 
 func _on_panel_closed(_panel: Control) -> void:

@@ -60,14 +60,14 @@ static func apply_environment(env: Environment, is_exposed_city: bool, draw_dist
 static func ssao_glow_enabled() -> bool:
 	var settings := Engine.get_main_loop()
 	if settings == null:
-		return true
+		return false
 	var tree := settings as SceneTree
 	if tree == null:
-		return true
+		return false
 	var mgr := tree.root.get_node_or_null("Settings")
 	if mgr == null:
-		return true
-	return bool(mgr.get_value("display.ssao_glow_enabled", true))
+		return false
+	return bool(mgr.get_value("display.ssao_glow_enabled", false))
 
 
 static func _uses_forward_plus() -> bool:
@@ -81,23 +81,22 @@ static func shadows_enabled() -> bool:
 	var settings_tree := Engine.get_main_loop() as SceneTree
 	if settings_tree != null:
 		var mgr := settings_tree.root.get_node_or_null("Settings")
-		if mgr != null and not bool(mgr.get_value("display.shadows_enabled", true)):
-			return false
-	return _uses_forward_plus()
+		if mgr != null:
+			return bool(mgr.get_value("display.shadows_enabled", false))
+	# Default: skuggor AV — stor FPS-vinst i staden.
+	return false
 
 
 static func apply_sun(sun: DirectionalLight3D, is_exposed_city: bool, draw_distance_m: float = -1.0) -> void:
 	sun.shadow_enabled = shadows_enabled()
 	if sun.shadow_enabled:
 		var shadow_distance := draw_distance_m if draw_distance_m > 0.0 else HUB_SHADOW_DISTANCE
-		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-		sun.directional_shadow_blend_splits = true
-		sun.directional_shadow_max_distance = clampf(shadow_distance * 0.28, 60.0, HUB_SHADOW_DISTANCE)
-		sun.directional_shadow_split_1 = 0.12
-		sun.directional_shadow_split_2 = 0.35
-		sun.directional_shadow_fade_start = 0.88
-		sun.shadow_bias = 0.05
-		sun.shadow_normal_bias = 1.0
+		# En split = billigare skuggor.
+		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		sun.directional_shadow_blend_splits = false
+		sun.directional_shadow_max_distance = clampf(shadow_distance * 0.18, 40.0, 90.0)
+		sun.shadow_bias = 0.06
+		sun.shadow_normal_bias = 1.2
 		sun.shadow_blur = 0.0
 	else:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL

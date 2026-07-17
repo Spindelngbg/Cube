@@ -60,7 +60,7 @@ func _try_hit(node: Node) -> void:
 	if target.has_method("is_alive") and not target.is_alive():
 		return
 	if target.has_method("take_damage"):
-		target.take_damage(LASER_DAMAGE)
+		target.take_damage(LASER_DAMAGE * BuffManager.get_weapon_damage_multiplier())
 	_spawn_spark(global_position)
 	GameSfxScript.play_3d_varied(get_parent(), global_position, RpgAudioLibraryScript.laser_hit())
 	queue_free()

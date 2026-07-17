@@ -15,6 +15,7 @@ const INVENTORY_CAPACITY := 32
 
 var _inventory
 var _equipped_weapon := ""
+var _equipped_footwear := ""
 var _mydrillium := 0
 var _save_slot := "guest"
 var _hydrated := false
@@ -38,6 +39,8 @@ func get_modular_inventory():
 
 func get_items() -> Array[String]:
 	var result: Array[String] = []
+	if _inventory == null:
+		return result
 	for i in _inventory.capacity:
 		var slot = _inventory.get_slot(i)
 		if slot == null or slot.is_empty() or slot.item == null:
@@ -52,6 +55,8 @@ func get_items() -> Array[String]:
 
 func get_materials() -> Dictionary:
 	var result: Dictionary = {}
+	if _inventory == null:
+		return result
 	for i in _inventory.capacity:
 		var slot = _inventory.get_slot(i)
 		if slot == null or slot.is_empty() or slot.item == null:
@@ -123,6 +128,54 @@ func set_equipped_weapon(weapon_id: String) -> void:
 	inventory_changed.emit()
 
 
+func get_equipped_footwear() -> String:
+	if _equipped_footwear != "" and has_item(_equipped_footwear) and ItemCatalog.is_footwear(_equipped_footwear):
+		return _equipped_footwear
+	return ""
+
+
+func set_equipped_footwear(item_id: String) -> void:
+	var next := item_id.strip_edges()
+	if next != "" and (not ItemCatalog.is_footwear(next) or not has_item(next)):
+		return
+	if _equipped_footwear == next:
+		return
+	_equipped_footwear = next
+	_save_inventory()
+	inventory_changed.emit()
+
+
+func equip_footwear(item_id: String) -> bool:
+	var id := item_id.strip_edges()
+	if not ItemCatalog.is_footwear(id) or not has_item(id):
+		return false
+	set_equipped_footwear(id)
+	return true
+
+
+func is_wearing_footwear(item_id: String = "") -> bool:
+	var equipped := get_equipped_footwear()
+	if equipped == "":
+		return false
+	if item_id.strip_edges() == "":
+		return true
+	return equipped == item_id.strip_edges()
+
+
+func get_jump_multiplier() -> float:
+	var boots := get_equipped_footwear()
+	if boots == "":
+		return 1.0
+	return maxf(1.0, ItemCatalog.get_jump_multiplier(boots))
+
+
+func has_fall_damage_immunity() -> bool:
+	var boots := get_equipped_footwear()
+	if boots == "":
+		return false
+	return ItemCatalog.nullifies_fall_damage(boots)
+
+
 func get_max_hp() -> float:
 	return ItemCatalog.compute_max_hp(get_items())
 
@@ -164,6 +217,8 @@ func remove_item(item_id: String) -> bool:
 		return false
 	if _equipped_weapon == id:
 		_equipped_weapon = ""
+	if _equipped_footwear == id:
+		_equipped_footwear = ""
 	_save_inventory()
 	return true
 
@@ -200,7 +255,7 @@ func grant_starter_kit() -> void:
 
 
 func _count_item(item_id: String) -> int:
-	if item_id == "":
+	if item_id == "" or _inventory == null:
 		return 0
 	var def = ItemDefinitionRegistryScript.get_definition(item_id)
 	if def == null:
@@ -262,6 +317,7 @@ func _inventory_path() -> String:
 func _load_inventory() -> void:
 	_inventory.clear()
 	_equipped_weapon = ""
+	_equipped_footwear = ""
 	_mydrillium = 0
 	var path := _inventory_path()
 	if not FileAccess.file_exists(path):
@@ -284,6 +340,11 @@ func _load_inventory() -> void:
 	var equipped := str(parsed.get("equipped_weapon", ""))
 	if equipped != "" and has_item(equipped) and ItemCatalog.is_weapon(equipped):
 		_equipped_weapon = equipped
+	var boots := str(parsed.get("equipped_footwear", ""))
+	if boots != "" and has_item(boots) and ItemCatalog.is_footwear(boots):
+		_equipped_footwear = boots
+	else:
+		_equipped_footwear = ""
 
 	_starter_mydrillium_granted = bool(parsed.get("starter_mydrillium_granted", false))
 	if not _starter_mydrillium_granted:
@@ -344,6 +405,8 @@ func _mark_starter_mydrillium_granted() -> void:
 
 
 func _save_inventory() -> void:
+	if _inventory == null:
+		return
 	var slots: Array = []
 	for i in _inventory.capacity:
 		var slot = _inventory.get_slot(i)
@@ -362,6 +425,7 @@ func _save_inventory() -> void:
 		"slots": slots,
 		"mydrillium": _mydrillium,
 		"equipped_weapon": _equipped_weapon,
+		"equipped_footwear": _equipped_footwear,
 		"starter_mydrillium_granted": _starter_mydrillium_granted,
 	}, "\t"))
 

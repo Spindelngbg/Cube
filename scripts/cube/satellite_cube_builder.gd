@@ -6,6 +6,10 @@ const ZnoodDoorBuilderScript = preload("res://scripts/access/znood_door_builder.
 const ItemPickupScript = preload("res://scripts/items/item_pickup.gd")
 const PharmacyBuilderScript = preload("res://scripts/shops/pharmacy_builder.gd")
 const WeaponShopBuilderScript = preload("res://scripts/shops/weapon_shop_builder.gd")
+const PotionShopBuilderScript = preload("res://scripts/shops/potion_shop_builder.gd")
+const ShoeShopBuilderScript = preload("res://scripts/shops/shoe_shop_builder.gd")
+const FurnitureShopBuilderScript = preload("res://scripts/shops/furniture_shop_builder.gd")
+const UtilityShopBuilderScript = preload("res://scripts/shops/utility_shop_builder.gd")
 const PurpleLaserTowerBuilderScript = preload("res://scripts/city/purple_laser_tower_builder.gd")
 const SpawnDensityScript = preload("res://scripts/world/spawn_density.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
@@ -131,6 +135,10 @@ static func _build_arrival_hub(root: Node3D, entry: Dictionary, spawn_id: String
 		_build_district(hub, ARRIVAL_HUB_RADIUS_M, str(entry.get("kit", "commercial")))
 		PharmacyBuilderScript.build(hub, Vector3(22.0, 0.0, -18.0))
 		WeaponShopBuilderScript.build(hub, Vector3(-24.0, 0.0, -20.0), "weapon_shop_%s" % spawn_id)
+		PotionShopBuilderScript.build(hub, Vector3(0.0, 0.0, -28.0), "potion_shop_%s" % spawn_id)
+		ShoeShopBuilderScript.build(hub, Vector3(10.0, 0.0, 8.0), "shoe_shop_%s" % spawn_id)
+		FurnitureShopBuilderScript.build(hub, Vector3(-10.0, 0.0, 10.0), "furniture_shop_%s" % spawn_id)
+		UtilityShopBuilderScript.build(hub, Vector3(16.0, 0.0, 6.0), "utility_shop_%s" % spawn_id)
 		PurpleLaserTowerBuilderScript.build(hub, Vector3(28.0, 0.0, 14.0), spawn_id)
 
 

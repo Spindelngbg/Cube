@@ -117,6 +117,13 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 		_refresh_criminal_label_color()
 		if _is_criminal_henchman:
 			_criminal_harass_timer = _rng.randf_range(2.0, 6.0)
+	elif bool(entry.get("playground_child", false)):
+		_name_label.modulate = Color(1.0, 0.82, 0.35)
+		_name_label.position.y = 1.55
+	elif bool(entry.get("playground_guard", false)):
+		_name_label.modulate = Color(0.45, 0.72, 1.0)
+	elif bool(entry.get("factory_worker", false)):
+		_name_label.modulate = Color(0.95, 0.78, 0.28)
 	position = world_pos
 	rotation.y = float(entry.get("rotation_y", 0.0))
 	_bounds_center = world_pos
@@ -125,7 +132,8 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 	if not _is_zezzlor:
 		_setup_hurtbox()
 		_setup_health_bar()
-	if not _is_pedestrian:
+	# Lekparksbarn och -vakter behöver ingen dialog-area (bara närvaro).
+	if not _is_pedestrian and not bool(entry.get("playground_child", false)) and not bool(entry.get("playground_guard", false)):
 		_attach_interactable(entry)
 	_pick_new_direction()
 	_wander_timer = _rng.randf_range(1.0, 3.0)
@@ -385,6 +393,12 @@ func _resolve_display_name(entry: Dictionary) -> String:
 		)
 	if bool(entry.get("criminal_henchman", false)):
 		return CriminalBossLoreScript.format_henchman_name(str(entry.get("henchman_name", "")))
+	if bool(entry.get("playground_child", false)):
+		return str(entry.get("name", "Barn"))
+	if bool(entry.get("playground_guard", false)):
+		return str(entry.get("name", "Parkvakt"))
+	if bool(entry.get("factory_worker", false)):
+		return str(entry.get("name", "Fabrikskollega"))
 	return str(entry.get("name", "NPC"))
 
 
@@ -461,7 +475,7 @@ func _tick_allmakare(delta: float) -> void:
 		if target.is_multiplayer_authority():
 			NpcDialogueBarkScript.play_for_npc(self, "miscellaneous")
 			QuestManager.story_toast.emit(
-				"Allmakare — luktspår",
+				"Allmakare · Zezzlor — luktspår",
 				"%s känner din doft. Betala %d %s — vi ser inget annat."
 				% [
 					_allmakare_name,
@@ -758,11 +772,13 @@ func _mount_model(entry: Dictionary) -> void:
 		_anim_player = null
 		return
 
+	var mesh_id := str(entry.get("model", ""))
 	var model := HumanCharacterLibraryScript.spawn(
 		_model_pivot,
 		Vector3.ZERO,
 		0.0,
-		scale_factor
+		scale_factor,
+		mesh_id
 	)
 	if model == null:
 		return

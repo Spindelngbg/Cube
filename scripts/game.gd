@@ -17,6 +17,10 @@ const DeliveryBotSpawnerScript = preload("res://scripts/npcs/delivery_bot_spawne
 const HelpRobotSpawnerScript = preload("res://scripts/npcs/help_robot_spawner.gd")
 const HelpRobotDialogUIScript = preload("res://scripts/ui/help_robot_dialog_ui.gd")
 const WeaponShopDialogUIScript = preload("res://scripts/ui/weapon_shop_dialog_ui.gd")
+const PotionShopDialogUIScript = preload("res://scripts/ui/potion_shop_dialog_ui.gd")
+const FurnitureShopDialogUIScript = preload("res://scripts/ui/furniture_shop_dialog_ui.gd")
+const UtilityShopDialogUIScript = preload("res://scripts/ui/utility_shop_dialog_ui.gd")
+const HouseBuildDialogUIScript = preload("res://scripts/ui/house_build_dialog_ui.gd")
 const ZezzlorDialogUIScript = preload("res://scripts/ui/zezzlor_dialog_ui.gd")
 const ZezzlorDossierUIScript = preload("res://scripts/ui/zezzlor_dossier_ui.gd")
 const FlyableHelicopterScript = preload("res://scripts/vehicles/flyable_helicopter.gd")
@@ -43,6 +47,9 @@ const DevWeaponToolsScript = preload("res://scripts/dev/dev_weapon_tools.gd")
 const DevSpawnPanelScript = preload("res://scripts/dev/dev_spawn_panel.gd")
 const CriminalBossHqBuilderScript = preload("res://scripts/access/criminal_boss_hq_builder.gd")
 const CriminalBossSpawnerScript = preload("res://scripts/npcs/criminal_boss_spawner.gd")
+const PlaygroundNpcSpawnerScript = preload("res://scripts/npcs/playground_npc_spawner.gd")
+const FactoryWorkerSpawnerScript = preload("res://scripts/npcs/factory_worker_spawner.gd")
+const FactoryDialogUIScript = preload("res://scripts/ui/factory_dialog_ui.gd")
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
 const GreeneryVegetationBuilderScript = preload("res://scripts/city/greenery_vegetation_builder.gd")
 const ZezzlorDossierRuntimeScript = preload("res://scripts/monsters/zezzlor_dossier_runtime.gd")
@@ -60,8 +67,13 @@ var _near_story: Area3D
 var _near_znood_door: Node3D
 var _near_item_pickup: Node3D
 var _near_pharmacy: Node3D
+var _near_shoe_shop: Node3D
+var _near_furniture_shop: Node3D
+var _near_utility_shop: Node3D
 var _near_weapon_shop: Node3D
 var _near_weapon_shop_owner: WeaponShopOwner
+var _near_potion_shop: Node3D
+var _near_potion_shop_owner: PotionShopOwner
 var _near_help_robot: HelpRobot
 var _near_climb_vehicle: WallCrawlVehicle
 var _near_exterior_ladder: ExteriorLadderScript
@@ -80,18 +92,23 @@ var _navigation_arrow: NavigationArrowUI
 var _helicopter: FlyableHelicopter
 var _help_dialog_ui: HelpRobotDialogUI
 var _weapon_shop_dialog_ui: WeaponShopDialogUI
+var _potion_shop_dialog_ui: PotionShopDialogUI
+var _furniture_shop_dialog_ui: FurnitureShopDialogUI
+var _utility_shop_dialog_ui: UtilityShopDialogUI
+var _house_build_dialog_ui: HouseBuildDialogUI
 var _mydrillium_trade_ui: MydrilliumTradeUI
 var _zone_purchase_dialog_ui: ZonePurchaseDialogUI
 var _zezzlor_dialog_ui: ZezzlorDialogUI
+var _factory_dialog_ui: FactoryDialogUI
 var _zezzlor_dossier_ui: ZezzlorDossierUI
 var _near_zezzlor_hq: ZezzlorHq
 var _hud_clock: HudClockUI
-const HUD_UPDATE_INTERVAL := 0.35
-const MINIMAP_UPDATE_INTERVAL := 0.25
-const INTERACTION_SCAN_INTERVAL := 0.28
-const WORLD_TICK_INTERVAL := 0.2
-const ZNOOD_UI_UPDATE_INTERVAL := 0.3
-const ENTITY_BUDGET_INTERVAL := 0.35
+const HUD_UPDATE_INTERVAL := 0.5
+const MINIMAP_UPDATE_INTERVAL := 0.45
+const INTERACTION_SCAN_INTERVAL := 0.4
+const WORLD_TICK_INTERVAL := 0.35
+const ZNOOD_UI_UPDATE_INTERVAL := 0.45
+const ENTITY_BUDGET_INTERVAL := 0.28
 const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.gd")
 const RuntimeVisibilityBudgetScript = preload("res://scripts/rendering/runtime_visibility_budget.gd")
 var _hud_timer := 0.0
@@ -198,6 +215,7 @@ func _process(delta: float) -> void:
 		DevWeaponToolsScript.grant_slimeshooter()
 	if Input.is_action_just_pressed("interact"):
 		_try_interact()
+	_handle_furniture_placement_input()
 	_interaction_timer += delta
 	if _interaction_timer >= INTERACTION_SCAN_INTERVAL:
 		_interaction_timer = 0.0
@@ -205,8 +223,13 @@ func _process(delta: float) -> void:
 		_update_item_pickup_interaction()
 		_update_story_interaction()
 		_update_pharmacy_interaction()
+		_update_shoe_shop_interaction()
+		_update_furniture_shop_interaction()
+		_update_utility_shop_interaction()
 		_update_weapon_shop_interaction()
 		_update_weapon_shop_owner_interaction()
+		_update_potion_shop_interaction()
+		_update_potion_shop_owner_interaction()
 		_update_help_robot_interaction()
 		_update_zezzlor_hq_interaction()
 		_update_climb_vehicle_interaction()
@@ -307,6 +330,8 @@ func _populate_world_entities() -> void:
 	DeliveryBotSpawnerScript.populate(self, _active_spawn_id, _owdb_bridge)
 	HelpRobotSpawnerScript.populate(self, _active_spawn_id, _owdb_bridge)
 	await get_tree().process_frame
+	PlaygroundNpcSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
+	FactoryWorkerSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
 	CriminalBossHqBuilderScript.place_all(self, _active_spawn_id, spawn_pos)
 	CriminalBossSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
 	ZezzlaBotSpawnerScript.populate(self, _active_spawn_id, _owdb_bridge)
@@ -315,6 +340,8 @@ func _populate_world_entities() -> void:
 	var zone_mgr := RuntimeGlobals.zone_ownership()
 	if zone_mgr:
 		zone_mgr.setup_world_visuals(self, _active_spawn_id)
+	PlayerHouseManager.setup_world(self, _active_spawn_id)
+	FurniturePlacementManager.setup_world(self, _active_spawn_id)
 
 
 func _build_deferred_greenery() -> void:
@@ -392,6 +419,8 @@ func _apply_entity_simulation_budget() -> void:
 		"allmakare_npc",
 		"criminal_boss_npc",
 		"criminal_henchman_npc",
+		"playground_child",
+		"playground_guard",
 		"src_guard",
 	]
 	var seen: Dictionary = {}
@@ -467,9 +496,14 @@ func _update_hud_text() -> void:
 		slime_note = " | %s" % players[local_id].get_slime_status_text()
 	if players[local_id].has_method("get_hp_status_text"):
 		slime_note += " | %s" % players[local_id].get_hp_status_text()
+	if InventoryManager.is_wearing_footwear("hoppskor"):
+		slime_note += " | Hoppskor (×2 hopp)"
 	var poison_note := PoisonManager.get_status_text()
 	if poison_note != "":
 		slime_note += " | %s" % poison_note
+	var buff_note := BuffManager.get_status_text()
+	if buff_note != "":
+		slime_note += " | %s" % buff_note
 	slime_note += " | %s %s" % [
 		ItemCatalog.currency_symbol(),
 		_format_hud_mydrillium(InventoryManager.get_mydrillium()),
@@ -490,8 +524,16 @@ func _update_hud_text() -> void:
 		interact_note = " | %s" % _near_story.get_prompt()
 	elif _near_pharmacy and _near_pharmacy.has_method("get_prompt"):
 		interact_note = " | %s" % _near_pharmacy.get_prompt()
+	elif _near_shoe_shop and _near_shoe_shop.has_method("get_prompt"):
+		interact_note = " | %s" % _near_shoe_shop.get_prompt()
+	elif _near_furniture_shop and _near_furniture_shop.has_method("get_prompt"):
+		interact_note = " | %s" % _near_furniture_shop.get_prompt()
+	elif _near_utility_shop and _near_utility_shop.has_method("get_prompt"):
+		interact_note = " | %s" % _near_utility_shop.get_prompt()
 	elif _near_weapon_shop_owner and _near_weapon_shop_owner.has_method("get_prompt"):
 		interact_note = " | %s" % _near_weapon_shop_owner.get_prompt()
+	elif _near_potion_shop_owner and _near_potion_shop_owner.has_method("get_prompt"):
+		interact_note = " | %s" % _near_potion_shop_owner.get_prompt()
 	elif _near_help_robot and _near_help_robot.has_method("get_prompt"):
 		interact_note = " | %s" % _near_help_robot.get_prompt()
 	elif _near_zezzlor_hq and _near_zezzlor_hq.is_player_nearby():
@@ -641,6 +683,18 @@ func _setup_story_ui() -> void:
 	_weapon_shop_dialog_ui = WeaponShopDialogUIScript.new()
 	ui.add_child(_weapon_shop_dialog_ui)
 	_weapon_shop_dialog_ui.closed.connect(_on_weapon_shop_dialog_closed)
+	_potion_shop_dialog_ui = PotionShopDialogUIScript.new()
+	ui.add_child(_potion_shop_dialog_ui)
+	_potion_shop_dialog_ui.closed.connect(_on_potion_shop_dialog_closed)
+	_furniture_shop_dialog_ui = FurnitureShopDialogUIScript.new()
+	ui.add_child(_furniture_shop_dialog_ui)
+	_furniture_shop_dialog_ui.closed.connect(_on_furniture_shop_dialog_closed)
+	_utility_shop_dialog_ui = UtilityShopDialogUIScript.new()
+	ui.add_child(_utility_shop_dialog_ui)
+	_utility_shop_dialog_ui.closed.connect(_on_utility_shop_dialog_closed)
+	_house_build_dialog_ui = HouseBuildDialogUIScript.new()
+	ui.add_child(_house_build_dialog_ui)
+	_house_build_dialog_ui.closed.connect(_on_house_build_dialog_closed)
 	_mydrillium_trade_ui = MydrilliumTradeUIScript.new()
 	ui.add_child(_mydrillium_trade_ui)
 	_mydrillium_trade_ui.closed.connect(_on_mydrillium_trade_closed)
@@ -651,6 +705,9 @@ func _setup_story_ui() -> void:
 	ui.add_child(_zezzlor_dialog_ui)
 	_zezzlor_dialog_ui.response_picked.connect(_on_zezzlor_response_picked)
 	_zezzlor_dialog_ui.closed.connect(_on_zezzlor_dialog_closed)
+	_factory_dialog_ui = FactoryDialogUIScript.new()
+	ui.add_child(_factory_dialog_ui)
+	_factory_dialog_ui.closed.connect(_on_factory_dialog_closed)
 	_zezzlor_dossier_ui = ZezzlorDossierUIScript.new()
 	ui.add_child(_zezzlor_dossier_ui)
 	_zezzlor_dossier_ui.closed.connect(_on_zezzlor_dossier_closed)
@@ -779,6 +836,14 @@ func _compute_mouse_capture_allowed() -> bool:
 		return false
 	if _weapon_shop_dialog_ui and _weapon_shop_dialog_ui.is_open():
 		return false
+	if _potion_shop_dialog_ui and _potion_shop_dialog_ui.is_open():
+		return false
+	if _furniture_shop_dialog_ui and _furniture_shop_dialog_ui.is_open():
+		return false
+	if _utility_shop_dialog_ui and _utility_shop_dialog_ui.is_open():
+		return false
+	if _house_build_dialog_ui and _house_build_dialog_ui.is_open():
+		return false
 	if _mydrillium_trade_ui and _mydrillium_trade_ui.is_open():
 		return false
 	if _zone_purchase_dialog_ui and _zone_purchase_dialog_ui.is_open():
@@ -790,6 +855,8 @@ func _compute_mouse_capture_allowed() -> bool:
 	if GlobalChat != null and GlobalChat.has_method("is_chat_open") and GlobalChat.is_chat_open():
 		return false
 	if _network_map != null and _network_map.visible:
+		return false
+	if FurniturePlacementManager.is_placing():
 		return false
 	var local_player := get_local_player()
 	if local_player != null and local_player.has_method("is_zezzlor_jailed") and local_player.is_zezzlor_jailed():
@@ -968,6 +1035,18 @@ func _has_weapon_in_inventory() -> bool:
 	)
 
 
+func open_factory_worker_dialog(npc_id: String) -> void:
+	if _factory_dialog_ui == null:
+		return
+	if _factory_dialog_ui.is_open():
+		_factory_dialog_ui.close_panel()
+	_factory_dialog_ui.open_for_worker(npc_id)
+
+
+func _on_factory_dialog_closed() -> void:
+	restore_gameplay_mouse()
+
+
 func _try_interact() -> void:
 	if _zezzlor_dossier_ui and _zezzlor_dossier_ui.is_open():
 		_zezzlor_dossier_ui.close_panel()
@@ -975,11 +1054,29 @@ func _try_interact() -> void:
 	if _zezzlor_dialog_ui and _zezzlor_dialog_ui.is_open():
 		_zezzlor_dialog_ui.close_panel()
 		return
+	if _factory_dialog_ui and _factory_dialog_ui.is_open():
+		_factory_dialog_ui.close_panel()
+		return
 	if _help_dialog_ui and _help_dialog_ui.is_open():
 		_help_dialog_ui.close_panel()
 		return
 	if _weapon_shop_dialog_ui and _weapon_shop_dialog_ui.is_open():
 		_weapon_shop_dialog_ui.close_panel()
+		return
+	if _potion_shop_dialog_ui and _potion_shop_dialog_ui.is_open():
+		_potion_shop_dialog_ui.close_panel()
+		return
+	if _furniture_shop_dialog_ui and _furniture_shop_dialog_ui.is_open():
+		_furniture_shop_dialog_ui.close_panel()
+		return
+	if _utility_shop_dialog_ui and _utility_shop_dialog_ui.is_open():
+		_utility_shop_dialog_ui.close_panel()
+		return
+	if _house_build_dialog_ui and _house_build_dialog_ui.is_open():
+		_house_build_dialog_ui.close_panel()
+		return
+	if FurniturePlacementManager.is_placing():
+		FurniturePlacementManager.cancel_placement()
 		return
 	if _mydrillium_trade_ui and _mydrillium_trade_ui.is_open():
 		_mydrillium_trade_ui.close_panel()
@@ -1017,10 +1114,32 @@ func _try_interact() -> void:
 		if _near_pharmacy.try_purchase():
 			_notify_arrival_interact()
 			return
+	if _near_shoe_shop and _near_shoe_shop.has_method("try_purchase"):
+		if _near_shoe_shop.try_purchase():
+			_notify_arrival_interact()
+			return
+	if _near_furniture_shop and _near_furniture_shop.has_method("try_open_dialog"):
+		if _near_furniture_shop.try_open_dialog(_furniture_shop_dialog_ui):
+			_notify_arrival_interact()
+			return
+	if _near_utility_shop and _near_utility_shop.has_method("try_open_dialog"):
+		if _near_utility_shop.try_open_dialog(_utility_shop_dialog_ui):
+			_notify_arrival_interact()
+			return
 	if _near_weapon_shop_owner and _near_weapon_shop_owner.has_method("try_open_dialog"):
 		if _help_dialog_ui and _help_dialog_ui.is_open():
 			_help_dialog_ui.close_panel()
+		if _potion_shop_dialog_ui and _potion_shop_dialog_ui.is_open():
+			_potion_shop_dialog_ui.close_panel()
 		if _near_weapon_shop_owner.try_open_dialog(_weapon_shop_dialog_ui):
+			_notify_arrival_interact()
+			return
+	if _near_potion_shop_owner and _near_potion_shop_owner.has_method("try_open_dialog"):
+		if _help_dialog_ui and _help_dialog_ui.is_open():
+			_help_dialog_ui.close_panel()
+		if _weapon_shop_dialog_ui and _weapon_shop_dialog_ui.is_open():
+			_weapon_shop_dialog_ui.close_panel()
+		if _near_potion_shop_owner.try_open_dialog(_potion_shop_dialog_ui):
 			_notify_arrival_interact()
 			return
 	if _near_help_robot and _near_help_robot.has_method("try_open_dialog"):
@@ -1041,12 +1160,32 @@ func _try_interact() -> void:
 			"spawn":
 				zone_mgr.try_interact_building_spawn(player.global_position, _active_spawn_id)
 				return
+			"house":
+				var entry: Dictionary = zone_mgr.get_zone_at(player.global_position, _active_spawn_id)
+				var zone_id := str(entry.get("zone_id", ""))
+				if (
+					zone_id != ""
+					and _house_build_dialog_ui
+					and _house_build_dialog_ui.has_method("can_open")
+					and _house_build_dialog_ui.can_open()
+				):
+					_house_build_dialog_ui.open(zone_id, _active_spawn_id)
+				elif zone_id != "" and _house_build_dialog_ui and not _house_build_dialog_ui.has_method("can_open"):
+					_house_build_dialog_ui.open(zone_id, _active_spawn_id)
+				return
 			"dialog":
 				var context := zone_mgr.build_zone_dialog_context(
 					player.global_position,
 					_active_spawn_id
 				)
-				if not context.is_empty() and _zone_purchase_dialog_ui:
+				if (
+					not context.is_empty()
+					and _zone_purchase_dialog_ui
+					and _zone_purchase_dialog_ui.has_method("can_open")
+					and _zone_purchase_dialog_ui.can_open()
+				):
+					_zone_purchase_dialog_ui.open(zone_mgr, context)
+				elif not context.is_empty() and _zone_purchase_dialog_ui and not _zone_purchase_dialog_ui.has_method("can_open"):
 					_zone_purchase_dialog_ui.open(zone_mgr, context)
 				return
 
@@ -1146,6 +1285,7 @@ func _tick_hybrid_bites(delta: float) -> void:
 
 func _tick_poison(delta: float) -> void:
 	PoisonManager.tick_immunity(delta)
+	BuffManager.tick(delta)
 	var local_id := multiplayer.get_unique_id()
 	if not players.has(local_id):
 		return
@@ -1254,6 +1394,50 @@ func _on_weapon_shop_dialog_closed() -> void:
 	restore_gameplay_mouse()
 
 
+func _update_potion_shop_interaction() -> void:
+	_near_potion_shop = null
+	var local_id := multiplayer.get_unique_id()
+	if not players.has(local_id):
+		return
+	var player: Node3D = players[local_id]
+	var best_dist := 8.0
+	for node in get_tree().get_nodes_in_group("potion_shop"):
+		if not node is Node3D:
+			continue
+		var shop := node as Node3D
+		if shop.has_method("is_player_nearby") and not shop.is_player_nearby():
+			continue
+		var dist := player.global_position.distance_to(shop.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			_near_potion_shop = shop
+
+
+func _update_potion_shop_owner_interaction() -> void:
+	_near_potion_shop_owner = null
+	if _potion_shop_dialog_ui and _potion_shop_dialog_ui.is_open():
+		return
+	var local_id := multiplayer.get_unique_id()
+	if not players.has(local_id):
+		return
+	var player: Node3D = players[local_id]
+	var best_dist := 5.0
+	for node in get_tree().get_nodes_in_group("potion_shop_owner"):
+		if not node is PotionShopOwner:
+			continue
+		var owner := node as PotionShopOwner
+		if not owner.is_player_nearby():
+			continue
+		var dist := player.global_position.distance_to(owner.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			_near_potion_shop_owner = owner
+
+
+func _on_potion_shop_dialog_closed() -> void:
+	restore_gameplay_mouse()
+
+
 func _on_mydrillium_trade_closed() -> void:
 	restore_gameplay_mouse()
 
@@ -1318,6 +1502,119 @@ func _update_pharmacy_interaction() -> void:
 		if dist < best_dist:
 			best_dist = dist
 			_near_pharmacy = node as Node3D
+
+
+func _update_shoe_shop_interaction() -> void:
+	_near_shoe_shop = null
+	var local_id := multiplayer.get_unique_id()
+	if not players.has(local_id):
+		return
+	var player: Node3D = players[local_id]
+	var best_dist := 999999.0
+	for node in get_tree().get_nodes_in_group("shoe_shop"):
+		if not node.has_method("is_player_nearby"):
+			continue
+		if not node.is_player_nearby():
+			continue
+		var dist := player.global_position.distance_to(node.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			_near_shoe_shop = node as Node3D
+
+
+func _update_furniture_shop_interaction() -> void:
+	_near_furniture_shop = null
+	if _furniture_shop_dialog_ui and _furniture_shop_dialog_ui.is_open():
+		return
+	var local_id := multiplayer.get_unique_id()
+	if not players.has(local_id):
+		return
+	var player: Node3D = players[local_id]
+	var best_dist := 999999.0
+	for node in get_tree().get_nodes_in_group("furniture_shop"):
+		if not node.has_method("is_player_nearby") or not node.is_player_nearby():
+			continue
+		var dist := player.global_position.distance_to(node.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			_near_furniture_shop = node as Node3D
+
+
+func _update_utility_shop_interaction() -> void:
+	_near_utility_shop = null
+	if _utility_shop_dialog_ui and _utility_shop_dialog_ui.is_open():
+		return
+	var local_id := multiplayer.get_unique_id()
+	if not players.has(local_id):
+		return
+	var player: Node3D = players[local_id]
+	var best_dist := 999999.0
+	for node in get_tree().get_nodes_in_group("utility_shop"):
+		if not node.has_method("is_player_nearby") or not node.is_player_nearby():
+			continue
+		var dist := player.global_position.distance_to(node.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			_near_utility_shop = node as Node3D
+
+
+func _on_furniture_shop_dialog_closed() -> void:
+	restore_gameplay_mouse()
+
+
+func _on_utility_shop_dialog_closed() -> void:
+	restore_gameplay_mouse()
+
+
+func _on_house_build_dialog_closed() -> void:
+	restore_gameplay_mouse()
+
+
+func _handle_furniture_placement_input() -> void:
+	if not FurniturePlacementManager.is_placing():
+		return
+	# Placering: vänsterklick = placera, högerklick/esc = avbryt, scroll = rotera
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or Input.is_action_just_pressed("ui_cancel"):
+		FurniturePlacementManager.cancel_placement()
+		return
+	if Input.is_action_just_pressed("attack") or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		# Debounce: just_pressed preferred
+		pass
+	if Input.is_action_just_pressed("attack"):
+		var yaw := 0.0
+		var player := get_local_player()
+		if player:
+			yaw = player.rotation.y
+		FurniturePlacementManager.try_confirm_placement_from_camera(_camera, yaw)
+		return
+	# Scroll via mouse wheel
+	if Input.is_action_just_pressed("ui_page_up"):
+		FurniturePlacementManager.rotate_ghost(0.25)
+	elif Input.is_action_just_pressed("ui_page_down"):
+		FurniturePlacementManager.rotate_ghost(-0.25)
+
+
+func _input(event: InputEvent) -> void:
+	if not FurniturePlacementManager.is_placing():
+		return
+	if event is InputEventMouseButton and event.pressed:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			FurniturePlacementManager.rotate_ghost(-0.2)
+			get_viewport().set_input_as_handled()
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			FurniturePlacementManager.rotate_ghost(0.2)
+			get_viewport().set_input_as_handled()
+		elif mb.button_index == MOUSE_BUTTON_LEFT:
+			var yaw := 0.0
+			var player := get_local_player()
+			if player:
+				yaw = player.rotation.y
+			if FurniturePlacementManager.try_confirm_placement_from_camera(_camera, yaw):
+				get_viewport().set_input_as_handled()
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+			FurniturePlacementManager.cancel_placement()
+			get_viewport().set_input_as_handled()
 
 
 func _update_znood_door_interaction() -> void:
@@ -1401,7 +1698,13 @@ func _tick_gleazer_quests(delta: float) -> void:
 		GleazerQuestManager.tick(player, delta)
 
 
+## Temporärt av: "X spelare online"-skylten uppe till höger.
+const ONLINE_TOAST_ENABLED := false
+
+
 func _setup_online_toast() -> void:
+	if not ONLINE_TOAST_ENABLED:
+		return
 	var ui := get_node_or_null("UI")
 	if ui == null:
 		return
@@ -1417,7 +1720,7 @@ func _setup_online_toast() -> void:
 
 
 func _refresh_online_count() -> void:
-	if _online_toast == null:
+	if not ONLINE_TOAST_ENABLED or _online_toast == null:
 		return
 	var count := players.size()
 	if count <= 0:

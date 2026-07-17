@@ -6,6 +6,10 @@ const ZezzlorCheckpointBuilderScript = preload("res://scripts/access/zezzlor_che
 const ZezzlorHqBuilderScript = preload("res://scripts/access/zezzlor_hq_builder.gd")
 const PharmacyBuilderScript = preload("res://scripts/shops/pharmacy_builder.gd")
 const WeaponShopBuilderScript = preload("res://scripts/shops/weapon_shop_builder.gd")
+const PotionShopBuilderScript = preload("res://scripts/shops/potion_shop_builder.gd")
+const ShoeShopBuilderScript = preload("res://scripts/shops/shoe_shop_builder.gd")
+const FurnitureShopBuilderScript = preload("res://scripts/shops/furniture_shop_builder.gd")
+const UtilityShopBuilderScript = preload("res://scripts/shops/utility_shop_builder.gd")
 const PurpleLaserTowerBuilderScript = preload("res://scripts/city/purple_laser_tower_builder.gd")
 const StreetLampScript = preload("res://scripts/city/street_lamp.gd")
 const StreetLampServiceScript = preload("res://scripts/city/street_lamp_service.gd")
@@ -15,6 +19,11 @@ const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.
 const WaterBuilderScript = preload("res://scripts/environment/water_builder.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
 const FeaturedBuildingBuilderScript = preload("res://scripts/city/featured_building_builder.gd")
+const PlaygroundParkBuilderScript = preload("res://scripts/city/playground_park_builder.gd")
+const ShoppingMallBuilderScript = preload("res://scripts/city/shopping_mall_builder.gd")
+const FactoryWorkBuilderScript = preload("res://scripts/city/factory_work_builder.gd")
+const BuildingAmbianceLightsScript = preload("res://scripts/city/building_ambiance_lights.gd")
+const CuteCottageBuilderScript = preload("res://scripts/city/cute_cottage_builder.gd")
 
 const AVENUE_NAMES := {
 	0: "Nationalmallen",
@@ -22,7 +31,9 @@ const AVENUE_NAMES := {
 	-2: "Independence Ave",
 }
 const STREET_PREFIX := "Neo-Washington"
-const STREET_LAMP_SIDE_OFFSET := 3.25
+## Avstånd från vägens mittlinje till lyktstolpe (måste vara > halva vägbanan).
+const STREET_LAMP_SIDE_OFFSET := 8.5
+const ROAD_HALF_WIDTH_M := 2.8
 
 
 static func build(parent: Node3D, spawn_pos: Vector3, spawn_id: String = "satellite_right") -> Node3D:
@@ -37,12 +48,17 @@ static func build(parent: Node3D, spawn_pos: Vector3, spawn_id: String = "satell
 	_build_city_plate(root)
 	_build_street_grid(root, theme)
 	_build_mall_axis(root)
-	_build_zoned_blocks(root)
+	var building_cells: Array = _build_zoned_blocks(root)
+	_hang_lights_between_neighbors(root, building_cells)
 	_build_landmarks(root)
 	_build_spawn_plaza(root)
 	WaterBuilderScript.build_city_water_features(root)
 	_build_pharmacy_near_spawn(root)
 	_build_weapon_shop_near_spawn(root)
+	_build_potion_shop_near_spawn(root)
+	_build_shoe_shop_near_spawn(root)
+	_build_furniture_shop_near_spawn(root)
+	_build_utility_shop_near_spawn(root)
 	_build_purple_laser_tower_near_spawn(root)
 	_build_story_sites(root)
 	_build_zezzlor_checkpoints(root)
@@ -91,28 +107,42 @@ static func _build_street_grid(root: Node3D, theme: Dictionary) -> void:
 	roads.name = "StreetGrid"
 	root.add_child(roads)
 
+	var x0 := float(extent.x_min) * DcZoneCatalog.BLOCK_M
+	var x1 := float(extent.x_max + 1) * DcZoneCatalog.BLOCK_M
+	var z0 := float(extent.z_min) * DcZoneCatalog.BLOCK_M
+	var z1 := float(extent.z_max + 1) * DcZoneCatalog.BLOCK_M
+
+	# Öst–västliga avenyer med organisk meander.
 	for z in range(extent.z_min, extent.z_max + 2):
 		var lane_z: float = float(z) * DcZoneCatalog.BLOCK_M
 		var avenue: String = str(AVENUE_NAMES.get(z, "Avenue Z%d" % abs(z)))
-		_spawn_road_strip(
+		_spawn_organic_road(
 			roads,
-			Vector3(_grid_center_x(), 0.03, lane_z),
-			0.0,
-			_grid_width_m(),
+			Vector3(x0, 0.03, lane_z),
+			Vector3(x1, 0.03, lane_z),
+			true,
+			hash("ave_ew_%d" % z),
 			avenue,
 			theme
 		)
 
+	# Nord–sydliga gator med annan meander-fas.
 	for x in range(extent.x_min, extent.x_max + 2):
 		var lane_x: float = float(x) * DcZoneCatalog.BLOCK_M
-		_spawn_road_strip(
+		_spawn_organic_road(
 			roads,
-			Vector3(lane_x, 0.03, _grid_center_z()),
-			PI * 0.5,
-			_grid_depth_m(),
+			Vector3(lane_x, 0.03, z0),
+			Vector3(lane_x, 0.03, z1),
+			false,
+			hash("st_ns_%d" % x),
 			"%s Gata %d" % [STREET_PREFIX, x - extent.x_min + 1],
 			theme
 		)
+
+	# Extra organiska kopplingar / "boulevarder" som bryter rutnätet.
+	_spawn_organic_connectors(roads, theme, x0, x1, z0, z1)
+	# Lyktor endast på trottoar-linjer (aldrig i körbana).
+	_spawn_sidewalk_lamps(roads, theme, extent)
 
 
 static func _build_mall_axis(root: Node3D) -> void:
@@ -141,11 +171,12 @@ static func _build_mall_axis(root: Node3D) -> void:
 	_build_obelisk(mall, obelisk_pos)
 
 
-static func _build_zoned_blocks(root: Node3D) -> void:
+static func _build_zoned_blocks(root: Node3D) -> Array:
 	var extent: Dictionary = DcZoneCatalog.grid_extent()
 	var zones := Node3D.new()
 	zones.name = "ZonedBlocks"
 	root.add_child(zones)
+	var building_cells: Array = []
 
 	for x in range(extent.x_min, extent.x_max + 1):
 		for z in range(extent.z_min, extent.z_max + 1):
@@ -154,10 +185,41 @@ static func _build_zoned_blocks(root: Node3D) -> void:
 				continue
 			if DcZoneCatalog.is_reserved_landmark_cell(cell):
 				continue
-			_build_zone_block(zones, cell)
+			if _build_zone_block(zones, cell):
+				building_cells.append(cell)
+	return building_cells
 
 
-static func _build_zone_block(parent: Node3D, cell: Vector2i) -> void:
+static func _hang_lights_between_neighbors(root: Node3D, building_cells: Array) -> void:
+	if building_cells.is_empty():
+		return
+	var hang_root := Node3D.new()
+	hang_root.name = "HangingStreetLights"
+	root.add_child(hang_root)
+	var cell_set: Dictionary = {}
+	for c in building_cells:
+		cell_set[c] = true
+	var warm := Color(1.0, 0.8, 0.42)
+	var links := 0
+	var max_links := 28 if GlesPerformanceScript.is_active() else 70
+	for c in building_cells:
+		var cell: Vector2i = c
+		# Bara +X och +Z för att undvika dubletter.
+		for n in [Vector2i(cell.x + 1, cell.y), Vector2i(cell.x, cell.y + 1)]:
+			if not cell_set.has(n):
+				continue
+			# Hoppa över varannan länk på GLES.
+			if GlesPerformanceScript.is_active() and (cell.x + cell.y + n.x) % 2 == 0:
+				continue
+			var a := _cell_origin(cell) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
+			var b := _cell_origin(n) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
+			BuildingAmbianceLightsScript.hang_between_buildings(hang_root, a, b, warm)
+			links += 1
+			if links >= max_links:
+				return
+
+
+static func _build_zone_block(parent: Node3D, cell: Vector2i) -> bool:
 	var spec: Dictionary = DcZoneCatalog.classify_cell(cell)
 	var zone_root := Node3D.new()
 	zone_root.name = "Zone_%d_%d" % [cell.x, cell.y]
@@ -170,24 +232,61 @@ static func _build_zone_block(parent: Node3D, cell: Vector2i) -> void:
 	var zone_type: String = str(spec.get("zone_type", ""))
 	var rotation_y := float((cell.x + cell.y) % 4) * PI * 0.5
 
-	if kit == "roads":
+	var placed_building := false
+	if FactoryWorkBuilderScript.is_factory_cell(cell):
+		# Alltid placera verkstadsfabriken (jobb-minigame) oavsett densitet.
+		FactoryWorkBuilderScript.build(zone_root, center, cell)
+		CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+		placed_building = true
+	elif kit == "roads":
 		CityKitLibrary.spawn(zone_root, kit, model, center + Vector3(0.0, 0.02, 0.0))
 		_add_park_lights(zone_root, center, ColonyCityTheme.for_spawn("satellite_right"))
 	elif kit == "space":
 		SpaceKitLibrary.spawn(zone_root, model, center)
 	elif SpawnDensityScript.should_place_building(cell):
-		var scale := CityKitLibrary.kit_scale(kit)
-		var building := CityKitLibrary.spawn(zone_root, kit, model, center, rotation_y)
-		if FeaturedBuildingBuilderScript.is_building_33_cell(cell) and building != null:
-			FeaturedBuildingBuilderScript.enhance(zone_root, building, center, rotation_y, scale)
-		CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+		# Hus nr 9 → lekpark | hus nr 12 → shoppingcenter.
+		if PlaygroundParkBuilderScript.should_replace_next_building():
+			PlaygroundParkBuilderScript.build(zone_root, center, cell)
+			CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+			placed_building = true
+		elif ShoppingMallBuilderScript.should_replace_next_building():
+			ShoppingMallBuilderScript.build(zone_root, center, cell)
+			CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+			placed_building = true
+		elif CuteCottageBuilderScript.should_spawn_cute(cell, zone_type, kit):
+			CuteCottageBuilderScript.build(zone_root, center, cell, rotation_y)
+			CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+			placed_building = true
+		else:
+			var scale := CityKitLibrary.kit_scale(kit)
+			var building := CityKitLibrary.spawn(zone_root, kit, model, center, rotation_y)
+			if FeaturedBuildingBuilderScript.is_building_33_cell(cell) and building != null:
+				FeaturedBuildingBuilderScript.enhance(zone_root, building, center, rotation_y, scale)
+			CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+			BuildingAmbianceLightsScript.decorate_building(
+				zone_root,
+				center,
+				rotation_y,
+				scale,
+				Color(1.0, 0.84, 0.48)
+			)
+			placed_building = true
 	else:
-		CityKitLibrary.spawn(zone_root, "roads", "tile-low", center + Vector3(0.0, 0.02, 0.0))
-		if not GlesPerformanceScript.skip_greenery() and SpawnDensityScript.should_scatter_cell_accent(cell):
-			GreeneryVegetationBuilder.scatter_cell_accent(zone_root, center, cell)
+		# Tomma bostadsrutor: ibland ändå ett litet sött hus.
+		if CuteCottageBuilderScript.should_spawn_cute(cell, zone_type, kit) and (
+			zone_type in ["BOSTADSKVARTER", "AMBASSADNÄSET"] or kit == "suburban"
+		):
+			CuteCottageBuilderScript.build(zone_root, center, cell, rotation_y)
+			CityKitLibrary.spawn(zone_root, "roads", "tile-low", center + Vector3(0.0, 0.02, 0.0))
+			placed_building = true
+		else:
+			CityKitLibrary.spawn(zone_root, "roads", "tile-low", center + Vector3(0.0, 0.02, 0.0))
+			if not GlesPerformanceScript.skip_greenery() and SpawnDensityScript.should_scatter_cell_accent(cell):
+				GreeneryVegetationBuilder.scatter_cell_accent(zone_root, center, cell)
 
 	_add_zone_marker(zone_root, center, spec, true)
 	WaterBuilderScript.populate_zone_water(zone_root, center, cell, zone_type, kit, rotation_y)
+	return placed_building
 
 
 static func _build_pharmacy_near_spawn(root: Node3D) -> void:
@@ -209,6 +308,46 @@ static func _build_weapon_shop_near_spawn(root: Node3D) -> void:
 	var spawn_center := _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
 	var weapon_pos := spawn_center + Vector3(-18.0, 0.0, -14.0)
 	WeaponShopBuilderScript.build(root, weapon_pos, "weapon_shop_dc")
+
+
+static func _build_potion_shop_near_spawn(root: Node3D) -> void:
+	var spawn_center := _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
+	var potion_pos := spawn_center + Vector3(4.0, 0.0, -22.0)
+	PotionShopBuilderScript.build(root, potion_pos, "potion_shop_dc")
+
+	var arrow := Label3D.new()
+	arrow.text = "BRYGDHÖRNAN →\nMagiska brygder"
+	arrow.font_size = 30
+	arrow.modulate = Color(0.78, 0.42, 0.98)
+	arrow.outline_modulate = Color(0.1, 0.04, 0.16, 0.95)
+	arrow.position = spawn_center + Vector3(0.0, 2.5, -8.0)
+	arrow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	root.add_child(arrow)
+
+
+static func _build_shoe_shop_near_spawn(root: Node3D) -> void:
+	var spawn_center := _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
+	var shoe_pos := spawn_center + Vector3(8.0, 0.0, 10.0)
+	ShoeShopBuilderScript.build(root, shoe_pos, "shoe_shop_dc")
+
+	var arrow := Label3D.new()
+	arrow.text = "SKOBUTIK →\nHoppskor"
+	arrow.font_size = 28
+	arrow.modulate = Color(0.25, 0.85, 0.62)
+	arrow.outline_modulate = Color(0.04, 0.12, 0.1, 0.95)
+	arrow.position = spawn_center + Vector3(3.0, 2.4, 4.0)
+	arrow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	root.add_child(arrow)
+
+
+static func _build_furniture_shop_near_spawn(root: Node3D) -> void:
+	var spawn_center := get_spawn_center()
+	FurnitureShopBuilderScript.build(root, spawn_center + Vector3(-10.0, 0.0, 12.0), "furniture_shop_dc")
+
+
+static func _build_utility_shop_near_spawn(root: Node3D) -> void:
+	var spawn_center := get_spawn_center()
+	UtilityShopBuilderScript.build(root, spawn_center + Vector3(12.0, 0.0, 8.0), "utility_shop_dc")
 
 
 static func _build_purple_laser_tower_near_spawn(root: Node3D) -> void:
@@ -422,7 +561,8 @@ static func _add_zone_marker(parent: Node3D, center: Vector3, spec: Dictionary, 
 static func _add_park_lights(parent: Node3D, center: Vector3, theme: Dictionary) -> void:
 	var park_color: Color = theme.get("park_light", Color(0.72, 0.82, 1.0))
 	var accent: Color = theme.get("surveillance_accent", Color(0.95, 0.18, 0.12))
-	for offset in [Vector3(-12, 0, -12), Vector3(12, 0, 12), Vector3(-12, 0, 12), Vector3(12, 0, -12)]:
+	# Inåt i parken — inte nära blockkant där organiska gator meandrar in.
+	for offset in [Vector3(-6, 0, -6), Vector3(6, 0, 6), Vector3(-6, 0, 6), Vector3(6, 0, -6)]:
 		var pole_pos: Vector3 = center + (offset as Vector3)
 		StreetLampScript.mount(
 			parent,
@@ -462,6 +602,34 @@ static func _street_lamp_side_offsets(rotation_y: float) -> Array[Vector3]:
 	]
 
 
+## Placerar lyktor i blockens hörn/trottoar — aldrig längs vägmitt.
+static func _spawn_sidewalk_lamps(parent: Node3D, theme: Dictionary, extent: Dictionary) -> void:
+	var step := 2 if GlesPerformanceScript.is_active() else 1
+	var inset := STREET_LAMP_SIDE_OFFSET
+	for x in range(int(extent.x_min), int(extent.x_max) + 1, step):
+		for z in range(int(extent.z_min), int(extent.z_max) + 1, step):
+			# Fyra hörn inne i varje block, bort från gatorna (som ligger på blockkanterna).
+			var origin := _cell_origin(Vector2i(x, z))
+			var half := DcZoneCatalog.BLOCK_M * 0.5
+			# Håll avstånd från blockkant (= gata).
+			var edge_clear := inset + 1.5
+			if edge_clear >= half - 1.0:
+				continue
+			var corners := [
+				Vector3(edge_clear, 0.0, edge_clear),
+				Vector3(DcZoneCatalog.BLOCK_M - edge_clear, 0.0, edge_clear),
+				Vector3(edge_clear, 0.0, DcZoneCatalog.BLOCK_M - edge_clear),
+				Vector3(DcZoneCatalog.BLOCK_M - edge_clear, 0.0, DcZoneCatalog.BLOCK_M - edge_clear),
+			]
+			# Bara ett hörn per block på GLES, två annars.
+			var count := 1 if GlesPerformanceScript.is_active() else 2
+			for i in count:
+				var idx := (x * 3 + z * 7 + i * 5) % corners.size()
+				var pos: Vector3 = origin + corners[idx]
+				pos.y = 0.0
+				_add_street_lamp(parent, pos, theme, 0.0, Vector3(0.0, 0.0, 1.0))
+
+
 static func _add_street_lamp(
 	parent: Node3D,
 	pos: Vector3,
@@ -494,18 +662,171 @@ static func _spawn_road_strip(
 	_label: String,
 	theme: Dictionary
 ) -> void:
-	var segments := int(ceil(length_m / 4.0))
-	for i in range(segments):
-		var offset := (i - segments * 0.5) * 4.0
-		var pos := center
-		if abs(rotation_y) < 0.1:
-			pos.x += offset
+	# Bakåtkompatibilitet: raka strippar (används sällan nu).
+	var half := length_m * 0.5
+	var along := Vector3(1.0, 0.0, 0.0) if absf(rotation_y) < 0.2 else Vector3(0.0, 0.0, 1.0)
+	var start := center - along * half
+	var end := center + along * half
+	_spawn_organic_road(parent, start, end, absf(rotation_y) < 0.2, hash(str(center)), _label, theme)
+
+
+## Organisk väg: meander (sinus + mjuk brus), bitar roterar med tangenten.
+static func _spawn_organic_road(
+	parent: Node3D,
+	start: Vector3,
+	end: Vector3,
+	primary_along_x: bool,
+	path_seed: int,
+	_label: String,
+	theme: Dictionary
+) -> void:
+	var span := end - start
+	var length_m := maxf(span.length(), 4.0)
+	var step := 4.0
+	var segments := maxi(int(ceil(length_m / step)), 2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = path_seed
+
+	# Meander-parametrar (olika per gata).
+	var waves := rng.randf_range(0.7, 1.85)
+	var waves2 := rng.randf_range(1.6, 3.4)
+	var amp := rng.randf_range(5.5, 12.5)
+	var amp2 := rng.randf_range(1.8, 4.5)
+	var phase := rng.randf_range(0.0, TAU)
+	var phase2 := rng.randf_range(0.0, TAU)
+	# Håll Nationalmallen (z≈0) rakare — stilistisk axel.
+	if absf(start.z) < 2.0 and absf(end.z) < 2.0 and primary_along_x:
+		amp *= 0.22
+		amp2 *= 0.15
+
+	var points: Array[Vector3] = []
+	for i in range(segments + 1):
+		var t := float(i) / float(segments)
+		var base := start.lerp(end, t)
+		var meander := (
+			sin(t * TAU * waves + phase) * amp
+			+ sin(t * TAU * waves2 + phase2) * amp2
+		)
+		# Mjuk brus-liknande offset (deterministisk via seed + t).
+		meander += sin(t * 17.3 + float(path_seed % 97) * 0.11) * (amp * 0.12)
+		var pos := base
+		if primary_along_x:
+			pos.z += meander
 		else:
-			pos.z += offset
-		CityKitLibrary.spawn(parent, "roads", "road-straight", pos, rotation_y)
-		if i % 8 == 0:
-			for side_offset in _street_lamp_side_offsets(rotation_y):
-				_add_street_lamp(parent, pos + side_offset, theme, rotation_y, side_offset)
+			pos.x += meander
+		pos.y = 0.03
+		points.append(pos)
+
+	for i in range(points.size() - 1):
+		var a: Vector3 = points[i]
+		var b: Vector3 = points[i + 1]
+		var mid := (a + b) * 0.5
+		var dir := b - a
+		dir.y = 0.0
+		if dir.length_squared() < 0.0001:
+			continue
+		# road-straight i Kenney-kitet löper längs lokal X → yaw = atan2(dz, dx).
+		var yaw := atan2(dir.z, dir.x)
+		var turn := 0.0
+		if i > 0:
+			var prev: Vector3 = points[i] - points[i - 1]
+			prev.y = 0.0
+			if prev.length_squared() > 0.0001:
+				turn = absf(angle_difference(atan2(prev.z, prev.x), yaw))
+
+		var model := "road-straight"
+		if turn > 0.38:
+			model = "road-curve"
+		elif turn > 0.22:
+			model = "road-bend"
+
+		CityKitLibrary.spawn(parent, "roads", model, mid, yaw)
+
+
+static func _spawn_organic_connectors(
+	parent: Node3D,
+	theme: Dictionary,
+	x0: float,
+	x1: float,
+	z0: float,
+	z1: float
+) -> void:
+	# Några diagonala / S-formade boulevarder som bryter korsmönstret.
+	var connectors: Array[Dictionary] = [
+		{
+			"a": Vector3(lerpf(x0, x1, 0.12), 0.03, lerpf(z0, z1, 0.18)),
+			"b": Vector3(lerpf(x0, x1, 0.88), 0.03, lerpf(z0, z1, 0.72)),
+			"seed": 701,
+		},
+		{
+			"a": Vector3(lerpf(x0, x1, 0.2), 0.03, lerpf(z0, z1, 0.82)),
+			"b": Vector3(lerpf(x0, x1, 0.78), 0.03, lerpf(z0, z1, 0.22)),
+			"seed": 809,
+		},
+		{
+			"a": Vector3(lerpf(x0, x1, 0.05), 0.03, lerpf(z0, z1, 0.45)),
+			"b": Vector3(lerpf(x0, x1, 0.95), 0.03, lerpf(z0, z1, 0.55)),
+			"seed": 913,
+		},
+	]
+	if GlesPerformanceScript.is_active():
+		connectors = connectors.slice(0, 2)
+
+	for c in connectors:
+		var a: Vector3 = c.a
+		var b: Vector3 = c.b
+		# Tvinga starkare meander på connectors.
+		_spawn_organic_road_strong(parent, a, b, int(c.seed), theme)
+
+
+static func _spawn_organic_road_strong(
+	parent: Node3D,
+	start: Vector3,
+	end: Vector3,
+	path_seed: int,
+	theme: Dictionary
+) -> void:
+	var span := end - start
+	var length_m := maxf(span.length(), 4.0)
+	var segments := maxi(int(ceil(length_m / 4.0)), 3)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = path_seed
+	var waves := rng.randf_range(1.1, 2.2)
+	var amp := rng.randf_range(10.0, 18.0)
+	var phase := rng.randf_range(0.0, TAU)
+	# Lateral = vinkelrät mot huvudriktningen.
+	var along := span.normalized()
+	var lateral_dir := Vector3(-along.z, 0.0, along.x)
+
+	var points: Array[Vector3] = []
+	for i in range(segments + 1):
+		var t := float(i) / float(segments)
+		var base := start.lerp(end, t)
+		var m := sin(t * TAU * waves + phase) * amp
+		m += sin(t * TAU * waves * 2.1 + phase * 0.7) * (amp * 0.28)
+		points.append(base + lateral_dir * m + Vector3(0.0, 0.03, 0.0))
+
+	for i in range(points.size() - 1):
+		var a: Vector3 = points[i]
+		var b: Vector3 = points[i + 1]
+		var mid := (a + b) * 0.5
+		var dir := b - a
+		dir.y = 0.0
+		if dir.length_squared() < 0.0001:
+			continue
+		var yaw := atan2(dir.z, dir.x)
+		var model := "road-straight"
+		if i > 0:
+			var prev: Vector3 = points[i] - points[i - 1]
+			prev.y = 0.0
+			if prev.length_squared() > 0.0001:
+				var turn := absf(angle_difference(atan2(prev.z, prev.x), yaw))
+				if turn > 0.35:
+					model = "road-curve"
+				elif turn > 0.2:
+					model = "road-bend"
+		CityKitLibrary.spawn(parent, "roads", model, mid, yaw)
+		# Inga lyktor längs connectors — undvik stolpar mitt i korsande gator.
 
 
 static func _cell_origin(cell: Vector2i) -> Vector3:

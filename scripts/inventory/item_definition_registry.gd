@@ -32,6 +32,11 @@ static func get_definition(item_id: String):
 		"cures_poison": ItemCatalog.cures_poison(id),
 		"shop_price": ItemCatalog.get_shop_price(id),
 		"icon_key": ItemCatalog.get_icon_key(id),
+		"damage_multiplier": ItemCatalog.get_damage_multiplier(id),
+		"max_hp_bonus": ItemCatalog.get_potion_max_hp_bonus(id),
+		"buff_duration": ItemCatalog.get_buff_duration(id),
+		"jump_multiplier": ItemCatalog.get_jump_multiplier(id),
+		"nullify_fall_damage": ItemCatalog.nullifies_fall_damage(id),
 	}
 	if ItemCatalog.is_weapon(id):
 		def.equipment_type = 1
@@ -59,6 +64,14 @@ static func _tags_for(item_id: String) -> Array[String]:
 			tags.append("material")
 		"remedy":
 			tags.append("remedy")
+		"potion":
+			tags.append("potion")
+		"footwear":
+			tags.append("footwear")
+		"furniture":
+			tags.append("furniture")
+		"utility":
+			tags.append("utility")
 		"food":
 			tags.append("food")
 		_:

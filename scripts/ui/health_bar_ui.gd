@@ -16,9 +16,11 @@ var _displayed_value := 100.0
 
 func _ready() -> void:
 	_build()
-	GameplayHudThemeScript.apply_panel(self)
+	# Tätare gråblå ram än vanliga HUD-paneler.
+	add_theme_stylebox_override("panel", GameplayHudThemeScript.compact_hp_panel_style())
 	InventoryManager.inventory_changed.connect(_refresh)
 	PoisonManager.poison_changed.connect(_on_poison_changed)
+	BuffManager.buffs_changed.connect(_on_buffs_changed)
 	_refresh()
 
 
@@ -37,26 +39,27 @@ func _build() -> void:
 	set_anchors_preset(Control.PRESET_CENTER_TOP)
 	anchor_left = 0.5
 	anchor_right = 0.5
-	offset_left = -230.0
-	offset_right = 230.0
-	offset_top = 8.0
-	offset_bottom = 92.0
-	custom_minimum_size = Vector2(460, 84)
+	# Kompakt panel: mindre gråblå yta runt mätaren.
+	offset_left = -108.0
+	offset_right = 108.0
+	offset_top = 6.0
+	offset_bottom = 48.0
+	custom_minimum_size = Vector2(200, 36)
 
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 4)
+	col.add_theme_constant_override("separation", 1)
 	add_child(col)
 
 	_hp_label = Label.new()
-	_hp_label.text = "❤ HP 100 / 100"
+	_hp_label.text = "❤ 100/100"
 	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameplayHudThemeScript.style_title(_hp_label, 18)
+	GameplayHudThemeScript.style_title(_hp_label, 12)
 	col.add_child(_hp_label)
 
 	_bar = ProgressBar.new()
 	_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_bar.custom_minimum_size = Vector2(420, 28)
+	_bar.custom_minimum_size = Vector2(170, 8)
 	_bar.max_value = 100.0
 	_bar.value = 100.0
 	_bar.show_percentage = false
@@ -66,6 +69,8 @@ func _build() -> void:
 	_bonus_label = Label.new()
 	_bonus_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameplayHudThemeScript.style_muted(_bonus_label)
+	_bonus_label.add_theme_font_size_override("font_size", 10)
+	_bonus_label.visible = false
 	col.add_child(_bonus_label)
 
 
@@ -90,7 +95,7 @@ func _apply_values(current: float, maximum: float) -> void:
 	maximum = maxf(maximum, 1.0)
 	current = clampf(current, 0.0, maximum)
 	_bar.max_value = maximum
-	_hp_label.text = "❤ HP %d / %d" % [int(round(current)), int(round(maximum))]
+	_hp_label.text = "❤ %d/%d" % [int(round(current)), int(round(maximum))]
 	var ratio := current / maximum
 	_apply_fill_color(ratio)
 	if _value_tween != null and _value_tween.is_valid():
@@ -124,13 +129,27 @@ func _on_poison_changed(_active: bool, _severity: float) -> void:
 	_refresh_bonus_label()
 
 
+func _on_buffs_changed() -> void:
+	_refresh_bonus_label()
+
+
 func _refresh_bonus_label() -> void:
+	# Visa bara korta statusrader (gift/buff) — ingen utfyllnadstext som blåser upp panellen.
 	var lines: PackedStringArray = []
 	if PoisonManager.is_poisoned():
 		lines.append(PoisonManager.get_status_text())
+	var buff_note := BuffManager.get_status_text()
+	if buff_note != "":
+		lines.append(buff_note)
 	var bonus := int(round(InventoryManager.get_hp_bonus_total()))
 	if bonus > 0:
-		lines.append("+%d HP från inventory" % bonus)
-	elif not PoisonManager.is_poisoned():
-		lines.append("Inga HP-föremål i inventory")
-	_bonus_label.text = "\n".join(lines)
+		lines.append("+%d HP" % bonus)
+	_bonus_label.text = " · ".join(lines)
+	_bonus_label.visible = not lines.is_empty()
+	# Expandera panelen något bara när statusrader finns.
+	if _bonus_label.visible:
+		offset_bottom = 50.0
+		custom_minimum_size = Vector2(200, 48)
+	else:
+		offset_bottom = 42.0
+		custom_minimum_size = Vector2(200, 36)

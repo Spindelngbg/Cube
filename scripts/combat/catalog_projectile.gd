@@ -26,7 +26,7 @@ func _ready() -> void:
 
 func launch(origin: Vector3, direction: Vector3, shooter_id: int, weapon_id: String) -> void:
 	var stats := WeaponCatalog.get_stats(weapon_id)
-	_damage = float(stats.get("damage", 20.0))
+	_damage = float(stats.get("damage", 20.0)) * BuffManager.get_weapon_damage_multiplier()
 	_combat_kind = str(stats.get("combat_kind", "energy"))
 	var speed := float(stats.get("projectile_speed", 40.0))
 	var color: Color = stats.get("color", Color.CYAN)

@@ -43,6 +43,57 @@
 			"shop_price": 250,
 			"description": "Motgift mot spindelgift från SRC-hybridzombies. Säljs av Pill-Bot på Pharmacy."
 		},
+		"stridsbrygd": {
+			"name": "Stridsbrygd",
+			"type": "potion",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 450,
+			"damage_multiplier": 1.5,
+			"buff_duration": 90,
+			"description": "Magisk stridsbrygd. Alla dina vapen gör mer skada under en stund."
+		},
+		"livskraftsbrygd": {
+			"name": "Livskraftsbrygd",
+			"type": "potion",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 380,
+			"max_hp_bonus": 50,
+			"buff_duration": 120,
+			"description": "Varm, röd brygd som ökar din maxhälsa tillfälligt."
+		},
+		"berserkerbrygd": {
+			"name": "Berserkerbrygd",
+			"type": "potion",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"shop_price": 900,
+			"damage_multiplier": 1.85,
+			"buff_duration": 60,
+			"description": "Starkare stridsbrygd. Vapen skär djupare — men effekten tar slut fortare."
+		},
+		"jattelivsbrygd": {
+			"name": "Jättelivsbrygd",
+			"type": "potion",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"shop_price": 750,
+			"max_hp_bonus": 100,
+			"buff_duration": 150,
+			"description": "Tung livskraftsbrygd. Kroppen tål mer — en bra stund."
+		},
+		"krigarens_elixir": {
+			"name": "Krigarens Elixir",
+			"type": "potion",
+			"rarity": "legendary",
+			"hp_bonus": 0,
+			"shop_price": 1600,
+			"damage_multiplier": 1.6,
+			"max_hp_bonus": 60,
+			"buff_duration": 100,
+			"description": "Legendärt elixir: mer skada på alla vapen och högre maxhälsa samtidigt."
+		},
 		"slimeshooter": {
 			"name": "Slimeshooter",
 			"type": "weapon",
@@ -159,6 +210,143 @@
 			"hp_bonus": 0,
 			"shop_price": 4200,
 			"description": "Legendarisk Zezzlor-blå slaktkniv. Olaglig på papper, populär i praktiken."
+		},
+		"hoppskor": {
+			"name": "Hoppskor",
+			"type": "footwear",
+			"icon": "boots",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"shop_price": 850,
+			"jump_multiplier": 2.0,
+			"nullify_fall_damage": true,
+			"description": "Fjädrande koloniskor. När de sitter på fötterna hoppar du 200% högre (dubbelt) och tar ingen fallskada."
+		},
+		"forsta_hjalpen": {
+			"name": "Första hjälpen-kit",
+			"type": "utility",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"shop_price": 180,
+			"heal_amount": 40,
+			"description": "Snabb fältvård. Använd för att läka dig själv."
+		},
+		"energi_dryck": {
+			"name": "Energidryck",
+			"type": "utility",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 220,
+			"speed_multiplier": 1.35,
+			"buff_duration": 45,
+			"description": "Tillfällig snabbare rörelse. Drick och spring."
+		},
+		"pansarväst": {
+			"name": "Pansarväst",
+			"type": "utility",
+			"rarity": "rare",
+			"hp_bonus": 25,
+			"shop_price": 900,
+			"damage_reduction": 0.25,
+			"description": "Ger mer max-HP och mild skadereduktion medan den finns i inventory."
+		},
+		"kartfyr": {
+			"name": "Kartfyr",
+			"type": "utility",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 150,
+			"description": "Sätter en Znood-vägpunkt vid din nuvarande position."
+		},
+		"furn_chair": {
+			"name": "Stol",
+			"type": "furniture",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"shop_price": 120,
+			"furniture_model": "chair",
+			"description": "Enkel stol. Köp och placera var du vill."
+		},
+		"furn_table": {
+			"name": "Bord",
+			"type": "furniture",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"shop_price": 280,
+			"furniture_model": "table",
+			"description": "Träbord. Placera på din tomt eller var som helst."
+		},
+		"furn_bed": {
+			"name": "Säng",
+			"type": "furniture",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 450,
+			"furniture_model": "bedSingle",
+			"description": "Sovplats för kolonister."
+		},
+		"furn_sofa": {
+			"name": "Soffa",
+			"type": "furniture",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 620,
+			"furniture_model": "loungeSofa",
+			"description": "Mjuk soffa — lyx i kuben."
+		},
+		"furn_desk": {
+			"name": "Skrivbord",
+			"type": "furniture",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"shop_price": 380,
+			"furniture_model": "desk",
+			"description": "Skrivbord för planering."
+		},
+		"furn_lamp": {
+			"name": "Golvlampa",
+			"type": "furniture",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"shop_price": 180,
+			"furniture_model": "lampRoundFloor",
+			"description": "Lyser upp mörka hörn."
+		},
+		"furn_plant": {
+			"name": "Krukväxt",
+			"type": "furniture",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"shop_price": 90,
+			"furniture_model": "pottedPlant",
+			"description": "Grönt i hemmet."
+		},
+		"furn_bookshelf": {
+			"name": "Bokhylla",
+			"type": "furniture",
+			"rarity": "common",
+			"hp_bonus": 0,
+			"shop_price": 340,
+			"furniture_model": "bookcaseOpen",
+			"description": "Bokhylla för lore och skräp."
+		},
+		"furn_tv": {
+			"name": "TV",
+			"type": "furniture",
+			"rarity": "rare",
+			"hp_bonus": 0,
+			"shop_price": 700,
+			"furniture_model": "televisionModern",
+			"description": "Modern skärm. Placera var du vill."
+		},
+		"furn_fridge": {
+			"name": "Kylskåp",
+			"type": "furniture",
+			"rarity": "uncommon",
+			"hp_bonus": 0,
+			"shop_price": 550,
+			"furniture_model": "kitchenFridge",
+			"description": "Håller ransoner kalla."
 		},
 		"raw_mydrillium_ore": {
 			"name": "Rå Mydrillium-malm",

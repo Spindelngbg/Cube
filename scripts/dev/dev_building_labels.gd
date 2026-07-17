@@ -13,6 +13,10 @@ static func reset() -> void:
 	_next_id = 1
 
 
+static func peek_next_id() -> int:
+	return _next_id
+
+
 static func attach(
 	parent: Node3D,
 	anchor: Vector3,

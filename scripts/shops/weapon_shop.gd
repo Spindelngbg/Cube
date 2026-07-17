@@ -1,6 +1,8 @@
 class_name WeaponShop
 extends Area3D
 
+var area_size := Vector3(13.0, 5.0, 8.0)
+var area_offset := Vector3(0.0, 2.25, 0.0)
 var _player_inside := false
 
 
@@ -13,9 +15,9 @@ func _ready() -> void:
 
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(13.0, 5.0, 8.0)
+	box.size = area_size
 	shape.shape = box
-	shape.position = Vector3(0.0, 2.25, 0.0)
+	shape.position = area_offset
 	add_child(shape)
 
 

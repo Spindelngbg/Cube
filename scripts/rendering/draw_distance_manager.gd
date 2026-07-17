@@ -1,11 +1,11 @@
 extends Node
 
-const PRESETS_M: Array[float] = [300.0, 700.0, 1400.0, 2800.0]
+const PRESETS_M: Array[float] = [180.0, 300.0, 500.0, 800.0]
 const PRESET_LABELS := [
+	"Prestanda (180 m)",
 	"Nära (300 m)",
-	"Normal (700 m)",
-	"Långt (1400 m)",
-	"Max (2800 m)",
+	"Normal (500 m)",
+	"Långt (800 m)",
 ]
 
 const SETTING_KEY := "display.draw_distance_index"
@@ -22,9 +22,9 @@ func _ready() -> void:
 	if settings == null:
 		return
 	settings.set_default(SETTING_KEY, 0)
-	settings.set_default(SHADOWS_KEY, true)
+	settings.set_default(SHADOWS_KEY, GlesPerformanceScript.shadows_default())
 	settings.set_default(SSAO_GLOW_KEY, false)
-	settings.set_default(RENDER_SCALE_KEY, 0.65 if GlesPerformanceScript.is_active() else 0.75)
+	settings.set_default(RENDER_SCALE_KEY, GlesPerformanceScript.default_render_scale())
 	if settings.has_signal("setting_changed"):
 		settings.setting_changed.connect(_on_setting_changed)
 	if settings.has_signal("settings_loaded"):
@@ -50,8 +50,8 @@ func get_preset_index() -> int:
 
 func get_distance_m() -> float:
 	var distance_m := PRESETS_M[get_preset_index()]
-	if GlesPerformanceScript.is_active():
-		distance_m = minf(distance_m, GlesPerformanceScript.draw_distance_cap_m())
+	# Alltid cap — stora draw distances krossar FPS i Neo-Washington.
+	distance_m = minf(distance_m, GlesPerformanceScript.draw_distance_cap_m())
 	var competitive := get_node_or_null("/root/CompetitiveMode")
 	if competitive != null and competitive.has_method("max_draw_distance_m"):
 		var cap := float(competitive.max_draw_distance_m())
@@ -111,10 +111,13 @@ func _on_setting_changed(key: String, _value) -> void:
 func get_render_scale() -> float:
 	var settings := get_node_or_null("/root/Settings")
 	if settings == null:
-		return 1.0
-	var scale := clampf(float(settings.get_value(RENDER_SCALE_KEY, 1.0)), 0.5, 1.0)
-	if GlesPerformanceScript.is_active():
-		scale = minf(scale, GlesPerformanceScript.render_scale_cap())
+		return GlesPerformanceScript.default_render_scale()
+	var scale := clampf(
+		float(settings.get_value(RENDER_SCALE_KEY, GlesPerformanceScript.default_render_scale())),
+		0.45,
+		1.0
+	)
+	scale = minf(scale, GlesPerformanceScript.render_scale_cap())
 	return scale
 
 
@@ -127,4 +130,23 @@ func _apply_render_scale(game_root: Node3D) -> void:
 
 
 func _on_settings_loaded() -> void:
+	_clamp_saved_performance_settings()
 	refresh_active_scenes()
+
+
+func _clamp_saved_performance_settings() -> void:
+	var settings := get_node_or_null("/root/Settings")
+	if settings == null:
+		return
+	# Tvinga sparade "tunga" inställningar ner — fixar 16 FPS-profiler.
+	var idx := clampi(int(settings.get_value(SETTING_KEY, 0)), 0, PRESETS_M.size() - 1)
+	if idx > 1:
+		settings.set_value(SETTING_KEY, 0)
+	var scale := float(settings.get_value(RENDER_SCALE_KEY, GlesPerformanceScript.default_render_scale()))
+	var capped := minf(scale, GlesPerformanceScript.render_scale_cap())
+	if scale > capped + 0.001:
+		settings.set_value(RENDER_SCALE_KEY, capped)
+	if bool(settings.get_value(SHADOWS_KEY, false)):
+		settings.set_value(SHADOWS_KEY, false)
+	if bool(settings.get_value(SSAO_GLOW_KEY, false)):
+		settings.set_value(SSAO_GLOW_KEY, false)

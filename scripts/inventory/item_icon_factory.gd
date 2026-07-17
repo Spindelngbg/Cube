@@ -9,6 +9,8 @@ static func create_icon(def) -> Texture2D:
 	var icon_key := ItemCatalog.get_icon_key(item_id)
 	if icon_key == "food":
 		return _create_food_icon(def)
+	if icon_key == "boots" or ItemCatalog.is_footwear(item_id):
+		return _create_boots_icon(def)
 	var rarity := str(def.custom_metadata.get("rarity", "common"))
 	var hp_bonus := float(def.custom_metadata.get("hp_bonus", 0))
 	var image := Image.create(ICON_SIZE, ICON_SIZE, false, Image.FORMAT_RGBA8)
@@ -30,6 +32,33 @@ static func slot_label(display_name: String) -> String:
 	if cleaned.length() <= 12:
 		return cleaned
 	return cleaned.substr(0, 12)
+
+
+static func _create_boots_icon(def) -> Texture2D:
+	var rarity := str(def.custom_metadata.get("rarity", "common"))
+	var image := Image.create(ICON_SIZE, ICON_SIZE, false, Image.FORMAT_RGBA8)
+	var base := ItemCatalog.rarity_color(rarity)
+	image.fill(Color(0.08, 0.1, 0.09, 1.0))
+	_draw_border(image, base.lightened(0.15))
+	var leather := Color(0.18, 0.55, 0.42)
+	var sole := Color(0.12, 0.12, 0.14)
+	# Left boot
+	for y in range(18, 36):
+		for x in range(10, 20):
+			image.set_pixel(x, y, leather if y < 32 else sole)
+	# Right boot
+	for y in range(18, 36):
+		for x in range(28, 38):
+			image.set_pixel(x, y, leather if y < 32 else sole)
+	# Laces / highlight
+	var lace := base.lightened(0.25)
+	for x in range(12, 18):
+		image.set_pixel(x, 22, lace)
+		image.set_pixel(x, 25, lace)
+	for x in range(30, 36):
+		image.set_pixel(x, 22, lace)
+		image.set_pixel(x, 25, lace)
+	return ImageTexture.create_from_image(image)
 
 
 static func _create_food_icon(def) -> Texture2D:

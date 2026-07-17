@@ -8,6 +8,7 @@ const NPC_GROUPS := [
 	"world_npc",
 	"gleazer_npc",
 	"allmakare_npc",
+	"factory_worker_npc",
 	"pedestrian_npc",
 	"src_guard",
 	"help_robot",

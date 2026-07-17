@@ -26,26 +26,29 @@ static func building_chance(cell: Vector2i, spawn_cell: Vector2i = DC_SPAWN_CELL
 
 
 static func should_place_building(cell: Vector2i, spawn_cell: Vector2i = DC_SPAWN_CELL) -> bool:
-	if GlesPerformanceScript.is_active():
-		if grid_distance(cell, spawn_cell) >= GlesPerformanceScript.max_building_grid_dist():
-			return false
+	if grid_distance(cell, spawn_cell) >= GlesPerformanceScript.max_building_grid_dist():
+		return false
 	var chance := building_chance(cell, spawn_cell)
+	# Lättare stad = färre byggnader (FPS).
+	chance *= 0.72 if GlesPerformanceScript.is_active() else 0.85
 	var roll := _hash_roll(cell, spawn_cell, 41)
 	return roll < chance
 
 
 ## 0 = ingen vegetation, 1 = full täthet. Glesare nära Kapitol/spawn.
 static func greenery_scale(cell: Vector2i, spawn_cell: Vector2i = DC_SPAWN_CELL) -> float:
+	if GlesPerformanceScript.skip_greenery():
+		return 0.0
 	var dist := grid_distance(cell, spawn_cell)
 	if dist < 1.5:
 		return 0.0
 	if dist < 2.5:
-		return 0.12
+		return 0.08
 	if dist < 4.0:
-		return 0.4
+		return 0.22
 	if dist < 6.0:
-		return 0.72
-	return 1.0
+		return 0.4
+	return 0.55
 
 
 static func should_scatter_cell_accent(cell: Vector2i, spawn_cell: Vector2i = DC_SPAWN_CELL) -> bool:

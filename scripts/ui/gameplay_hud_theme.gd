@@ -32,6 +32,11 @@ static func panel_style() -> StyleBoxTexture:
 	return _texture_style(ROOT_EXTRA + "panel_glass.png", Color(0.72, 0.9, 1.0, 0.95), true, CONTENT)
 
 
+static func compact_hp_panel_style() -> StyleBoxTexture:
+	# Liten HP-mätare: tunn gråblå padding runt innehållet.
+	return _texture_style(ROOT_EXTRA + "panel_glass.png", Color(0.72, 0.9, 1.0, 0.92), true, 6)
+
+
 static func hint_panel_style() -> StyleBoxTexture:
 	return _texture_style(ROOT_EXTRA + "panel_rectangle.png", Color(0.68, 0.86, 0.98, 0.9), true, 10)
 

@@ -13,27 +13,38 @@ var _close_button: Button
 var _zone_mgr: Node
 var _context: Dictionary = {}
 var _open := false
+## Hindrar att samma E/Esc stänger och öppnar igen samma frame.
+var _reopen_block_until_msec := 0
 
 
 func is_open() -> bool:
 	return _open
 
 
+func can_open() -> bool:
+	return Time.get_ticks_msec() >= _reopen_block_until_msec
+
+
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	_build()
 	SpiderTheme.apply_to(self)
 	InventoryManager.currency_changed.connect(_on_currency_changed)
 
 
 func open(zone_mgr: Node, context: Dictionary) -> void:
+	if not can_open():
+		return
 	_zone_mgr = zone_mgr
 	_context = context.duplicate(true)
 	_open = true
 	visible = true
 	_refresh()
 	MouseLook.deactivate()
+	# Blockera omedelbar stängning från samma key-down som öppnade.
+	_reopen_block_until_msec = Time.get_ticks_msec() + 180
 
 
 func close_panel() -> void:
@@ -43,6 +54,8 @@ func close_panel() -> void:
 	visible = false
 	_context = {}
 	_zone_mgr = null
+	# Blockera omedelbar reopen från samma E-tryckning.
+	_reopen_block_until_msec = Time.get_ticks_msec() + 220
 	_restore_mouse()
 	closed.emit()
 
@@ -206,3 +219,19 @@ func _restore_mouse() -> void:
 	if game and game.has_method("should_capture_mouse") and game.should_capture_mouse():
 		if game.has_method("get_camera_pivot") and game.has_method("get_camera"):
 			MouseLook.activate(game.get_camera_pivot(), game.get_camera())
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _open:
+		return
+	# Esc / pause / E stänger rutan utan att öppna pausmenyn eller re-interagera.
+	if (
+		event.is_action_pressed("ui_cancel")
+		or event.is_action_pressed("pause")
+		or event.is_action_pressed("interact")
+	):
+		if Time.get_ticks_msec() < _reopen_block_until_msec:
+			get_viewport().set_input_as_handled()
+			return
+		close_panel()
+		get_viewport().set_input_as_handled()

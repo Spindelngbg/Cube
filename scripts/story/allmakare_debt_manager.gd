@@ -55,7 +55,7 @@ func _offer_heal(creditor_id: String, payload: Dictionary) -> void:
 	if not existing.is_empty():
 		NpcDialogueBarkScript.play_for_id(creditor_id, "refusal")
 		QuestManager.story_toast.emit(
-			"Allmakare — skuld",
+			"Allmakare · Zezzlor — skuld",
 			"Du är redan skyldig %d %s till %s. Betala först."
 			% [
 				int(existing.get("amount", 0)),
@@ -80,7 +80,7 @@ func _offer_heal(creditor_id: String, payload: Dictionary) -> void:
 	if cur >= max_hp - 0.5 and not PoisonManager.is_poisoned():
 		NpcDialogueBarkScript.play_for_id(creditor_id, "miscellaneous")
 		QuestManager.story_toast.emit(
-			"Allmakare",
+			"Allmakare · Zezzlor",
 			"Du är redan frisk. Vi helar bara när det behövs — och fakturerar direkt."
 		)
 		return
@@ -101,7 +101,7 @@ func _offer_heal(creditor_id: String, payload: Dictionary) -> void:
 	NpcDialogueBarkScript.play_for_id(creditor_id, "confirmation")
 	NpcDialogueBarkScript.play_for_id(creditor_id, "greeting")
 	QuestManager.story_toast.emit(
-		"Allmakare — %s" % name,
+		"Allmakare · Zezzlor — %s" % name,
 		"Du är helad. Luktspåret är aktivt — betala %d %s eller vi följer din doft."
 		% [fee, ItemCatalog.currency_symbol()]
 	)
@@ -118,7 +118,7 @@ func _try_pay(peer_id: int, debt: Dictionary) -> void:
 			return
 		NpcDialogueBarkScript.play_for_id(str(debt.get("creditor_id", "")), "refusal")
 		QuestManager.story_toast.emit(
-			"Allmakare — betalning",
+			"Allmakare · Zezzlor — betalning",
 			"Inte tillräckligt med %s eller malm. Vi känner din lukt — vi väntar."
 			% ItemCatalog.currency_name()
 		)
@@ -128,7 +128,7 @@ func _try_pay(peer_id: int, debt: Dictionary) -> void:
 	debt_changed.emit()
 	NpcDialogueBarkScript.play_for_id(str(debt.get("creditor_id", "")), "completion")
 	QuestManager.story_toast.emit(
-		"Allmakare — betalt",
+		"Allmakare · Zezzlor — betalt",
 		"%d %s mottaget. Luktspåret släpps — tills nästa heal."
 		% [amount, ItemCatalog.currency_symbol()]
 	)

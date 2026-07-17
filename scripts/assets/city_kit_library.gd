@@ -52,7 +52,7 @@ static func warmup_dc_city_models() -> void:
 		"commercial": ["building-a", "building-b", "building-c", "building-d", "building-e"],
 		"suburban": ["building-type-a", "building-type-b", "building-type-c"],
 		"industrial": ["building-a", "building-c", "building-f"],
-		"roads": ["tile-low", "road-square"],
+		"roads": ["tile-low", "road-square", "road-straight", "road-curve", "road-bend"],
 		"building": ["wall-doorway-square", "floor"],
 	}
 	for kit in models:

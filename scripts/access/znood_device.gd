@@ -21,7 +21,9 @@ var _screen_panel: MeshInstance3D
 
 func _ready() -> void:
 	_build_visual()
-	set_process(true)
+	# Znood-modellen ska inte synas på spelaren (funktion finns kvar för stämpling/UI).
+	visible = false
+	set_process(false)
 	var znood := RuntimeGlobals.znood()
 	if znood and znood.has_signal("device_open_changed"):
 		znood.device_open_changed.connect(_on_device_open_changed)

@@ -60,7 +60,7 @@ func _broadcast_announcement(speaker_idx: int, entry: Dictionary) -> void:
 	if player.global_position.distance_to(speaker.global_position) > AUDIBLE_RANGE_M:
 		return
 	speaker.play_announcement(entry)
-	QuestManager.story_toast.emit("Zezzlor PA", str(entry.get("text", "")))
+	QuestManager.story_toast.emit("Zezzlornas Högtalarsystem", str(entry.get("text", "")))
 
 
 func _find_local_player() -> Node3D:

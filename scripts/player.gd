@@ -5,6 +5,8 @@ const CheatStateScript = preload("res://scripts/cheat_state.gd")
 const MOVE_SPEED := 5.0
 const SPRINT_SPEED := 8.5
 const JUMP_VELOCITY := 6.5
+var _speed_buff_mult := 1.0
+var _speed_buff_timer := 0.0
 const GRAVITY := 24.0
 const SWIM_GRAVITY := 5.5
 const SWIM_SPEED := 4.6
@@ -106,6 +108,7 @@ func _ready() -> void:
 	if is_multiplayer_authority():
 		InventoryManager.inventory_changed.connect(_on_inventory_changed)
 		WeaponManager.equipped_changed.connect(_on_equipped_weapon_changed)
+		BuffManager.buffs_changed.connect(_on_buffs_changed)
 		_refresh_max_health(true)
 		_player_username = Auth.username
 		var display_name := Profile.active_character_name if not Auth.is_guest else ""
@@ -521,9 +524,13 @@ func _physics_process(delta: float) -> void:
 			if _stuck_frames >= 6:
 				_unstuck_nudge()
 			else:
-				velocity.y = JUMP_VELOCITY
+				velocity.y = JUMP_VELOCITY * InventoryManager.get_jump_multiplier()
 
-		var move_speed := SPRINT_SPEED if Input.is_action_pressed("sprint") else MOVE_SPEED
+		if _speed_buff_timer > 0.0:
+			_speed_buff_timer = maxf(0.0, _speed_buff_timer - delta)
+			if _speed_buff_timer <= 0.0:
+				_speed_buff_mult = 1.0
+		var move_speed := (SPRINT_SPEED if Input.is_action_pressed("sprint") else MOVE_SPEED) * _speed_buff_mult
 		if direction != Vector3.ZERO:
 			velocity.x = direction.x * move_speed
 			velocity.z = direction.z * move_speed
@@ -689,7 +696,7 @@ func get_slime_status_text() -> String:
 			"%s: %d skada | Vänsterklick hugga | Q slag utan vapen"
 			% [
 				ItemCatalog.get_display_name(melee_id),
-				int(WeaponCatalog.get_damage(melee_id)),
+				int(WeaponCatalog.get_damage(melee_id) * BuffManager.get_weapon_damage_multiplier()),
 			]
 		)
 	if InventoryManager.has_item(WeaponManager.LASERRIFLE_ID):
@@ -822,6 +829,8 @@ func _play_landing_feedback(impact_speed: float) -> void:
 
 
 func _fall_damage_for_speed(impact_speed: float) -> float:
+	if InventoryManager.has_fall_damage_immunity():
+		return 0.0
 	if impact_speed < FALL_DAMAGE_MIN_IMPACT_SPEED:
 		return 0.0
 	var weight := inverse_lerp(
@@ -857,6 +866,27 @@ func take_fall_damage(amount: float) -> void:
 	_apply_damage(amount, false)
 
 
+func heal_amount(amount: float) -> void:
+	if amount <= 0.0 or _is_dead:
+		return
+	_health = minf(_max_health, _health + amount)
+	health_changed.emit(_health, _max_health)
+	if is_multiplayer_authority():
+		_sync_health.rpc(_health, _max_health)
+
+
+func apply_speed_buff(multiplier: float, duration: float) -> void:
+	_speed_buff_mult = maxf(1.0, multiplier)
+	_speed_buff_timer = maxf(duration, 1.0)
+
+
+func _armor_damage_reduction() -> float:
+	# Pansarväst i inventory ger 25% skadereduktion.
+	if InventoryManager.has_item("pansarväst"):
+		return 0.25
+	return 0.0
+
+
 func _apply_damage(amount: float, respect_cooldown: bool) -> void:
 	if CheatStateScript.god_mode:
 		return
@@ -867,7 +897,8 @@ func _apply_damage(amount: float, respect_cooldown: bool) -> void:
 	if respect_cooldown and _damage_cooldown > 0.0:
 		return
 	_damage_cooldown = 0.85
-	_health = maxf(0.0, _health - amount)
+	var reduced := amount * (1.0 - _armor_damage_reduction())
+	_health = maxf(0.0, _health - reduced)
 	health_changed.emit(_health, _max_health)
 	_sync_health.rpc(_health, _max_health)
 	_play_damage_bark()
@@ -912,8 +943,12 @@ func _refresh_melee_view() -> void:
 	_fp_melee.set_weapon(WeaponManager.get_equipped_melee_id())
 
 
+func _on_buffs_changed() -> void:
+	_refresh_max_health(false)
+
+
 func _refresh_max_health(fill_new_bonus: bool) -> void:
-	var new_max := InventoryManager.get_max_hp()
+	var new_max := InventoryManager.get_max_hp() + BuffManager.get_max_hp_bonus()
 	var bonus_delta := new_max - _max_health
 	_max_health = new_max
 	if fill_new_bonus:
@@ -922,6 +957,8 @@ func _refresh_max_health(fill_new_bonus: bool) -> void:
 		_health += bonus_delta
 	_health = minf(_health, _max_health)
 	health_changed.emit(_health, _max_health)
+	if is_multiplayer_authority():
+		_sync_health.rpc(_health, _max_health)
 
 
 func _die() -> void:

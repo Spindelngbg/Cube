@@ -35,7 +35,7 @@ static func apply_hit(target: Node, damage: float, attacker_id: int) -> void:
 
 
 static func get_damage(weapon_id: String) -> float:
-	return WeaponCatalog.get_damage(weapon_id)
+	return WeaponCatalog.get_damage(weapon_id) * BuffManager.get_weapon_damage_multiplier()
 
 
 static func get_range(weapon_id: String) -> float:

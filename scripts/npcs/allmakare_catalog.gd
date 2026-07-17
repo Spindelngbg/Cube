@@ -63,7 +63,7 @@ static func _entries(local_spots: Array, spawn_id: String = "satellite_right") -
 			"rotation_y": float(i) * 1.1,
 			"wander": false,
 			"speed": 0.0,
-			"prompt": "Allmakare — heal / betala [E]",
+			"prompt": "Allmakare · Zezzlor — heal / betala [E]",
 		})
 	return out
 

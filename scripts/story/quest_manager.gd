@@ -96,6 +96,9 @@ func start_quest(quest_id: String = MAIN_QUEST_ID, silent: bool = false) -> void
 
 
 func on_interact(interact_id: String) -> void:
+	if interact_id.begins_with("factory_"):
+		FactoryWorkManager.on_interact(interact_id)
+		return
 	if interact_id.begins_with("allmakare_"):
 		_trigger_allmakare(interact_id)
 		return
@@ -181,6 +184,8 @@ func get_current_step_id(quest_id: String = MAIN_QUEST_ID) -> String:
 
 
 func get_hud_quest_hint() -> String:
+	if FactoryWorkManager.is_on_shift():
+		return FactoryWorkManager.get_hud_hint()
 	if ArmamentQuestManager.is_active():
 		return ArmamentQuestManager.get_hud_hint()
 	if SpiderQuestManager.is_active():

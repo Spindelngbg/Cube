@@ -8,7 +8,9 @@ const DcZoneCatalogScript = preload("res://scripts/city/dc_zone_catalog.gd")
 static func apply_to_root(root: Node3D, end_distance: float) -> void:
 	if root == null or end_distance <= 1.0:
 		return
-	_apply_node(root, end_distance)
+	# Lite kortare än camera.far så geometry cullas tidigare.
+	var end := end_distance * 0.88
+	_apply_node(root, end)
 
 
 static func apply_zone_culling(city: Node3D, viewer_pos: Vector3, radius_m: float) -> void:

@@ -8,6 +8,7 @@ const PROMPT := "Prata med Stål-Sven [E]"
 const APRON_COLOR := Color(0.9, 0.35, 0.22)
 const SHIRT_COLOR := Color(0.22, 0.24, 0.3)
 
+var compact_mode := false
 var _player_inside := false
 var _voice_player: AudioStreamPlayer3D
 var _name_label: Label3D
@@ -59,7 +60,7 @@ func _build_interact_area() -> void:
 
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(3.2, 2.6, 3.2)
+	box.size = Vector3(2.6, 2.4, 2.6) if compact_mode else Vector3(3.2, 2.6, 3.2)
 	shape.shape = box
 	_interact_area.add_child(shape)
 
@@ -68,31 +69,34 @@ func _build_interact_area() -> void:
 
 
 func _build_owner() -> void:
-	var counter := MeshInstance3D.new()
-	var counter_mesh := BoxMesh.new()
-	counter_mesh.size = Vector3(3.6, 1.0, 1.2)
-	counter.mesh = counter_mesh
-	counter.position = Vector3(0.0, 0.5, 0.55)
-	var counter_mat := StandardMaterial3D.new()
-	counter_mat.albedo_color = Color(0.28, 0.22, 0.18)
-	counter_mat.roughness = 0.72
-	counter.material_override = counter_mat
-	add_child(counter)
+	if not compact_mode:
+		var counter := MeshInstance3D.new()
+		var counter_mesh := BoxMesh.new()
+		counter_mesh.size = Vector3(3.6, 1.0, 1.2)
+		counter.mesh = counter_mesh
+		counter.position = Vector3(0.0, 0.5, 0.55)
+		var counter_mat := StandardMaterial3D.new()
+		counter_mat.albedo_color = Color(0.28, 0.22, 0.18)
+		counter_mat.roughness = 0.72
+		counter.material_override = counter_mat
+		add_child(counter)
 
 	var pivot := Node3D.new()
 	pivot.name = "ModelPivot"
-	pivot.position = Vector3(0.0, 0.0, -0.15)
+	pivot.position = Vector3(0.0, 0.0, 0.05 if compact_mode else -0.15)
 	add_child(pivot)
 
-	var model := CharacterKitLibraryScript.spawn(pivot, "character-m", Vector3.ZERO, PI, 1.02)
+	var model := CharacterKitLibraryScript.spawn(
+		pivot, "character-m", Vector3.ZERO, PI, 0.92 if compact_mode else 1.02
+	)
 	if model != null:
 		CharacterKitLibraryScript.apply_tint(model, SHIRT_COLOR)
 
 	var apron := MeshInstance3D.new()
 	var apron_mesh := BoxMesh.new()
-	apron_mesh.size = Vector3(0.55, 0.62, 0.08)
+	apron_mesh.size = Vector3(0.48, 0.55, 0.07) if compact_mode else Vector3(0.55, 0.62, 0.08)
 	apron.mesh = apron_mesh
-	apron.position = Vector3(0.0, 1.02, 0.22)
+	apron.position = Vector3(0.0, 0.95 if compact_mode else 1.02, 0.2)
 	var apron_mat := StandardMaterial3D.new()
 	apron_mat.albedo_color = APRON_COLOR
 	apron.material_override = apron_mat
@@ -100,10 +104,10 @@ func _build_owner() -> void:
 
 	_name_label = Label3D.new()
 	_name_label.text = WeaponShopCatalogScript.OWNER_NAME
-	_name_label.font_size = 34
+	_name_label.font_size = 28 if compact_mode else 34
 	_name_label.modulate = APRON_COLOR.lightened(0.15)
 	_name_label.outline_modulate = Color(0.08, 0.08, 0.1, 0.95)
-	_name_label.position = Vector3(0.0, 2.15, 0.0)
+	_name_label.position = Vector3(0.0, 1.95 if compact_mode else 2.15, 0.0)
 	_name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	add_child(_name_label)
 

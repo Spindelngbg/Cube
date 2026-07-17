@@ -20,6 +20,7 @@ const ZONE_COLORS := {
 	"VATTENFRONT": Color(0.22, 0.62, 0.82),
 	"TRANSITNAV": Color(0.38, 0.42, 0.48),
 	"INDUSTRIKAJ": Color(0.48, 0.5, 0.54),
+	"VERKSTADSFABRIK": Color(0.95, 0.72, 0.18),
 	"SRC_LAB": Color(0.95, 0.22, 0.18),
 	"PARKBÄLTE": Color(0.32, 0.78, 0.38),
 }
@@ -43,6 +44,8 @@ static func classify_cell(cell: Vector2i) -> Dictionary:
 		return _zone("SRC_LAB", "SRC HQ — Projekt Redemption", "space", "room-large")
 	if x >= 1 and z == 0:
 		return _zone("TRANSITNAV", "Östra Transitnav", "industrial", "building-c")
+	if x == 2 and z == -3:
+		return _zone("VERKSTADSFABRIK", "Verkstadsfabrik — Industrikaj", "industrial", "building-f")
 	if z >= 3 and x <= -1 and x >= -5:
 		return _zone("AMBASSADNÄSET", "Ambassadnäset %d-%d" % [abs(x), z], "suburban", "building-type-c")
 	if z <= -3 and x <= -1 and x >= -5:

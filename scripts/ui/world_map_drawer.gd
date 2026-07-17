@@ -148,10 +148,11 @@ static func draw(
 			continue
 		var is_local := int(peer_id) == local_peer_id
 		var px := player_px if is_local else _world_to_map(player.global_position, inner, map_center, half_extent, true)
-		var radius := 4.5 if is_local else 3.5
-		var color := SpiderTheme.VENOM if is_local else SpiderTheme.BLOOD_BRIGHT
-		canvas.draw_circle(px, radius + 1.5, Color(0, 0, 0, 0.45))
-		canvas.draw_circle(px, radius, color)
+		var yaw := _player_map_yaw(player)
+		# Röd bloddroppe: spetsen pekar åt den riktning man går / tittar.
+		var color := Color(0.82, 0.08, 0.12, 0.98) if is_local else Color(0.95, 0.35, 0.28, 0.9)
+		var size := 7.5 if is_local else 5.5
+		_draw_blood_drop(canvas, px, yaw, size, color)
 
 	if show_text and show_footer:
 		var title := SpawnPoints.get_spawn_name(spawn_id)
@@ -164,6 +165,74 @@ static func draw(
 			GuiFontLibraryScript.FONT_SMALL,
 			Color(SpiderTheme.BONE.r, SpiderTheme.BONE.g, SpiderTheme.BONE.b, 0.7)
 		)
+
+
+static func _player_map_yaw(player: Node3D) -> float:
+	# Föredra rörelseriktning när man går, annars titt-riktning.
+	if player is CharacterBody3D:
+		var body := player as CharacterBody3D
+		var flat := Vector2(body.velocity.x, body.velocity.z)
+		if flat.length_squared() > 0.12:
+			return atan2(flat.x, flat.y)
+	if player.has_method("get_facing_yaw"):
+		return float(player.get_facing_yaw())
+	return player.rotation.y
+
+
+## Bloddroppe på kartan. Spetsen (vassa delen) pekar i facing-riktning.
+## yaw = atan2(dir.x, dir.z) i world space.
+static func _draw_blood_drop(
+	canvas: Control,
+	center: Vector2,
+	yaw: float,
+	size: float,
+	color: Color
+) -> void:
+	# Världsforward från yaw → karta (x höger, y ner = world z).
+	var dir_map := Vector2(sin(yaw), cos(yaw))
+	if dir_map.length_squared() < 0.0001:
+		dir_map = Vector2(0.0, -1.0)
+	dir_map = dir_map.normalized()
+	# Droppe i lokal rymd: spets vid +Y (ner), rundad kropp vid -Y (upp).
+	# Rotera så lokal +Y blir dir_map.
+	var angle := dir_map.angle() - PI * 0.5
+	var cos_a := cos(angle)
+	var sin_a := sin(angle)
+
+	var local_pts: Array[Vector2] = [
+		Vector2(0.0, size), # spets (riktning)
+		Vector2(size * 0.42, size * 0.45),
+		Vector2(size * 0.55, size * 0.05),
+		Vector2(size * 0.48, -size * 0.35),
+		Vector2(size * 0.22, -size * 0.62),
+		Vector2(0.0, -size * 0.72), # topp
+		Vector2(-size * 0.22, -size * 0.62),
+		Vector2(-size * 0.48, -size * 0.35),
+		Vector2(-size * 0.55, size * 0.05),
+		Vector2(-size * 0.42, size * 0.45),
+	]
+	var pts := PackedVector2Array()
+	var outline := PackedVector2Array()
+	for p in local_pts:
+		var rx := p.x * cos_a - p.y * sin_a
+		var ry := p.x * sin_a + p.y * cos_a
+		var world := center + Vector2(rx, ry)
+		pts.append(world)
+		# Lätt större outline
+		var o := p * 1.18
+		var ox := o.x * cos_a - o.y * sin_a
+		var oy := o.x * sin_a + o.y * cos_a
+		outline.append(center + Vector2(ox, oy))
+
+	canvas.draw_colored_polygon(outline, Color(0.05, 0.02, 0.02, 0.55))
+	canvas.draw_colored_polygon(pts, color)
+	# Highlight (glans) i den runda delen
+	var hl_local := Vector2(-size * 0.12, -size * 0.28)
+	var hl := center + Vector2(
+		hl_local.x * cos_a - hl_local.y * sin_a,
+		hl_local.x * sin_a + hl_local.y * cos_a
+	)
+	canvas.draw_circle(hl, size * 0.16, Color(1.0, 0.45, 0.48, 0.45))
 
 
 static func _elevator_map_position(spawn_id: String) -> Vector3:

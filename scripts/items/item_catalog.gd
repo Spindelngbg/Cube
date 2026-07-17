@@ -88,6 +88,22 @@ static func is_weapon(item_id: String) -> bool:
 	return get_item_type(item_id) == "weapon"
 
 
+static func is_footwear(item_id: String) -> bool:
+	return get_item_type(item_id) == "footwear"
+
+
+static func is_furniture(item_id: String) -> bool:
+	return get_item_type(item_id) == "furniture"
+
+
+static func get_jump_multiplier(item_id: String) -> float:
+	return float(get_item(item_id).get("jump_multiplier", 1.0))
+
+
+static func nullifies_fall_damage(item_id: String) -> bool:
+	return bool(get_item(item_id).get("nullify_fall_damage", false))
+
+
 static func is_material(item_id: String) -> bool:
 	return get_item_type(item_id) == "material" or MydrilliumMaterialCatalogScript.is_material(item_id)
 
@@ -104,6 +120,22 @@ static func cures_poison(item_id: String) -> bool:
 	return bool(get_item(item_id).get("cures_poison", false))
 
 
+static func is_potion(item_id: String) -> bool:
+	return get_item_type(item_id) == "potion"
+
+
+static func get_damage_multiplier(item_id: String) -> float:
+	return float(get_item(item_id).get("damage_multiplier", 0.0))
+
+
+static func get_potion_max_hp_bonus(item_id: String) -> float:
+	return float(get_item(item_id).get("max_hp_bonus", 0.0))
+
+
+static func get_buff_duration(item_id: String) -> float:
+	return float(get_item(item_id).get("buff_duration", 0.0))
+
+
 static func get_shop_price(item_id: String) -> int:
 	return int(get_item(item_id).get("shop_price", 0))
 
@@ -114,6 +146,14 @@ static func get_item_type_label(item_id: String) -> String:
 			return "Vapen"
 		"material":
 			return "Material"
+		"potion":
+			return "Brygd"
+		"footwear":
+			return "Skor"
+		"furniture":
+			return "Möbel"
+		"utility":
+			return "Nyttighet"
 		_:
 			var hp := int(get_hp_bonus(item_id))
 			return "+%d HP" % hp if hp > 0 else "Föremål"

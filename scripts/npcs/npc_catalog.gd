@@ -30,7 +30,9 @@ static func get_spawn_plan(spawn_id: String) -> Array:
 				"Välkommen till Neo-Washington, Koloni 4.\n"
 				+ "Tryck H om du vill läsa intro-guiden — zoner, Mydrillium, markörer och mer.\n"
 				+ "Zezzlor har kontrollpunkter runt spawn — stämpla Znood för att passera.\n"
-				+ "Kapitolplazan ligger västerut. Undvik röda SRC-skyltar söderut."
+				+ "Kapitolplazan ligger västerut. Undvik röda SRC-skyltar söderut.\n"
+				+ "Behöver du pengar? Verkstadsfabriken på Industrikajen (sydöst, zon 2,-3) "
+				+ "tar emot skiftarbetare — stämpla in, kör flödet, prata med kollegorna."
 			),
 		},
 		{

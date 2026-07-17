@@ -113,31 +113,80 @@ static func _build_block_roads(root: Node3D) -> void:
 	roads.name = "BlockRoads"
 	root.add_child(roads)
 
+	var size := DISTRICT_SIZE_M
 	for block_index in range(CubeConstants.PROTOTYPE_BLOCK_COUNT + 1):
 		var offset := block_index * CubeConstants.PROTOTYPE_METERS_PER_BLOCK
-		_spawn_road_strip(roads, Vector3(offset, 0.02, DISTRICT_SIZE_M * 0.5), 0.0, DISTRICT_SIZE_M)
-		_spawn_road_strip(roads, Vector3(DISTRICT_SIZE_M * 0.5, 0.02, offset), PI * 0.5, DISTRICT_SIZE_M)
-
-	for bx in range(CubeConstants.PROTOTYPE_BLOCK_COUNT):
-		for bz in range(CubeConstants.PROTOTYPE_BLOCK_COUNT):
-			var center := Vector3(
-				bx * CubeConstants.PROTOTYPE_METERS_PER_BLOCK + CubeConstants.PROTOTYPE_METERS_PER_BLOCK * 0.5,
-				0.03,
-				bz * CubeConstants.PROTOTYPE_METERS_PER_BLOCK + CubeConstants.PROTOTYPE_METERS_PER_BLOCK * 0.5
-			)
-			CityKitLibrary.spawn(roads, "roads", "road-intersection", center)
+		# Öst–väst
+		_spawn_organic_road_strip(
+			roads,
+			Vector3(0.0, 0.02, offset),
+			Vector3(size, 0.02, offset),
+			true,
+			hash("proto_ew_%d" % block_index)
+		)
+		# Nord–syd
+		_spawn_organic_road_strip(
+			roads,
+			Vector3(offset, 0.02, 0.0),
+			Vector3(offset, 0.02, size),
+			false,
+			hash("proto_ns_%d" % block_index)
+		)
 
 
 static func _spawn_road_strip(parent: Node3D, center: Vector3, rotation_y: float, length_m: float) -> void:
-	var segments := int(ceil(length_m / 4.0))
-	for i in range(segments):
-		var offset := (i - segments * 0.5) * 4.0
-		var pos := center
-		if abs(rotation_y) < 0.1:
-			pos.x += offset
+	var half := length_m * 0.5
+	var along_x := absf(rotation_y) < 0.2
+	var start := center + (Vector3(-half, 0.0, 0.0) if along_x else Vector3(0.0, 0.0, -half))
+	var end := center + (Vector3(half, 0.0, 0.0) if along_x else Vector3(0.0, 0.0, half))
+	_spawn_organic_road_strip(parent, start, end, along_x, hash(str(center)))
+
+
+static func _spawn_organic_road_strip(
+	parent: Node3D,
+	start: Vector3,
+	end: Vector3,
+	primary_along_x: bool,
+	path_seed: int
+) -> void:
+	var length_m := maxf(start.distance_to(end), 4.0)
+	var segments := maxi(int(ceil(length_m / 4.0)), 2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = path_seed
+	var waves := rng.randf_range(0.8, 1.9)
+	var amp := rng.randf_range(4.0, 10.0)
+	var phase := rng.randf_range(0.0, TAU)
+	var points: Array[Vector3] = []
+	for i in range(segments + 1):
+		var t := float(i) / float(segments)
+		var base := start.lerp(end, t)
+		var m := sin(t * TAU * waves + phase) * amp
+		if primary_along_x:
+			base.z += m
 		else:
-			pos.z += offset
-		CityKitLibrary.spawn(parent, "roads", "road-straight", pos, rotation_y)
+			base.x += m
+		base.y = 0.02
+		points.append(base)
+	for i in range(points.size() - 1):
+		var a: Vector3 = points[i]
+		var b: Vector3 = points[i + 1]
+		var mid := (a + b) * 0.5
+		var dir := b - a
+		dir.y = 0.0
+		if dir.length_squared() < 0.0001:
+			continue
+		var yaw := atan2(dir.z, dir.x)
+		var model := "road-straight"
+		if i > 0:
+			var prev: Vector3 = points[i] - points[i - 1]
+			prev.y = 0.0
+			if prev.length_squared() > 0.0001:
+				var turn := absf(angle_difference(atan2(prev.z, prev.x), yaw))
+				if turn > 0.35:
+					model = "road-curve"
+				elif turn > 0.2:
+					model = "road-bend"
+		CityKitLibrary.spawn(parent, "roads", model, mid, yaw)
 
 
 static func _build_district_zones(root: Node3D) -> void:

@@ -34,8 +34,38 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not listen_for_pause_action:
 		return
 	if event.is_action_pressed(pause_action):
+		# Låt öppna dialoger (zonköp m.m.) äta Esc/pause först — annars
+		# öppnas pausmenyn "under" dialogen och mus/fokus buggar.
+		if _game_has_blocking_dialog():
+			return
 		toggle()
 		get_viewport().set_input_as_handled()
+
+
+func _game_has_blocking_dialog() -> bool:
+	var tree := get_tree()
+	if tree == null:
+		return false
+	var game := tree.get_first_node_in_group("game_director")
+	if game == null:
+		return false
+	# Kolla kända dialog-noder via is_open().
+	for prop in [
+		"_zone_purchase_dialog_ui",
+		"_house_build_dialog_ui",
+		"_weapon_shop_dialog_ui",
+		"_potion_shop_dialog_ui",
+		"_furniture_shop_dialog_ui",
+		"_utility_shop_dialog_ui",
+		"_mydrillium_trade_ui",
+		"_help_dialog_ui",
+		"_zezzlor_dialog_ui",
+		"_zezzlor_dossier_ui",
+	]:
+		var dlg = game.get(prop)
+		if dlg != null and dlg.has_method("is_open") and dlg.is_open():
+			return true
+	return false
 
 
 func toggle() -> void:

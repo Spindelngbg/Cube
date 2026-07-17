@@ -49,7 +49,8 @@ const RANKS := {
 		"color": Color(0.62, 0.38, 0.95),
 	},
 	"allmakare": {
-		"title": "Allmakare",
+		## Healing caste within the Zezzlor / Zezzla order — label must say so.
+		"title": "Allmakare · Zezzlor",
 		"abbrev": "All",
 		"color": Color(0.95, 0.86, 0.32),
 	},

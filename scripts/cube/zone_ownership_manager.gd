@@ -143,7 +143,7 @@ func get_hud_hint(world_pos: Vector3, spawn_id: String) -> String:
 			var source := str(entry.get("purchase_source", "mydrillium"))
 			var source_label := "NFT" if source == "nft" else "Mydrillium"
 			if Auth.is_logged_in and owner == Auth.username:
-				return "Din byggnad: %s — spawn här [E]" % name
+				return "Din gröna tomt: %s — bygg hus / spawn [E]" % name
 			return "Ägd zon: %s (%s)" % [name, owner]
 		"foundation", "reserved":
 			return "%s — ej till salu" % name
@@ -227,7 +227,7 @@ func get_zone_interact_action(world_pos: Vector3, spawn_id: String) -> String:
 	var ownership := str(entry.get("ownership", "public"))
 	var owner := str(entry.get("owner_account", ""))
 	if ownership == "owned" and Auth.is_logged_in and owner == Auth.username:
-		return "spawn"
+		return "house"  # Bygg hus / sätt spawn på egen grön tomt
 	var block_zone_id := _block_zone_id(zone_id)
 	if _is_active_rental_block(block_zone_id, spawn_id):
 		return "spawn"

@@ -167,7 +167,7 @@ func _resolve_damage_target(node: Node) -> Node:
 
 
 func _apply_corrosive_hit(target: Node) -> void:
-	var damage := SlimeDamageScript.DAMAGE_PER_HIT
+	var damage := SlimeDamageScript.DAMAGE_PER_HIT * BuffManager.get_weapon_damage_multiplier()
 	if target.has_method("take_corrosive_slime"):
 		target.take_corrosive_slime(damage, _shooter_id)
 	elif target.has_method("take_damage"):

@@ -80,12 +80,13 @@ static func _colors_for_owner(source: String, is_mine: bool) -> Dictionary:
 			"post": Color(0.45, 0.22, 0.78),
 		}
 	if is_mine:
+		# Egna tomter/zoner = grönt.
 		return {
-			"pad": Color(0.95, 0.72, 0.18, 0.38),
-			"emission": Color(1.0, 0.82, 0.28),
-			"accent": Color(1.0, 0.9, 0.42),
-			"label": Color(1.0, 0.92, 0.55),
-			"post": Color(0.82, 0.58, 0.12),
+			"pad": Color(0.22, 0.82, 0.38, 0.42),
+			"emission": Color(0.28, 0.95, 0.42),
+			"accent": Color(0.55, 1.0, 0.62),
+			"label": Color(0.75, 1.0, 0.78),
+			"post": Color(0.12, 0.62, 0.28),
 		}
 	return {
 		"pad": Color(0.42, 0.58, 0.82, 0.3),
