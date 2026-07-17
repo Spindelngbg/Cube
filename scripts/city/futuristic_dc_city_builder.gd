@@ -24,6 +24,7 @@ const ShoppingMallBuilderScript = preload("res://scripts/city/shopping_mall_buil
 const FactoryWorkBuilderScript = preload("res://scripts/city/factory_work_builder.gd")
 const BuildingAmbianceLightsScript = preload("res://scripts/city/building_ambiance_lights.gd")
 const CuteCottageBuilderScript = preload("res://scripts/city/cute_cottage_builder.gd")
+const ColonyDecalBuilderScript = preload("res://scripts/city/colony_decal_builder.gd")
 
 const AVENUE_NAMES := {
 	0: "Nationalmallen",
@@ -65,6 +66,7 @@ static func build(parent: Node3D, spawn_pos: Vector3, spawn_id: String = "satell
 	_build_zezzlor_hq_sites(root)
 	_place_city_sign(root)
 	ZezzlorPaBuilderScript.build(root)
+	ColonyDecalBuilderScript.decorate_city(root)
 	StreetLampServiceScript.finalize_for_city(root, get_spawn_center())
 
 	return root
