@@ -379,10 +379,15 @@ func _configure_colony_rendering() -> void:
 
 	var fill := get_node_or_null("FillLight") as OmniLight3D
 	if fill and is_exposed_city:
-		fill.light_color = Color(0.32, 0.42, 0.62)
-		fill.light_energy = 0.06
 		fill.omni_range = 14.0
 		fill.shadow_enabled = false
+		var PhysicalLightingScript = preload("res://scripts/rendering/physical_lighting.gd")
+		if PhysicalLightingScript.is_enabled():
+			PhysicalLightingScript.apply_omni_physical(fill, 180.0, 9000.0, 1.0)
+			PhysicalLightingScript.enable_distance_fade(fill, 22.0, 10.0)
+		else:
+			fill.light_color = Color(0.32, 0.42, 0.62)
+			fill.light_energy = 0.06
 
 
 func refresh_draw_distance() -> void:

@@ -4,14 +4,20 @@ extends Node3D
 const StreetLampServiceScript = preload("res://scripts/city/street_lamp_service.gd")
 const MultiplayerEntityAuthorityScript = preload("res://scripts/multiplayer_entity_authority.gd")
 const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.gd")
+const PhysicalLightingScript = preload("res://scripts/rendering/physical_lighting.gd")
 
 const BROKEN_CHANCE := 0.11
-## Real Spot/Omni lights tank FPS in large cities — emissive fixtures are enough.
-const USE_DYNAMIC_LIGHTS := false
+## Physical light units (lumens/Kelvin) + distance fade — real Spot/Omni for streetlights.
+const USE_DYNAMIC_LIGHTS := true
 ## God-rays: billiga meshar (delad mesh/material), ingen Light3D, ingen process.
 const USE_LIGHT_RAYS := true
 const RAY_VISIBILITY_END_M := 38.0
 const RAY_VISIBILITY_END_GLES_M := 28.0
+## Cull real lights early so hundreds of lamps don't kill FPS.
+const LIGHT_FADE_BEGIN_M := 28.0
+const LIGHT_FADE_LENGTH_M := 12.0
+const LIGHT_FADE_BEGIN_GLES_M := 18.0
+const LIGHT_FADE_LENGTH_GLES_M := 8.0
 
 ## Delade resurser — noll per-lampa mesh/material-allokering efter första.
 static var _shared_cone_mesh: CylinderMesh
@@ -29,7 +35,10 @@ var _ray_root: Node3D
 var _color := Color(0.82, 0.9, 1.0)
 var _base_spot_energy := 1.85
 var _base_omni_energy := 0.72
+var _base_spot_lumens := PhysicalLightingScript.STREET_SPOT_LUMENS
+var _base_omni_lumens := PhysicalLightingScript.STREET_BULB_LUMENS
 var _base_emission := 1.15
+var _light_temp_k := PhysicalLightingScript.STREET_TEMP_K
 var _broken := false
 var _rebreak_timer := 0.0
 
@@ -65,16 +74,25 @@ func configure(config: Dictionary) -> void:
 	_rng.seed = seed
 	_base_spot_energy = spot_energy
 	_base_omni_energy = spot_energy * 0.38
+	## Scale physical intensity from legacy energy configs (1.85 ≈ full street LED).
+	var energy_norm := clampf(spot_energy / 1.85, 0.35, 1.6)
+	_base_spot_lumens = PhysicalLightingScript.STREET_SPOT_LUMENS * energy_norm
+	_base_omni_lumens = PhysicalLightingScript.STREET_BULB_LUMENS * energy_norm
+	_light_temp_k = float(config.get("temperature_k", PhysicalLightingScript.STREET_TEMP_K))
+	## GLES: skip real lights on some lamps to keep budget (still emissive fixture).
+	var use_lights := USE_DYNAMIC_LIGHTS
+	if GlesPerformanceScript.is_active() and (_rng.randi() % 3) != 0:
+		use_lights = false
 	_build_geometry(height)
-	if USE_DYNAMIC_LIGHTS:
+	if use_lights:
 		_build_lights(height, spot_range, tilt_toward)
 	if USE_LIGHT_RAYS and not GlesPerformanceScript.skip_light_rays():
 		_build_light_rays(height)
 	_broken = _rng.randf() < broken_chance
 	_apply_light_level(1.0 if not _broken else 0.0)
-	if _broken and USE_DYNAMIC_LIGHTS:
+	if _broken and use_lights:
 		_schedule_next_flicker()
-	set_process(_broken and USE_DYNAMIC_LIGHTS)
+	set_process(_broken and use_lights)
 
 
 func is_broken() -> bool:
@@ -237,14 +255,23 @@ static func _configure_ray_instance(mi: MeshInstance3D, cull_end: float) -> void
 
 func _build_lights(height: float, spot_range: float, tilt_toward: Vector3) -> void:
 	var head_pos := Vector3(0.0, height + 0.04, 0.0)
+	var fade_begin := LIGHT_FADE_BEGIN_GLES_M if GlesPerformanceScript.is_active() else LIGHT_FADE_BEGIN_M
+	var fade_len := LIGHT_FADE_LENGTH_GLES_M if GlesPerformanceScript.is_active() else LIGHT_FADE_LENGTH_M
+	var physical := PhysicalLightingScript.is_enabled()
 
 	_bulb_omni = OmniLight3D.new()
 	_bulb_omni.name = "BulbGlow"
 	_bulb_omni.position = head_pos
-	_bulb_omni.light_color = _color
-	_bulb_omni.light_energy = _base_omni_energy
 	_bulb_omni.omni_range = 3.8
 	_bulb_omni.shadow_enabled = false
+	if physical:
+		PhysicalLightingScript.apply_omni_physical(
+			_bulb_omni, _base_omni_lumens, _light_temp_k, 1.0
+		)
+	else:
+		_bulb_omni.light_color = _color
+		_bulb_omni.light_energy = _base_omni_energy
+	PhysicalLightingScript.enable_distance_fade(_bulb_omni, fade_begin * 0.55, fade_len * 0.7)
 	add_child(_bulb_omni)
 
 	_spot = SpotLight3D.new()
@@ -255,20 +282,32 @@ func _build_lights(height: float, spot_range: float, tilt_toward: Vector3) -> vo
 		_spot.look_at(head_pos + tilt_local.normalized(), Vector3.UP)
 	else:
 		_spot.rotation_degrees = Vector3(-90, 0, 0)
-	_spot.light_color = _color
-	_spot.light_energy = _base_spot_energy
 	_spot.spot_range = spot_range
 	_spot.spot_angle = 44.0
 	_spot.shadow_enabled = false
+	if physical:
+		PhysicalLightingScript.apply_spot_physical(
+			_spot, _base_spot_lumens, _light_temp_k, 1.0
+		)
+	else:
+		_spot.light_color = _color
+		_spot.light_energy = _base_spot_energy
+	PhysicalLightingScript.enable_distance_fade(_spot, fade_begin, fade_len)
 	add_child(_spot)
 
 	_spark_omni = OmniLight3D.new()
 	_spark_omni.name = "SparkFlash"
 	_spark_omni.position = head_pos + Vector3(0.0, -0.08, 0.0)
-	_spark_omni.light_color = Color(1.0, 0.72, 0.22)
-	_spark_omni.light_energy = 0.0
 	_spark_omni.omni_range = 2.2
 	_spark_omni.shadow_enabled = false
+	if physical:
+		PhysicalLightingScript.apply_omni_physical(
+			_spark_omni, 0.0, 2200.0, 1.0
+		)
+	else:
+		_spark_omni.light_color = Color(1.0, 0.72, 0.22)
+		_spark_omni.light_energy = 0.0
+	PhysicalLightingScript.enable_distance_fade(_spark_omni, fade_begin * 0.4, fade_len * 0.5)
 	add_child(_spark_omni)
 
 
@@ -288,10 +327,19 @@ func _tick_flicker(delta: float) -> void:
 		_pick_flicker_state()
 	_flicker_current = lerpf(_flicker_current, _flicker_target, delta * 14.0)
 	_apply_light_level(_flicker_current)
+	if _spark_omni == null:
+		return
 	if _rng.randf() < delta * 0.35:
-		_spark_omni.light_energy = _rng.randf_range(0.4, 1.4)
+		if PhysicalLightingScript.is_enabled():
+			_spark_omni.light_intensity_lumens = PhysicalLightingScript.STREET_SPARK_LUMENS * _rng.randf_range(0.5, 1.4)
+			_spark_omni.light_energy = 1.0
+		else:
+			_spark_omni.light_energy = _rng.randf_range(0.4, 1.4)
 	else:
-		_spark_omni.light_energy = lerpf(_spark_omni.light_energy, 0.0, delta * 18.0)
+		if PhysicalLightingScript.is_enabled():
+			_spark_omni.light_intensity_lumens = lerpf(_spark_omni.light_intensity_lumens, 0.0, delta * 18.0)
+		else:
+			_spark_omni.light_energy = lerpf(_spark_omni.light_energy, 0.0, delta * 18.0)
 
 
 func _pick_flicker_state() -> void:
@@ -317,10 +365,19 @@ func _schedule_next_flicker() -> void:
 
 func _apply_light_level(level: float) -> void:
 	var clamped := clampf(level, 0.0, 1.35)
+	var physical := PhysicalLightingScript.is_enabled()
 	if _spot:
-		_spot.light_energy = _base_spot_energy * clamped
+		if physical:
+			_spot.light_intensity_lumens = _base_spot_lumens * clamped
+			_spot.light_energy = 1.0 if clamped > 0.001 else 0.0
+		else:
+			_spot.light_energy = _base_spot_energy * clamped
 	if _bulb_omni:
-		_bulb_omni.light_energy = _base_omni_energy * clamped
+		if physical:
+			_bulb_omni.light_intensity_lumens = _base_omni_lumens * clamped
+			_bulb_omni.light_energy = 1.0 if clamped > 0.001 else 0.0
+		else:
+			_bulb_omni.light_energy = _base_omni_energy * clamped
 	if _fixture_mesh and _fixture_mesh.material_override is StandardMaterial3D:
 		var mat := _fixture_mesh.material_override as StandardMaterial3D
 		mat.emission_energy_multiplier = _base_emission * clamped

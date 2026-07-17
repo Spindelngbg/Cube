@@ -36,6 +36,7 @@ const CULLING_STRENGTH_MULT: Array[float] = [1.0, 0.88, 0.72]
 const ColonyLightingScript = preload("res://scripts/rendering/colony_lighting.gd")
 const RuntimeVisibilityBudgetScript = preload("res://scripts/rendering/runtime_visibility_budget.gd")
 const GlesPerformanceScript = preload("res://scripts/rendering/gles_performance.gd")
+const PhysicalLightingScript = preload("res://scripts/rendering/physical_lighting.gd")
 
 
 func _ready() -> void:
@@ -95,6 +96,8 @@ func apply_colony(game_root: Node3D, is_exposed_city: bool) -> void:
 	if camera:
 		camera.far = distance_m * 1.2
 		camera.near = 0.05
+		## Physical camera exposure for streetlight lumens / sun lux.
+		PhysicalLightingScript.apply_camera_physical(camera)
 
 	var env_node := game_root.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if env_node and env_node.environment:

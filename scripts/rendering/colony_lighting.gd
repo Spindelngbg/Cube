@@ -1,6 +1,8 @@
 class_name ColonyLighting
 extends RefCounted
 
+const PhysicalLightingScript = preload("res://scripts/rendering/physical_lighting.gd")
+
 const HUB_SHADOW_DISTANCE := 180.0
 
 
@@ -10,6 +12,7 @@ static func apply_environment(env: Environment, is_exposed_city: bool, draw_dist
 	var forward_plus := _uses_forward_plus()
 	var ssao_on := ssao_glow_enabled() and forward_plus
 	var glow_on := ssao_glow_enabled() and forward_plus
+	var physical := PhysicalLightingScript.is_enabled()
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.ssao_enabled = ssao_on
 	if env.ssao_enabled:
@@ -25,13 +28,14 @@ static func apply_environment(env: Environment, is_exposed_city: bool, draw_dist
 
 	if is_exposed_city:
 		env.ambient_light_color = Color(0.1, 0.13, 0.22)
-		env.ambient_light_energy = 0.22 if not shadows_enabled() else 0.1
+		## Physical units: ambient is relative fill under exposure.
+		env.ambient_light_energy = (0.12 if not shadows_enabled() else 0.06) if physical else (0.22 if not shadows_enabled() else 0.1)
 		env.fog_light_color = Color(0.14, 0.18, 0.28)
 		env.fog_density = 0.0048
 		env.fog_depth_begin = fog_begin
 		env.fog_depth_end = fog_end
 		env.fog_sky_affect = 0.1
-		env.tonemap_exposure = 0.84
+		env.tonemap_exposure = 1.0 if physical else 0.84
 		env.glow_enabled = glow_on
 		if glow_on:
 			env.glow_intensity = 0.72
@@ -41,13 +45,13 @@ static func apply_environment(env: Environment, is_exposed_city: bool, draw_dist
 			env.glow_strength = 0.0
 	else:
 		env.ambient_light_color = Color(0.14, 0.17, 0.24)
-		env.ambient_light_energy = 0.28 if not shadows_enabled() else 0.18
+		env.ambient_light_energy = (0.16 if not shadows_enabled() else 0.1) if physical else (0.28 if not shadows_enabled() else 0.18)
 		env.fog_light_color = Color(0.16, 0.2, 0.3)
 		env.fog_density = 0.00004
 		env.fog_depth_begin = fog_begin
 		env.fog_depth_end = fog_end
 		env.fog_sky_affect = 0.18
-		env.tonemap_exposure = 0.92
+		env.tonemap_exposure = 1.0 if physical else 0.92
 		env.glow_enabled = glow_on
 		if glow_on:
 			env.glow_intensity = 0.55
@@ -100,6 +104,14 @@ static func apply_sun(sun: DirectionalLight3D, is_exposed_city: bool, draw_dista
 		sun.shadow_blur = 0.0
 	else:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+
+	if PhysicalLightingScript.is_enabled():
+		PhysicalLightingScript.apply_directional_physical(sun, is_exposed_city)
+		if is_exposed_city:
+			sun.rotation_degrees = Vector3(-78, 18, 0)
+		else:
+			sun.rotation_degrees = Vector3(-48, 35, 0)
+		return
 
 	if is_exposed_city:
 		sun.light_color = Color(0.58, 0.68, 0.92)
