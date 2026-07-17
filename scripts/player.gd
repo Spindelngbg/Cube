@@ -105,6 +105,14 @@ func _ready() -> void:
 	add_to_group("player_character")
 	_setup_name_label()
 	_spawn_anchor = global_position
+	## Snabbare, mer responsiv CharacterBody-fysik (passar 90–120 Hz ticks).
+	floor_snap_length = 0.28
+	floor_max_angle = deg_to_rad(50.0)
+	floor_constant_speed = true
+	floor_block_on_wall = true
+	safe_margin = 0.06
+	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
+	up_direction = Vector3.UP
 	if is_multiplayer_authority():
 		InventoryManager.inventory_changed.connect(_on_inventory_changed)
 		WeaponManager.equipped_changed.connect(_on_equipped_weapon_changed)

@@ -243,6 +243,49 @@ func _build_display_tab() -> Control:
 			s.set_value("display.render_scale", 0.75 if idx == 0 else 1.0))
 	scale_row.add_child(scale_opt)
 
+	# --- Physics ---
+	var phys_section := Label.new()
+	phys_section.text = "Physics"
+	phys_section.add_theme_font_size_override("font_size", theme_data.heading_font_size - 8)
+	phys_section.add_theme_color_override("font_color", theme_data.text)
+	tab.add_child(phys_section)
+
+	var physics_node := get_node_or_null("/root/PhysicsProfile")
+	var rate_row := _row(tab, "Physics rate")
+	var rate_opt := OptionButton.new()
+	if physics_node != null and physics_node.get("RATE_LABELS") != null:
+		for label in physics_node.RATE_LABELS:
+			rate_opt.add_item(String(label))
+	else:
+		for label in ["60 Hz (stabil)", "90 Hz (snabb)", "120 Hz (max)"]:
+			rate_opt.add_item(label)
+	rate_opt.selected = clampi(int(settings.get_value("physics.rate_index", 1)), 0, rate_opt.item_count - 1)
+	rate_opt.item_selected.connect(func(idx):
+		var s := _settings()
+		if s != null:
+			s.set_value("physics.rate_index", idx))
+	rate_row.add_child(rate_opt)
+
+	var thread_row := _row(tab, "Physics on thread")
+	var thread_cb := CheckBox.new()
+	thread_cb.button_pressed = bool(settings.get_value("physics.run_on_separate_thread", true))
+	thread_cb.toggled.connect(func(p):
+		var s := _settings()
+		if s != null:
+			s.set_value("physics.run_on_separate_thread", p))
+	thread_row.add_child(thread_cb)
+
+	var phys_note := Label.new()
+	phys_note.text = (
+		"Högre physics rate ger snabbare, mer responsiv rörelse och kollision. "
+		+ "90–120 Hz känns snabbare; 60 Hz är billigast för CPU. "
+		+ "Trådad fysik avlastar main thread (Jolt rekommenderas)."
+	)
+	phys_note.add_theme_font_size_override("font_size", 11)
+	phys_note.add_theme_color_override("font_color", theme_data.text_dim)
+	phys_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(phys_note)
+
 	# --- Culling & Mesh LOD ---
 	var section := Label.new()
 	section.text = "Culling & Mesh LOD"
