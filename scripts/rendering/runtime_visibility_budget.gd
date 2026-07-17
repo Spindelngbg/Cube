@@ -10,7 +10,13 @@ static func apply_to_root(root: Node3D, end_distance: float) -> void:
 		return
 	# Lite kortare än camera.far så geometry cullas tidigare.
 	var end := end_distance * 0.88
-	_apply_node(root, end)
+	_apply_node(root, end, false)
+
+
+static func clear_from_root(root: Node3D) -> void:
+	if root == null:
+		return
+	_apply_node(root, 0.0, true)
 
 
 static func apply_zone_culling(city: Node3D, viewer_pos: Vector3, radius_m: float) -> void:
@@ -30,11 +36,16 @@ static func apply_zone_culling(city: Node3D, viewer_pos: Vector3, radius_m: floa
 		zone.visible = offset.x * offset.x + offset.z * offset.z <= radius_sq
 
 
-static func _apply_node(node: Node, end_distance: float) -> void:
+static func _apply_node(node: Node, end_distance: float, clear: bool) -> void:
 	if node is GeometryInstance3D:
 		var geo := node as GeometryInstance3D
-		geo.visibility_range_begin = 0.0
-		geo.visibility_range_end = end_distance
-		geo.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		if clear:
+			geo.visibility_range_begin = 0.0
+			geo.visibility_range_end = 0.0
+			geo.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		else:
+			geo.visibility_range_begin = 0.0
+			geo.visibility_range_end = end_distance
+			geo.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 	for child in node.get_children():
-		_apply_node(child, end_distance)
+		_apply_node(child, end_distance, clear)

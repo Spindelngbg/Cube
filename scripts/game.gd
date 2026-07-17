@@ -447,6 +447,12 @@ func _apply_entity_simulation_budget() -> void:
 			if entity is CharacterBody3D:
 				(entity as CharacterBody3D).set_physics_process(dist_sq <= sim_radius_sq)
 	var zone_radius := GlesPerformanceScript.zone_cull_radius_m()
+	var draw_distance := get_node_or_null("/root/DrawDistance")
+	if draw_distance != null and draw_distance.has_method("is_distance_culling_enabled"):
+		if not draw_distance.is_distance_culling_enabled():
+			zone_radius = 0.0
+		elif draw_distance.has_method("get_culling_range_mult"):
+			zone_radius *= float(draw_distance.get_culling_range_mult())
 	if zone_radius > 0.0:
 		var city := get_node_or_null("Satellite_%s/NeoWashington" % _active_spawn_id) as Node3D
 		if city:

@@ -34,6 +34,9 @@ var _defaults: Dictionary = {
 	"display.shadows_enabled": false,
 	"display.ssao_glow_enabled": false,
 	"display.render_scale": 0.6,
+	"display.mesh_lod_index": 1,
+	"display.distance_culling_enabled": true,
+	"display.culling_strength_index": 1,
 	"a11y.font_scale": 1.0,
 	"a11y.colorblind_filter": "none",  # none | protanopia | deuteranopia | tritanopia
 	"a11y.reduce_motion": false,
@@ -451,11 +454,11 @@ func _normalize_loaded_values() -> void:
 
 func _coerce_setting_value(key: String, value):
 	match key:
-		"display.window_mode", "display.resolution_index", "display.draw_distance_index":
+		"display.window_mode", "display.resolution_index", "display.draw_distance_index", "display.mesh_lod_index", "display.culling_strength_index":
 			return clampi(int(value), 0, 999)
 		"display.render_scale":
 			return clampf(float(value), 0.5, 1.0)
-		"display.vsync", "display.fps_visible", "display.shadows_enabled", "display.ssao_glow_enabled", "audio.footsteps_enabled", "a11y.reduce_motion", "controls.raw_mouse_input", "gameplay.competitive_mode":
+		"display.vsync", "display.fps_visible", "display.shadows_enabled", "display.ssao_glow_enabled", "display.distance_culling_enabled", "audio.footsteps_enabled", "a11y.reduce_motion", "controls.raw_mouse_input", "gameplay.competitive_mode":
 			return bool(value)
 		"audio.master", "audio.music", "audio.sfx", "a11y.font_scale", "controls.mouse_sensitivity":
 			return float(value)

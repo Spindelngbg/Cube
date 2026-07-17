@@ -243,6 +243,63 @@ func _build_display_tab() -> Control:
 			s.set_value("display.render_scale", 0.75 if idx == 0 else 1.0))
 	scale_row.add_child(scale_opt)
 
+	# --- Culling & Mesh LOD ---
+	var section := Label.new()
+	section.text = "Culling & Mesh LOD"
+	section.add_theme_font_size_override("font_size", theme_data.heading_font_size - 8)
+	section.add_theme_color_override("font_color", theme_data.text)
+	tab.add_child(section)
+
+	var draw_distance_node := get_node_or_null("/root/DrawDistance")
+	var mesh_lod_row := _row(tab, "Mesh LOD")
+	var mesh_lod_opt := OptionButton.new()
+	if draw_distance_node != null and draw_distance_node.get("MESH_LOD_LABELS") != null:
+		for label in draw_distance_node.MESH_LOD_LABELS:
+			mesh_lod_opt.add_item(String(label))
+	else:
+		for label in ["Prestanda", "Balanserad", "Kvalitet", "Max detalj"]:
+			mesh_lod_opt.add_item(label)
+	mesh_lod_opt.selected = clampi(int(settings.get_value("display.mesh_lod_index", 1)), 0, mesh_lod_opt.item_count - 1)
+	mesh_lod_opt.item_selected.connect(func(idx):
+		var s := _settings()
+		if s != null:
+			s.set_value("display.mesh_lod_index", idx))
+	mesh_lod_row.add_child(mesh_lod_opt)
+
+	var cull_row := _row(tab, "Avståndsculling")
+	var cull_cb := CheckBox.new()
+	cull_cb.button_pressed = bool(settings.get_value("display.distance_culling_enabled", true))
+	cull_cb.toggled.connect(func(p):
+		var s := _settings()
+		if s != null:
+			s.set_value("display.distance_culling_enabled", p))
+	cull_row.add_child(cull_cb)
+
+	var strength_row := _row(tab, "Culling-styrka")
+	var strength_opt := OptionButton.new()
+	if draw_distance_node != null and draw_distance_node.get("CULLING_STRENGTH_LABELS") != null:
+		for label in draw_distance_node.CULLING_STRENGTH_LABELS:
+			strength_opt.add_item(String(label))
+	else:
+		for label in ["Mjuk", "Normal", "Aggressiv"]:
+			strength_opt.add_item(label)
+	strength_opt.selected = clampi(int(settings.get_value("display.culling_strength_index", 1)), 0, strength_opt.item_count - 1)
+	strength_opt.item_selected.connect(func(idx):
+		var s := _settings()
+		if s != null:
+			s.set_value("display.culling_strength_index", idx))
+	strength_row.add_child(strength_opt)
+
+	var lod_note := Label.new()
+	lod_note.text = (
+		"Mesh LOD sänker mesh-detalj på avstånd (automatiska LODs från importerade modeller). "
+		+ "Avståndsculling döljer geometry utanför synavstånd. Aggressivare = mer FPS, mer pop-in."
+	)
+	lod_note.add_theme_font_size_override("font_size", 11)
+	lod_note.add_theme_color_override("font_color", theme_data.text_dim)
+	lod_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tab.add_child(lod_note)
+
 	var gfx_note := Label.new()
 	gfx_note.text = "Skuggor och SSAO/glow kräver Forward+. Render scale påverkar 3D direkt."
 	gfx_note.add_theme_font_size_override("font_size", 11)
