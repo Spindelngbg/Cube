@@ -230,6 +230,31 @@ static func get_spawn_batches(spawn_id: String, spawn_center: Vector3) -> Array:
 
 	var block := float(DcZoneCatalog.BLOCK_M)
 	return [
+		## Runt spawn — några SRC-zombies nära Kapitolplazan.
+		{
+			"center": spawn_center + Vector3(22.0, 0.0, -18.0),
+			"radius": 14.0,
+			"entries": _entries([
+				["hybrid", "crawler", 2],
+				["hybrid", "stalker", 1],
+			]),
+		},
+		{
+			"center": spawn_center + Vector3(-20.0, 0.0, 16.0),
+			"radius": 12.0,
+			"entries": _entries([
+				["hybrid", "crawler", 1],
+				["hybrid", "drone_host", 1],
+			]),
+		},
+		{
+			"center": spawn_center + Vector3(18.0, 0.0, 24.0),
+			"radius": 11.0,
+			"entries": _entries([
+				["hybrid", "stalker", 1],
+				["hybrid", "crawler", 1],
+			]),
+		},
 		{
 			"center": spawn_center + Vector3(72.0, 0.0, 58.0),
 			"radius": 52.0,

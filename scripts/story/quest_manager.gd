@@ -114,6 +114,9 @@ func on_interact(interact_id: String) -> void:
 	if interact_id.begins_with("npc_"):
 		NpcCatalogScript.trigger_dialogue(interact_id)
 		return
+	## Generisk fallback: hitta world_npc och öppna dialog.
+	if _trigger_generic_world_npc(interact_id):
+		return
 	match interact_id:
 		"src_leaked_memo":
 			if not _progress.has(MAIN_QUEST_ID):
@@ -245,6 +248,34 @@ func _trigger_gleazer(npc_id: String) -> void:
 		if node.has_method("build_gleazer_talk_payload"):
 			GleazerQuestManager.on_talk(npc_id, node.build_gleazer_talk_payload())
 		return
+
+
+func _trigger_generic_world_npc(npc_id: String) -> bool:
+	for node in get_tree().get_nodes_in_group("world_npc"):
+		if not is_instance_valid(node):
+			continue
+		if str(node.get_meta("npc_id", "")) != npc_id:
+			continue
+		## Undvik rekursion om NPC:n redan anropade QuestManager.
+		if node.has_method("uses_special_talk") and node.uses_special_talk():
+			return false
+		var title := str(node.get_meta("talk_title", ""))
+		var body := str(node.get_meta("talk_body", ""))
+		if node.has_method("get_talk_title"):
+			title = str(node.get_talk_title())
+		if node.has_method("get_talk_body"):
+			body = str(node.get_talk_body())
+		if title == "":
+			title = str(node.get_meta("npc_id", "NPC"))
+		if body == "":
+			body = "..."
+		var game := get_tree().get_first_node_in_group("game_director")
+		if game != null and game.has_method("open_npc_dialog"):
+			game.open_npc_dialog(npc_id, title, body)
+		else:
+			story_toast.emit(title, body)
+		return true
+	return false
 
 
 func _collect_evidence(interact_id: String) -> void:

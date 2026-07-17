@@ -5,11 +5,14 @@
 [ext_resource type="Script" path="res://scripts/world/cube_owdb_bridge.gd" id="3_owdb_bridge"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
-sky_top_color = Color(0.04, 0.06, 0.12, 1)
-sky_horizon_color = Color(0.1, 0.12, 0.18, 1)
-ground_bottom_color = Color(0.02, 0.03, 0.05, 1)
-ground_horizon_color = Color(0.08, 0.1, 0.14, 1)
-sun_angle_max = 28.0
+sky_top_color = Color(0.22, 0.48, 0.86, 1)
+sky_horizon_color = Color(0.68, 0.78, 0.9, 1)
+ground_bottom_color = Color(0.28, 0.32, 0.26, 1)
+ground_horizon_color = Color(0.52, 0.55, 0.48, 1)
+sun_angle_max = 30.0
+sky_curve = 0.1
+sky_energy_multiplier = 1.0
+ground_energy_multiplier = 0.85
 
 [sub_resource type="Sky" id="Sky_main"]
 sky_material = SubResource("ProceduralSkyMaterial_sky")
@@ -17,15 +20,16 @@ sky_material = SubResource("ProceduralSkyMaterial_sky")
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 2
 sky = SubResource("Sky_main")
-ambient_light_source = 2
-ambient_light_color = Color(0.14, 0.17, 0.24, 1)
-ambient_light_energy = 0.18
+ambient_light_source = 3
+ambient_light_sky_contribution = 1.0
+ambient_light_color = Color(0.55, 0.62, 0.75, 1)
+ambient_light_energy = 0.72
 tonemap_mode = 2
-tonemap_exposure = 0.92
+tonemap_exposure = 1.0
 glow_enabled = false
 fog_enabled = true
-fog_light_color = Color(0.16, 0.2, 0.3, 1)
-fog_density = 0.0024
+fog_light_color = Color(0.62, 0.7, 0.82, 1)
+fog_density = 0.0012
 fog_sky_affect = 0.18
 
 [sub_resource type="BoxMesh" id="BoxMesh_floor"]
@@ -42,15 +46,15 @@ environment = SubResource("Environment_main")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
-light_color = Color(0.68, 0.76, 0.95, 1)
-light_energy = 0.72
+light_color = Color(1, 0.93, 0.78, 1)
+light_energy = 1.05
 shadow_enabled = false
 
 [node name="FillLight" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 8, 15)
-light_color = Color(0.38, 0.48, 0.68, 1)
-light_energy = 0.12
-omni_range = 22.0
+light_color = Color(0.7, 0.78, 0.92, 1)
+light_energy = 0.28
+omni_range = 28.0
 
 [node name="Players" type="Node3D" parent="."]
 

@@ -25,36 +25,21 @@ const CAM_EXPOSURE_MULT := 1.0
 
 
 static func is_enabled() -> bool:
-	return bool(ProjectSettings.get_setting(PROJECT_SETTING, false))
+	## Avstängt som standard — physical units + vit light_color blekte staden.
+	return false
 
 
 static func ensure_project_enabled() -> void:
+	## Tvinga av: spelet ska använda vanliga light_energy/färger.
 	if ProjectSettings.has_setting(PROJECT_SETTING):
-		ProjectSettings.set_setting(PROJECT_SETTING, true)
+		ProjectSettings.set_setting(PROJECT_SETTING, false)
 
 
 static func apply_camera_physical(camera: Camera3D) -> void:
 	if camera == null:
 		return
-	ensure_project_enabled()
-	var attrs := camera.attributes as CameraAttributesPhysical
-	if attrs == null:
-		attrs = CameraAttributesPhysical.new()
-		camera.attributes = attrs
-	attrs.exposure_sensitivity = CAM_ISO
-	attrs.exposure_shutter_speed = CAM_SHUTTER
-	attrs.exposure_aperture = CAM_APERTURE
-	attrs.exposure_multiplier = CAM_EXPOSURE_MULT
-	## Auto exposure is Forward+ only — fixed physical exposure on GLES/Compatibility.
-	var forward_plus := str(ProjectSettings.get_setting(
-		"rendering/renderer/rendering_method", "gl_compatibility"
-	)) == "forward_plus"
-	attrs.auto_exposure_enabled = forward_plus
-	if forward_plus:
-		attrs.auto_exposure_scale = 0.35
-		attrs.auto_exposure_min_exposure_value = -2.5
-		attrs.auto_exposure_max_exposure_value = 2.0
-		attrs.auto_exposure_speed = 0.8
+	## Ta bort physical camera-attributes (ISO/exponering) som vitade ut bilden.
+	camera.attributes = null
 
 
 static func apply_directional_physical(
@@ -63,16 +48,13 @@ static func apply_directional_physical(
 ) -> void:
 	if sun == null:
 		return
-	ensure_project_enabled()
+	## Fallback till klassiska färger — anropas inte när is_enabled() är false.
 	if is_exposed_city:
-		sun.light_intensity_lux = CITY_SUN_LUX
-		sun.light_temperature = CITY_SUN_TEMP_K
+		sun.light_color = Color(1.0, 0.94, 0.82)
+		sun.light_energy = 1.15
 	else:
-		sun.light_intensity_lux = HUB_SUN_LUX
-		sun.light_temperature = HUB_SUN_TEMP_K
-	## Multiplier kept near 1 so lux is the main control.
-	sun.light_energy = 1.0
-	sun.light_color = Color(1, 1, 1)
+		sun.light_color = Color(0.95, 0.92, 0.88)
+		sun.light_energy = 1.05
 
 
 static func apply_omni_physical(
@@ -83,11 +65,9 @@ static func apply_omni_physical(
 ) -> void:
 	if light == null:
 		return
-	ensure_project_enabled()
-	light.light_intensity_lumens = maxf(lumens, 0.0)
-	light.light_temperature = temperature_k
-	light.light_energy = energy_mult
-	light.light_color = Color(1, 1, 1)
+	## Konvertera ungefär till vanlig energy (inte physical).
+	light.light_intensity_lumens = 0.0
+	light.light_energy = clampf(energy_mult * (lumens / 8000.0), 0.15, 2.5)
 
 
 static func apply_spot_physical(
@@ -98,11 +78,8 @@ static func apply_spot_physical(
 ) -> void:
 	if light == null:
 		return
-	ensure_project_enabled()
-	light.light_intensity_lumens = maxf(lumens, 0.0)
-	light.light_temperature = temperature_k
-	light.light_energy = energy_mult
-	light.light_color = Color(1, 1, 1)
+	light.light_intensity_lumens = 0.0
+	light.light_energy = clampf(energy_mult * (lumens / 10000.0), 0.2, 3.0)
 
 
 static func enable_distance_fade(

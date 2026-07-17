@@ -4,6 +4,7 @@ extends RefCounted
 const UtilityShopScript = preload("res://scripts/shops/utility_shop.gd")
 const ZnoodPoiMarkerScript = preload("res://scripts/znood/znood_poi_marker.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
+const ShopDoorBuilderScript = preload("res://scripts/shops/shop_door_builder.gd")
 
 const OLIVE := Color(0.35, 0.45, 0.28)
 const ACCENT := Color(0.95, 0.75, 0.2)
@@ -15,10 +16,26 @@ static func build(parent: Node3D, pos: Vector3, poi_id: String = "utility_shop")
 	shop.position = pos
 	parent.add_child(shop)
 
-	var shell := _box(Vector3(6.5, 3.2, 5.2), OLIVE)
-	shell.position = Vector3(0.0, 1.6, 0.0)
-	shop.add_child(shell)
-	WorldCollisionBuilderScript.attach_box(shop, Vector3(6.5, 3.2, 5.2), Vector3(0.0, 1.6, 0.0))
+	var floor := _box(Vector3(6.5, 0.2, 5.2), OLIVE.darkened(0.15))
+	floor.position = Vector3(0.0, 0.1, 0.0)
+	shop.add_child(floor)
+	var back := _box(Vector3(6.5, 3.1, 0.28), OLIVE)
+	back.position = Vector3(0.0, 1.65, -2.46)
+	shop.add_child(back)
+	for side in [-1.0, 1.0]:
+		var wall := _box(Vector3(0.28, 3.1, 5.2), OLIVE.lightened(0.04))
+		wall.position = Vector3(3.11 * side, 1.65, 0.0)
+		shop.add_child(wall)
+	var roof := _box(Vector3(6.8, 0.18, 5.5), ACCENT.darkened(0.4))
+	roof.position = Vector3(0.0, 3.25, 0.0)
+	shop.add_child(roof)
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(6.5, 3.1, 0.35), Vector3(0.0, 1.65, -2.46))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.35, 3.1, 5.2), Vector3(-3.11, 1.65, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.35, 3.1, 5.2), Vector3(3.11, 1.65, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(6.5, 0.25, 5.2), Vector3(0.0, 0.1, 0.0))
+	ShopDoorBuilderScript.add_entrance(
+		shop, 2.55, 3.25, 1.9, 2.35, 3.1, OLIVE.darkened(0.15), Color(0.28, 0.24, 0.18), ACCENT, 22.0
+	)
 
 	var sign := Label3D.new()
 	sign.text = "ÖVERLEVNAD"

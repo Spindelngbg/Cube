@@ -90,13 +90,16 @@ func apply_colony(game_root: Node3D, is_exposed_city: bool) -> void:
 		return
 	var distance_m := get_distance_m()
 
+	## Tvinga klassisk light_energy (inte lumens/ISO) — annars vit/blekt värld.
+	PhysicalLightingScript.ensure_project_enabled()
+
 	var camera := game_root.get_viewport().get_camera_3d()
 	if camera == null:
 		camera = game_root.get_node_or_null("CameraPivot/Camera3D") as Camera3D
 	if camera:
 		camera.far = distance_m * 1.2
 		camera.near = 0.05
-		## Physical camera exposure for streetlight lumens / sun lux.
+		## Rensa physical camera (ISO/exponering) som blekte hela bilden.
 		PhysicalLightingScript.apply_camera_physical(camera)
 
 	var env_node := game_root.get_node_or_null("WorldEnvironment") as WorldEnvironment

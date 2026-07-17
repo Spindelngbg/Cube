@@ -5,6 +5,7 @@ const FurnitureShopScript = preload("res://scripts/shops/furniture_shop.gd")
 const ZnoodPoiMarkerScript = preload("res://scripts/znood/znood_poi_marker.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
 const FurnitureKitLibraryScript = preload("res://scripts/assets/furniture_kit_library.gd")
+const ShopDoorBuilderScript = preload("res://scripts/shops/shop_door_builder.gd")
 
 const WOOD := Color(0.45, 0.32, 0.2)
 const CREAM := Color(0.92, 0.88, 0.78)
@@ -17,10 +18,27 @@ static func build(parent: Node3D, pos: Vector3, poi_id: String = "furniture_shop
 	shop.position = pos
 	parent.add_child(shop)
 
-	var shell := _box(Vector3(7.5, 3.6, 6.0), CREAM.darkened(0.05))
-	shell.position = Vector3(0.0, 1.8, 0.0)
-	shop.add_child(shell)
-	WorldCollisionBuilderScript.attach_box(shop, Vector3(7.5, 3.6, 6.0), Vector3(0.0, 1.8, 0.0))
+	## Öppen framsida (+Z) med väggar — inte solid låda.
+	var floor := _box(Vector3(7.5, 0.22, 6.0), CREAM.darkened(0.12))
+	floor.position = Vector3(0.0, 0.11, 0.0)
+	shop.add_child(floor)
+	var back := _box(Vector3(7.5, 3.5, 0.3), CREAM.darkened(0.08))
+	back.position = Vector3(0.0, 1.85, -2.85)
+	shop.add_child(back)
+	for side in [-1.0, 1.0]:
+		var wall := _box(Vector3(0.3, 3.5, 6.0), CREAM.darkened(0.05))
+		wall.position = Vector3(3.6 * side, 1.85, 0.0)
+		shop.add_child(wall)
+	var roof := _box(Vector3(7.8, 0.2, 6.3), ACCENT.darkened(0.35))
+	roof.position = Vector3(0.0, 3.65, 0.0)
+	shop.add_child(roof)
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(7.5, 3.5, 0.35), Vector3(0.0, 1.85, -2.85))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.35, 3.5, 6.0), Vector3(-3.6, 1.85, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.35, 3.5, 6.0), Vector3(3.6, 1.85, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(7.5, 0.25, 6.0), Vector3(0.0, 0.11, 0.0))
+	ShopDoorBuilderScript.add_entrance(
+		shop, 2.95, 3.75, 2.0, 2.4, 3.5, WOOD, WOOD.lightened(0.1), ACCENT, 20.0
+	)
 
 	var sign := Label3D.new()
 	sign.text = "MÖBELBUTIK"

@@ -5,6 +5,7 @@ const ShoeShopScript = preload("res://scripts/shops/shoe_shop.gd")
 const ZnoodPoiMarkerScript = preload("res://scripts/znood/znood_poi_marker.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
 const CharacterKitLibraryScript = preload("res://scripts/assets/character_kit_library.gd")
+const ShopDoorBuilderScript = preload("res://scripts/shops/shop_door_builder.gd")
 
 const CANVAS := Color(0.92, 0.78, 0.42)
 const ACCENT := Color(0.2, 0.72, 0.55)
@@ -19,7 +20,13 @@ static func build(parent: Node3D, pos: Vector3, poi_id: String = "shoe_shop") ->
 	parent.add_child(shop)
 
 	_build_shell(shop)
-	WorldCollisionBuilderScript.attach_box(shop, Vector3(6.2, 3.4, 5.2), Vector3(0.0, 1.7, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(6.2, 3.4, 0.35), Vector3(0.0, 1.7, -2.45))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.35, 3.4, 5.2), Vector3(-2.96, 1.7, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.35, 3.4, 5.2), Vector3(2.96, 1.7, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(6.2, 0.25, 5.2), Vector3(0.0, 0.1, 0.0))
+	ShopDoorBuilderScript.add_entrance(
+		shop, 2.55, 3.1, 1.85, 2.35, 3.3, CANVAS.darkened(0.2), WOOD, ACCENT, 18.0
+	)
 	_build_sign(shop)
 	_build_counter(shop)
 	_build_owner(shop)

@@ -50,8 +50,12 @@ static func populate(
 				)
 				var spread := Vector3(offset.x * batch_radius, 0.0, offset.z * batch_radius)
 				var pos := batch_center + spread + jitter
-				pos.x = clampf(pos.x, 80.0, size_m - 80.0)
-				pos.z = clampf(pos.z, 80.0, size_m - 80.0)
+				## Absoluta kub-bounds gäller bara oskiftad värld (centrum långt från origo).
+				## Efter world-origin-shift ligger spawn ~0 — clampa då inte bort nära-spawn-batcher.
+				if spawn_center.length() > 200.0:
+					pos.x = clampf(pos.x, 80.0, size_m - 80.0)
+					pos.z = clampf(pos.z, 80.0, size_m - 80.0)
+				pos.y = 0.0
 
 				var monster := WORLD_MONSTER_SCENE.instantiate()
 				monster.name = "Monster_%d" % spawn_index

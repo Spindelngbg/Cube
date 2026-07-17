@@ -5,6 +5,7 @@ const PharmacyShopScript = preload("res://scripts/shops/pharmacy_shop.gd")
 const CutePharmacyRobotScript = preload("res://scripts/npcs/cute_pharmacy_robot.gd")
 const ZnoodPoiMarkerScript = preload("res://scripts/znood/znood_poi_marker.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
+const ShopDoorBuilderScript = preload("res://scripts/shops/shop_door_builder.gd")
 
 const MINT := Color(0.42, 0.88, 0.72)
 const GLASS := Color(0.72, 0.92, 0.98, 0.55)
@@ -18,7 +19,14 @@ static func build(parent: Node3D, pos: Vector3) -> Node3D:
 	parent.add_child(pharmacy)
 
 	_build_shell(pharmacy)
-	WorldCollisionBuilderScript.attach_box(pharmacy, Vector3(7.0, 3.9, 6.0), Vector3(0.0, 2.0, 0.0))
+	## Väggkollision utan att blockera dörröppningen (+Z).
+	WorldCollisionBuilderScript.attach_box(pharmacy, Vector3(7.0, 3.9, 0.4), Vector3(0.0, 2.0, -2.85))
+	WorldCollisionBuilderScript.attach_box(pharmacy, Vector3(0.4, 3.9, 6.0), Vector3(-3.35, 2.0, 0.0))
+	WorldCollisionBuilderScript.attach_box(pharmacy, Vector3(0.4, 3.9, 6.0), Vector3(3.35, 2.0, 0.0))
+	WorldCollisionBuilderScript.attach_box(pharmacy, Vector3(7.0, 0.3, 6.0), Vector3(0.0, 0.12, 0.0))
+	ShopDoorBuilderScript.add_entrance(
+		pharmacy, 2.95, 3.5, 1.95, 2.4, 3.8, WHITE.darkened(0.12), WHITE.darkened(0.05), MINT, 20.0
+	)
 	_build_sign(pharmacy)
 	_build_counter(pharmacy)
 
@@ -84,15 +92,17 @@ static func _build_shell(parent: Node3D) -> void:
 	roof.position = Vector3(0.0, 3.95, 0.0)
 	parent.add_child(roof)
 
-	var window := _box(Vector3(4.5, 1.8, 0.08), GLASS)
-	window.position = Vector3(0.0, 2.2, 2.92)
-	var glass_mat := StandardMaterial3D.new()
-	glass_mat.albedo_color = GLASS
-	glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glass_mat.roughness = 0.08
-	glass_mat.metallic = 0.2
-	window.material_override = glass_mat
-	parent.add_child(window)
+	## Sidofönster — mitten är dörröppning.
+	for side in [-1.0, 1.0]:
+		var window := _box(Vector3(1.5, 1.5, 0.08), GLASS)
+		window.position = Vector3(side * 2.2, 2.35, 2.92)
+		var glass_mat := StandardMaterial3D.new()
+		glass_mat.albedo_color = GLASS
+		glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		glass_mat.roughness = 0.08
+		glass_mat.metallic = 0.2
+		window.material_override = glass_mat
+		parent.add_child(window)
 
 
 static func _build_sign(parent: Node3D) -> void:

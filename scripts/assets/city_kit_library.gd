@@ -130,7 +130,8 @@ static func spawn(
 		WorldCollisionBuilderScript.attach_city_kit_collision(instance, kit, name)
 	if kit != "roads" and building_tint != Color.WHITE:
 		apply_building_tint(instance, building_tint)
-	if kit != "roads" and OS.is_debug_build():
+	## Husnummer bara på hela hus — inte på enstaka vägg/golv-bitar från building-kit.
+	if kit != "roads" and kit != "building" and OS.is_debug_build():
 		DevBuildingLabelsScript.attach(
 			parent,
 			position,
@@ -150,9 +151,10 @@ static func apply_building_tint(node: Node, tint: Color) -> void:
 
 static func brighten_building(
 	node: Node,
-	albedo_boost: Color = Color(1.3, 1.28, 1.22),
-	emission: Color = Color(0.4, 0.45, 0.55),
-	emission_energy: float = 0.2
+	## Mild boost — undvik att Kenney-material bleks till vitt.
+	albedo_boost: Color = Color(1.08, 1.06, 1.04),
+	emission: Color = Color(0.35, 0.4, 0.5),
+	emission_energy: float = 0.12
 ) -> void:
 	if node is MeshInstance3D:
 		_brighten_mesh_instance(node as MeshInstance3D, albedo_boost, emission, emission_energy)

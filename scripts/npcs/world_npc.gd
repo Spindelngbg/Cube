@@ -5,6 +5,7 @@ const GleazerBuilderScript = preload("res://scripts/monsters/gleazer_builder.gd"
 const GleazerLoreScript = preload("res://scripts/story/gleazer_lore.gd")
 const PedestrianStyleScript = preload("res://scripts/npcs/pedestrian_style.gd")
 const PedestrianCatalogScript = preload("res://scripts/npcs/pedestrian_catalog.gd")
+const NpcTalkCatalogScript = preload("res://scripts/npcs/npc_talk_catalog.gd")
 const ZezzlorBuilderScript = preload("res://scripts/monsters/zezzlor_builder.gd")
 const StoryInteractableScript = preload("res://scripts/story/story_interactable.gd")
 const SlimeDamageScript = preload("res://scripts/combat/slime_damage.gd")
@@ -78,6 +79,11 @@ var _last_melee_attacker_id := -1
 var _game_director: Node
 var _sync_accum := 0.0
 var _lod_wait := 0.0
+var _talk_title := ""
+var _talk_body := ""
+var _is_factory_worker := false
+var _is_playground_child := false
+var _is_playground_guard := false
 
 
 func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
@@ -99,12 +105,18 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 	_is_pedestrian = bool(entry.get("pedestrian", false))
 	_is_criminal_boss = bool(entry.get("criminal_boss", false))
 	_is_criminal_henchman = bool(entry.get("criminal_henchman", false))
+	_is_factory_worker = bool(entry.get("factory_worker", false))
+	_is_playground_child = bool(entry.get("playground_child", false))
+	_is_playground_guard = bool(entry.get("playground_guard", false))
 	_criminal_boss_id = str(entry.get("criminal_boss_id", ""))
 	_criminal_boss_name = str(entry.get("boss_name", ""))
 	_criminal_henchman_name = str(entry.get("henchman_name", ""))
 	_wallet = int(entry.get("wallet", 0)) if _is_pedestrian else 0
 	_style_seed = int(entry.get("style_seed", seed))
 	_configure_route(entry, world_pos)
+	var talk := NpcTalkCatalogScript.resolve(entry, _display_name, seed)
+	_talk_title = str(talk.get("title", _display_name))
+	_talk_body = str(talk.get("body", "..."))
 	if _is_zezzlor:
 		var rank_id := str(entry.get("zezzlor_rank", "patrol"))
 		_name_label.modulate = ZezzlorLoreScript.rank_color(rank_id)
@@ -117,12 +129,12 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 		_refresh_criminal_label_color()
 		if _is_criminal_henchman:
 			_criminal_harass_timer = _rng.randf_range(2.0, 6.0)
-	elif bool(entry.get("playground_child", false)):
+	elif _is_playground_child:
 		_name_label.modulate = Color(1.0, 0.82, 0.35)
 		_name_label.position.y = 1.55
-	elif bool(entry.get("playground_guard", false)):
+	elif _is_playground_guard:
 		_name_label.modulate = Color(0.45, 0.72, 1.0)
-	elif bool(entry.get("factory_worker", false)):
+	elif _is_factory_worker:
 		_name_label.modulate = Color(0.95, 0.78, 0.28)
 	position = world_pos
 	rotation.y = float(entry.get("rotation_y", 0.0))
@@ -132,12 +144,13 @@ func setup(entry: Dictionary, world_pos: Vector3, seed: int) -> void:
 	if not _is_zezzlor:
 		_setup_hurtbox()
 		_setup_health_bar()
-	# Lekparksbarn och -vakter behöver ingen dialog-area (bara närvaro).
-	if not _is_pedestrian and not bool(entry.get("playground_child", false)) and not bool(entry.get("playground_guard", false)):
-		_attach_interactable(entry)
+	## Alla NPCs går att prata med via E.
+	_attach_interactable(entry)
 	_pick_new_direction()
 	_wander_timer = _rng.randf_range(1.0, 3.0)
 	set_meta("npc_id", _npc_id)
+	set_meta("talk_title", _talk_title)
+	set_meta("talk_body", _talk_body)
 	add_to_group("world_npc")
 	if _is_gleazer:
 		add_to_group("gleazer_npc")
@@ -871,16 +884,61 @@ func _iter_players() -> Array:
 
 
 func _attach_interactable(entry: Dictionary) -> void:
+	if _npc_id == "":
+		_npc_id = "npc_%d" % get_instance_id()
 	var area := StoryInteractableScript.new()
+	area.name = "TalkArea"
 	area.interact_id = _npc_id
-	area.prompt_text = str(entry.get("prompt", "Prata [E]"))
+	area.prompt_text = str(entry.get("prompt", NpcTalkCatalogScript.default_prompt(_display_name)))
+	area.position = Vector3(0.0, 1.0, 0.0)
+	## Större hitbox så gående NPCs är lätta att prata med.
+	var reach := 2.8 if _is_pedestrian else 2.4
 	area.position = Vector3(0.0, 1.0, 0.0)
 	add_child(area)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(2.2, 2.4, 2.2)
+	box.size = Vector3(reach, 2.6, reach)
 	shape.shape = box
 	area.add_child(shape)
+
+
+func get_talk_title() -> String:
+	return _talk_title if _talk_title != "" else _display_name
+
+
+func get_talk_body() -> String:
+	return _talk_body if _talk_body != "" else "..."
+
+
+func uses_special_talk() -> bool:
+	return (
+		_is_allmakare
+		or _is_gleazer
+		or _is_criminal_boss
+		or _is_criminal_henchman
+		or _is_factory_worker
+		or _npc_id.begins_with("npc_")
+		or _npc_id.begins_with("factory_")
+		or _npc_id.begins_with("allmakare_")
+		or _npc_id.begins_with("gleazer_")
+		or _npc_id.begins_with("criminal_")
+	)
+
+
+## Anropas när spelaren trycker E nära denna NPC.
+func on_player_talk() -> void:
+	if _dead:
+		return
+	## Specialdialoger (quest, fabrik, brotts-bossar …) via QuestManager.
+	if uses_special_talk():
+		QuestManager.on_interact(_npc_id)
+		return
+	_ensure_game_director()
+	if _game_director != null and _game_director.has_method("open_npc_dialog"):
+		_game_director.open_npc_dialog(_npc_id, get_talk_title(), get_talk_body())
+		return
+	NpcDialogueBarkScript.play_for_npc(self, "greeting")
+	QuestManager.story_toast.emit(get_talk_title(), get_talk_body())
 
 
 func _find_anim_player(node: Node) -> AnimationPlayer:

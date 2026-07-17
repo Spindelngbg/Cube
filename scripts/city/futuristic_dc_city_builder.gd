@@ -35,23 +35,35 @@ const STREET_PREFIX := "Neo-Washington"
 ## Avstånd från vägens mittlinje till lyktstolpe (måste vara > halva vägbanan).
 const STREET_LAMP_SIDE_OFFSET := 8.5
 const ROAD_HALF_WIDTH_M := 2.8
+## Kenney road-kit scale 4 → ~4 m per rakt stycke.
+const ROAD_PIECE_M := 4.0
+## Min avstånd mellan byggnadscentrum nära spawn / längre bort.
+## Spawn: gles plaza — undvik hus som sitter i varandra.
+const MIN_BUILDING_SEP_SPAWN_M := 72.0
+const MIN_BUILDING_SEP_CITY_M := 48.0 ## > BLOCK_M (40) → inte varannan cell
+const SPAWN_SPACING_RADIUS_M := 170.0
+const SPAWN_CLEAR_RADIUS_M := 38.0 ## Inga zonbyggnader inne i denna radie
+
+## Världspositioner (lokala till NeoWashington) för redan placerade byggnader.
+static var _placed_building_xz: Array[Vector2] = []
 
 
 static func build(parent: Node3D, spawn_pos: Vector3, spawn_id: String = "satellite_right") -> Node3D:
 	DevBuildingLabelsScript.reset()
 	StreetLampServiceScript.reset()
+	_placed_building_xz.clear()
 	var root := Node3D.new()
 	root.name = "NeoWashington"
 	root.position = spawn_pos
 	parent.add_child(root)
 
 	var theme := ColonyCityTheme.for_spawn(spawn_id)
-	_build_city_plate(root)
+	_build_city_plate(root, theme)
 	_build_street_grid(root, theme)
-	_build_mall_axis(root)
+	_build_mall_axis(root, theme)
 	var building_cells: Array = _build_zoned_blocks(root)
 	_hang_lights_between_neighbors(root, building_cells)
-	_build_landmarks(root)
+	_build_landmarks(root, theme)
 	_build_spawn_plaza(root)
 	WaterBuilderScript.build_city_water_features(root)
 	_build_pharmacy_near_spawn(root)
@@ -72,7 +84,7 @@ static func build(parent: Node3D, spawn_pos: Vector3, spawn_id: String = "satell
 	return root
 
 
-static func _build_city_plate(root: Node3D) -> void:
+static func _build_city_plate(root: Node3D, theme: Dictionary = {}) -> void:
 	var extent: Dictionary = DcZoneCatalog.grid_extent()
 	var width: float = float(extent.x_max - extent.x_min + 1) * DcZoneCatalog.BLOCK_M
 	var depth: float = float(extent.z_max - extent.z_min + 1) * DcZoneCatalog.BLOCK_M
@@ -84,9 +96,10 @@ static func _build_city_plate(root: Node3D) -> void:
 	plate.mesh = mesh
 	plate.position = origin + Vector3(width * 0.5 - DcZoneCatalog.BLOCK_M * 0.5, -0.32, depth * 0.5 - DcZoneCatalog.BLOCK_M * 0.5)
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.1, 0.11, 0.14)
-	mat.metallic = 0.25
-	mat.roughness = 0.82
+	## Markyta under staden — grågrön asfalt/jord, inte svart eller vit.
+	mat.albedo_color = theme.get("plate_color", Color(0.28, 0.32, 0.3)) as Color
+	mat.metallic = 0.08
+	mat.roughness = 0.88
 	plate.material_override = mat
 	root.add_child(plate)
 
@@ -109,45 +122,57 @@ static func _build_street_grid(root: Node3D, theme: Dictionary) -> void:
 	roads.name = "StreetGrid"
 	root.add_child(roads)
 
-	var x0 := float(extent.x_min) * DcZoneCatalog.BLOCK_M
-	var x1 := float(extent.x_max + 1) * DcZoneCatalog.BLOCK_M
-	var z0 := float(extent.z_min) * DcZoneCatalog.BLOCK_M
-	var z1 := float(extent.z_max + 1) * DcZoneCatalog.BLOCK_M
+	var x_min: int = int(extent.x_min)
+	var x_max: int = int(extent.x_max)
+	var z_min: int = int(extent.z_min)
+	var z_max: int = int(extent.z_max)
+	var block := DcZoneCatalog.BLOCK_M
+	var step := ROAD_PIECE_M
 
-	# Öst–västliga avenyer med organisk meander.
-	for z in range(extent.z_min, extent.z_max + 2):
-		var lane_z: float = float(z) * DcZoneCatalog.BLOCK_M
-		var avenue: String = str(AVENUE_NAMES.get(z, "Avenue Z%d" % abs(z)))
-		_spawn_organic_road(
-			roads,
-			Vector3(x0, 0.03, lane_z),
-			Vector3(x1, 0.03, lane_z),
-			true,
-			hash("ave_ew_%d" % z),
-			avenue,
-			theme
-		)
+	## Rakt ortogonalt rutnät (inga meandrar) — rena Kenney-bitar.
+	## 1) Korsningar
+	for x_i in range(x_min, x_max + 2):
+		for z_i in range(z_min, z_max + 2):
+			var pos := Vector3(float(x_i) * block, 0.03, float(z_i) * block)
+			CityKitLibrary.spawn(roads, "roads", "road-square", pos, 0.0)
 
-	# Nord–sydliga gator med annan meander-fas.
-	for x in range(extent.x_min, extent.x_max + 2):
-		var lane_x: float = float(x) * DcZoneCatalog.BLOCK_M
-		_spawn_organic_road(
-			roads,
-			Vector3(lane_x, 0.03, z0),
-			Vector3(lane_x, 0.03, z1),
-			false,
-			hash("st_ns_%d" % x),
-			"%s Gata %d" % [STREET_PREFIX, x - extent.x_min + 1],
-			theme
-		)
+	## 2) Öst–väst (längs X) mellan korsningar — road-straight längs lokal X, yaw 0.
+	for z_i in range(z_min, z_max + 2):
+		var z := float(z_i) * block
+		for x_i in range(x_min, x_max + 1):
+			var x0 := float(x_i) * block
+			var t := step
+			while t < block - 0.01:
+				CityKitLibrary.spawn(
+					roads,
+					"roads",
+					"road-straight",
+					Vector3(x0 + t, 0.03, z),
+					0.0
+				)
+				t += step
 
-	# Extra organiska kopplingar / "boulevarder" som bryter rutnätet.
-	_spawn_organic_connectors(roads, theme, x0, x1, z0, z1)
+	## 3) Nord–syd (längs Z) — road-straight roterad 90°.
+	for x_i in range(x_min, x_max + 2):
+		var x := float(x_i) * block
+		for z_i in range(z_min, z_max + 1):
+			var z0 := float(z_i) * block
+			var t := step
+			while t < block - 0.01:
+				CityKitLibrary.spawn(
+					roads,
+					"roads",
+					"road-straight",
+					Vector3(x, 0.03, z0 + t),
+					PI * 0.5
+				)
+				t += step
+
 	# Lyktor endast på trottoar-linjer (aldrig i körbana).
 	_spawn_sidewalk_lamps(roads, theme, extent)
 
 
-static func _build_mall_axis(root: Node3D) -> void:
+static func _build_mall_axis(root: Node3D, theme: Dictionary = {}) -> void:
 	var mall := Node3D.new()
 	mall.name = "NationalMall"
 	root.add_child(mall)
@@ -170,7 +195,7 @@ static func _build_mall_axis(root: Node3D) -> void:
 		)
 
 	var obelisk_pos := _cell_origin(Vector2i(-3, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
-	_build_obelisk(mall, obelisk_pos)
+	_build_obelisk(mall, obelisk_pos, theme)
 
 
 static func _build_zoned_blocks(root: Node3D) -> Array:
@@ -180,6 +205,8 @@ static func _build_zoned_blocks(root: Node3D) -> Array:
 	root.add_child(zones)
 	var building_cells: Array = []
 
+	## Bygg närmast spawn först så spacing-regeln prioriterar gles plaza.
+	var cells: Array[Vector2i] = []
 	for x in range(extent.x_min, extent.x_max + 1):
 		for z in range(extent.z_min, extent.z_max + 1):
 			var cell := Vector2i(x, z)
@@ -187,8 +214,14 @@ static func _build_zoned_blocks(root: Node3D) -> Array:
 				continue
 			if DcZoneCatalog.is_reserved_landmark_cell(cell):
 				continue
-			if _build_zone_block(zones, cell):
-				building_cells.append(cell)
+			cells.append(cell)
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return a.length_squared() < b.length_squared()
+	)
+
+	for cell in cells:
+		if _build_zone_block(zones, cell):
+			building_cells.append(cell)
 	return building_cells
 
 
@@ -234,30 +267,47 @@ static func _build_zone_block(parent: Node3D, cell: Vector2i) -> bool:
 	var zone_type: String = str(spec.get("zone_type", ""))
 	var rotation_y := float((cell.x + cell.y) % 4) * PI * 0.5
 
+	var world_center := zone_root.position + center
 	var placed_building := false
+	var spawn_xz_dist := Vector2(
+		world_center.x - get_spawn_center().x,
+		world_center.z - get_spawn_center().z
+	).length()
+	## Håll Kapitolplaza fri — bara golv/park nära spawn.
+	var in_spawn_clear := spawn_xz_dist < SPAWN_CLEAR_RADIUS_M
 	if FactoryWorkBuilderScript.is_factory_cell(cell):
 		# Alltid placera verkstadsfabriken (jobb-minigame) oavsett densitet.
 		FactoryWorkBuilderScript.build(zone_root, center, cell)
 		CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+		_register_building_world(world_center)
 		placed_building = true
 	elif kit == "roads":
 		CityKitLibrary.spawn(zone_root, kit, model, center + Vector3(0.0, 0.02, 0.0))
 		_add_park_lights(zone_root, center, ColonyCityTheme.for_spawn("satellite_right"))
-	elif kit == "space":
+	elif kit == "space" and not in_spawn_clear:
 		SpaceKitLibrary.spawn(zone_root, model, center)
-	elif SpawnDensityScript.should_place_building(cell):
+		_register_building_world(world_center)
+		placed_building = true
+	elif (
+		not in_spawn_clear
+		and SpawnDensityScript.should_place_building(cell)
+		and _can_place_building_world(world_center)
+	):
 		# Hus nr 9 → lekpark | hus nr 12 → shoppingcenter.
 		if PlaygroundParkBuilderScript.should_replace_next_building():
 			PlaygroundParkBuilderScript.build(zone_root, center, cell)
 			CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+			_register_building_world(world_center)
 			placed_building = true
 		elif ShoppingMallBuilderScript.should_replace_next_building():
 			ShoppingMallBuilderScript.build(zone_root, center, cell)
 			CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+			_register_building_world(world_center)
 			placed_building = true
 		elif CuteCottageBuilderScript.should_spawn_cute(cell, zone_type, kit):
 			CuteCottageBuilderScript.build(zone_root, center, cell, rotation_y)
 			CityKitLibrary.spawn(zone_root, "roads", "road-square", center + Vector3(0.0, 0.02, 0.0))
+			_register_building_world(world_center)
 			placed_building = true
 		else:
 			var scale := CityKitLibrary.kit_scale(kit)
@@ -272,18 +322,27 @@ static func _build_zone_block(parent: Node3D, cell: Vector2i) -> bool:
 				scale,
 				Color(1.0, 0.84, 0.48)
 			)
+			_register_building_world(world_center)
 			placed_building = true
 	else:
-		# Tomma bostadsrutor: ibland ändå ett litet sött hus.
-		if CuteCottageBuilderScript.should_spawn_cute(cell, zone_type, kit) and (
-			zone_type in ["BOSTADSKVARTER", "AMBASSADNÄSET"] or kit == "suburban"
+		# Tomma rutor: golvplatta, ingen extra stuga om spacing/spawn-clear blockerar.
+		if (
+			not in_spawn_clear
+			and CuteCottageBuilderScript.should_spawn_cute(cell, zone_type, kit)
+			and (zone_type in ["BOSTADSKVARTER", "AMBASSADNÄSET"] or kit == "suburban")
+			and _can_place_building_world(world_center)
 		):
 			CuteCottageBuilderScript.build(zone_root, center, cell, rotation_y)
 			CityKitLibrary.spawn(zone_root, "roads", "tile-low", center + Vector3(0.0, 0.02, 0.0))
+			_register_building_world(world_center)
 			placed_building = true
 		else:
 			CityKitLibrary.spawn(zone_root, "roads", "tile-low", center + Vector3(0.0, 0.02, 0.0))
-			if not GlesPerformanceScript.skip_greenery() and SpawnDensityScript.should_scatter_cell_accent(cell):
+			if (
+				not in_spawn_clear
+				and not GlesPerformanceScript.skip_greenery()
+				and SpawnDensityScript.should_scatter_cell_accent(cell)
+			):
 				GreeneryVegetationBuilder.scatter_cell_accent(zone_root, center, cell)
 
 	_add_zone_marker(zone_root, center, spec, true)
@@ -291,10 +350,90 @@ static func _build_zone_block(parent: Node3D, cell: Vector2i) -> bool:
 	return placed_building
 
 
+static func _can_place_building_world(world_center: Vector3) -> bool:
+	var spawn := get_spawn_center()
+	var dist_spawn := Vector2(world_center.x - spawn.x, world_center.z - spawn.z).length()
+	if dist_spawn < SPAWN_CLEAR_RADIUS_M:
+		return false
+	var min_sep := MIN_BUILDING_SEP_SPAWN_M if dist_spawn <= SPAWN_SPACING_RADIUS_M else MIN_BUILDING_SEP_CITY_M
+	for p in _placed_building_xz:
+		var d := Vector2(world_center.x - p.x, world_center.z - p.y).length()
+		if d < min_sep:
+			return false
+	return true
+
+
+static func _register_building_world(world_center: Vector3) -> void:
+	_placed_building_xz.append(Vector2(world_center.x, world_center.z))
+
+
+static func _try_place_poi(root: Node3D, local_pos: Vector3, build_cb: Callable) -> bool:
+	if not _can_place_building_world(local_pos):
+		## Förskjut i ring tills spacing håller.
+		for ring in range(1, 6):
+			var r := float(ring) * 12.0
+			for k in 8:
+				var ang := float(k) * TAU / 8.0
+				var cand := local_pos + Vector3(cos(ang) * r, 0.0, sin(ang) * r)
+				if _can_place_building_world(cand):
+					local_pos = cand
+					build_cb.call(root, local_pos)
+					_register_building_world(local_pos)
+					return true
+		return false
+	build_cb.call(root, local_pos)
+	_register_building_world(local_pos)
+	return true
+
+
+## Butiker i en ring runt spawn — ≥24 m isär, utanför clear-radie.
+static func _spawn_ring_pos(spawn_center: Vector3, angle_deg: float, radius: float) -> Vector3:
+	var a := deg_to_rad(angle_deg)
+	return spawn_center + Vector3(cos(a) * radius, 0.0, sin(a) * radius)
+
+
+## Butiker får mildare isär-krav (26 m) än fulla zonhus.
+static func _can_place_poi(world_center: Vector3, min_sep: float = 26.0) -> bool:
+	var spawn := get_spawn_center()
+	var dist_spawn := Vector2(world_center.x - spawn.x, world_center.z - spawn.z).length()
+	if dist_spawn < SPAWN_CLEAR_RADIUS_M + 2.0:
+		return false
+	for p in _placed_building_xz:
+		var d := Vector2(world_center.x - p.x, world_center.z - p.y).length()
+		if d < min_sep:
+			return false
+	return true
+
+
+static func _place_poi_with_space(root: Node3D, preferred: Vector3, build_cb: Callable) -> Vector3:
+	var pos := preferred
+	if not _can_place_poi(pos):
+		for ring in range(1, 8):
+			var r := float(ring) * 9.0
+			var found := false
+			for k in 12:
+				var ang := float(k) * TAU / 12.0
+				var cand := preferred + Vector3(cos(ang) * r, 0.0, sin(ang) * r)
+				if _can_place_poi(cand):
+					pos = cand
+					found = true
+					break
+			if found:
+				break
+	build_cb.call(root, pos)
+	_register_building_world(pos)
+	return pos
+
+
 static func _build_pharmacy_near_spawn(root: Node3D) -> void:
-	var spawn_center := _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
-	var pharmacy_pos := spawn_center + Vector3(14.0, 0.0, -16.0)
-	PharmacyBuilderScript.build(root, pharmacy_pos)
+	var spawn_center := get_spawn_center()
+	var pharmacy_pos := _spawn_ring_pos(spawn_center, 200.0, 48.0)
+	pharmacy_pos = _place_poi_with_space(
+		root,
+		pharmacy_pos,
+		func(r: Node3D, p: Vector3) -> void:
+			PharmacyBuilderScript.build(r, p)
+	)
 
 	var arrow := Label3D.new()
 	arrow.text = "PHARMACY →\nPill-Bot har antidot"
@@ -307,15 +446,25 @@ static func _build_pharmacy_near_spawn(root: Node3D) -> void:
 
 
 static func _build_weapon_shop_near_spawn(root: Node3D) -> void:
-	var spawn_center := _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
-	var weapon_pos := spawn_center + Vector3(-18.0, 0.0, -14.0)
-	WeaponShopBuilderScript.build(root, weapon_pos, "weapon_shop_dc")
+	var spawn_center := get_spawn_center()
+	var weapon_pos := _spawn_ring_pos(spawn_center, 140.0, 50.0)
+	_place_poi_with_space(
+		root,
+		weapon_pos,
+		func(r: Node3D, p: Vector3) -> void:
+			WeaponShopBuilderScript.build(r, p, "weapon_shop_dc")
+	)
 
 
 static func _build_potion_shop_near_spawn(root: Node3D) -> void:
-	var spawn_center := _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
-	var potion_pos := spawn_center + Vector3(4.0, 0.0, -22.0)
-	PotionShopBuilderScript.build(root, potion_pos, "potion_shop_dc")
+	var spawn_center := get_spawn_center()
+	var potion_pos := _spawn_ring_pos(spawn_center, 250.0, 52.0)
+	_place_poi_with_space(
+		root,
+		potion_pos,
+		func(r: Node3D, p: Vector3) -> void:
+			PotionShopBuilderScript.build(r, p, "potion_shop_dc")
+	)
 
 	var arrow := Label3D.new()
 	arrow.text = "BRYGDHÖRNAN →\nMagiska brygder"
@@ -328,9 +477,14 @@ static func _build_potion_shop_near_spawn(root: Node3D) -> void:
 
 
 static func _build_shoe_shop_near_spawn(root: Node3D) -> void:
-	var spawn_center := _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
-	var shoe_pos := spawn_center + Vector3(8.0, 0.0, 10.0)
-	ShoeShopBuilderScript.build(root, shoe_pos, "shoe_shop_dc")
+	var spawn_center := get_spawn_center()
+	var shoe_pos := _spawn_ring_pos(spawn_center, 40.0, 49.0)
+	_place_poi_with_space(
+		root,
+		shoe_pos,
+		func(r: Node3D, p: Vector3) -> void:
+			ShoeShopBuilderScript.build(r, p, "shoe_shop_dc")
+	)
 
 	var arrow := Label3D.new()
 	arrow.text = "SKOBUTIK →\nHoppskor"
@@ -344,21 +498,43 @@ static func _build_shoe_shop_near_spawn(root: Node3D) -> void:
 
 static func _build_furniture_shop_near_spawn(root: Node3D) -> void:
 	var spawn_center := get_spawn_center()
-	FurnitureShopBuilderScript.build(root, spawn_center + Vector3(-10.0, 0.0, 12.0), "furniture_shop_dc")
+	var pos := _spawn_ring_pos(spawn_center, 100.0, 54.0)
+	_place_poi_with_space(
+		root,
+		pos,
+		func(r: Node3D, p: Vector3) -> void:
+			FurnitureShopBuilderScript.build(r, p, "furniture_shop_dc")
+	)
 
 
 static func _build_utility_shop_near_spawn(root: Node3D) -> void:
 	var spawn_center := get_spawn_center()
-	UtilityShopBuilderScript.build(root, spawn_center + Vector3(12.0, 0.0, 8.0), "utility_shop_dc")
+	var pos := _spawn_ring_pos(spawn_center, 320.0, 51.0)
+	_place_poi_with_space(
+		root,
+		pos,
+		func(r: Node3D, p: Vector3) -> void:
+			UtilityShopBuilderScript.build(r, p, "utility_shop_dc")
+	)
 
 
 static func _build_purple_laser_tower_near_spawn(root: Node3D) -> void:
 	var spawn_center := get_spawn_center()
-	PurpleLaserTowerBuilderScript.build(root, spawn_center + Vector3(22.0, 0.0, 12.0), "dc")
+	var pos := _spawn_ring_pos(spawn_center, 20.0, 58.0)
+	_place_poi_with_space(
+		root,
+		pos,
+		func(r: Node3D, p: Vector3) -> void:
+			PurpleLaserTowerBuilderScript.build(r, p, "dc")
+	)
 
 
-static func _build_landmarks(root: Node3D) -> void:
-	_build_capitol(root, _cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5))
+static func _build_landmarks(root: Node3D, theme: Dictionary = {}) -> void:
+	_build_capitol(
+		root,
+		_cell_origin(Vector2i(0, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5),
+		theme
+	)
 	_build_memorial_west(
 		root,
 		_cell_origin(Vector2i(-6, 0)) + Vector3(DcZoneCatalog.BLOCK_M * 0.5, 0.0, DcZoneCatalog.BLOCK_M * 0.5)
@@ -411,46 +587,46 @@ static func _build_spawn_plaza(root: Node3D) -> void:
 	floor_mesh.mesh = mesh
 	floor_mesh.position = Vector3(0.0, -0.07, 0.0)
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.18, 0.2, 0.26)
-	mat.metallic = 0.22
-	mat.roughness = 0.78
+	mat.albedo_color = Color(0.42, 0.44, 0.4)
+	mat.metallic = 0.12
+	mat.roughness = 0.82
 	floor_mesh.material_override = mat
 	plaza.add_child(floor_mesh)
 
 
-static func _build_capitol(parent: Node3D, pos: Vector3) -> void:
+static func _build_capitol(parent: Node3D, pos: Vector3, theme: Dictionary = {}) -> void:
 	var capitol := Node3D.new()
 	capitol.name = "FuturisticCapitol"
 	# Kapitoliet norr om spawn-plazan — mittpunkten (pos) ska vara fri att stå på.
 	capitol.position = pos + Vector3(0.0, 0.0, -14.0)
 	parent.add_child(capitol)
 
-	SpaceKitLibrary.spawn(capitol, "template-floor-detail-a", Vector3(0, 0, 0))
-	SpaceKitLibrary.spawn(capitol, "room-large", Vector3(0, 0, 0))
-	SpaceKitLibrary.spawn(capitol, "room-large-variation", Vector3(0, 0, -6), PI)
-	for i in range(4):
-		SpaceKitLibrary.spawn(capitol, "template-wall-detail-a", Vector3(-8 + i * 5.0, 0, 8), PI)
+	## Hela byggnader — inga lösa space-kit-väggar i luften.
+	CityKitLibrary.spawn(capitol, "commercial", "building-e", Vector3(0, 0, -4), 0.0)
+	CityKitLibrary.spawn(capitol, "commercial", "building-d", Vector3(0, 0, 8), PI)
 
 	var dome := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
 	mesh.radius = 5.5
 	mesh.height = 7.0
 	dome.mesh = mesh
-	dome.position = Vector3(0.0, 8.0, 0.0)
+	dome.position = Vector3(0.0, 14.0, 2.0)
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.88, 0.9, 0.95)
-	mat.metallic = 0.65
+	## Sten/metallkupol — inte blekt vit.
+	mat.albedo_color = theme.get("dome_albedo", Color(0.72, 0.74, 0.82)) as Color
+	mat.metallic = 0.45
+	mat.roughness = 0.42
 	mat.emission_enabled = true
-	mat.emission = Color(0.45, 0.62, 0.95)
-	mat.emission_energy_multiplier = 0.35
+	mat.emission = theme.get("dome_emission", Color(0.35, 0.5, 0.78)) as Color
+	mat.emission_energy_multiplier = 0.22
 	dome.material_override = mat
 	capitol.add_child(dome)
-	WorldCollisionBuilderScript.attach_box(capitol, Vector3(11.0, 8.0, 11.0), Vector3(0.0, 8.0, 0.0))
+	WorldCollisionBuilderScript.attach_box(capitol, Vector3(11.0, 8.0, 11.0), Vector3(0.0, 14.0, 2.0))
 
 	_add_zone_marker(capitol, Vector3(0, 0, 14.0), DcZoneCatalog.classify_cell(Vector2i(0, 0)), true)
 
 
-static func _build_obelisk(parent: Node3D, pos: Vector3) -> void:
+static func _build_obelisk(parent: Node3D, pos: Vector3, theme: Dictionary = {}) -> void:
 	var spire := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = 0.8
@@ -459,11 +635,13 @@ static func _build_obelisk(parent: Node3D, pos: Vector3) -> void:
 	spire.mesh = mesh
 	spire.position = pos + Vector3(0.0, 21.0, 0.0)
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.78, 0.82, 0.9)
-	mat.metallic = 0.55
+	## Monumentsten — gråblå, inte vit metall.
+	mat.albedo_color = theme.get("obelisk_albedo", Color(0.62, 0.66, 0.74)) as Color
+	mat.metallic = 0.35
+	mat.roughness = 0.48
 	mat.emission_enabled = true
-	mat.emission = Color(0.55, 0.72, 1.0)
-	mat.emission_energy_multiplier = 0.45
+	mat.emission = theme.get("obelisk_emission", Color(0.4, 0.55, 0.82)) as Color
+	mat.emission_energy_multiplier = 0.28
 	spire.material_override = mat
 	parent.add_child(spire)
 	WorldCollisionBuilderScript.attach_box(parent, Vector3(4.4, 42.0, 4.4), pos + Vector3(0.0, 21.0, 0.0))
@@ -483,10 +661,9 @@ static func _build_memorial_west(parent: Node3D, pos: Vector3) -> void:
 	memorial.position = pos
 	parent.add_child(memorial)
 
-	for i in range(6):
-		SpaceKitLibrary.spawn(memorial, "template-wall", Vector3(-10 + i * 4.0, 0, 0), PI * 0.5)
-	SpaceKitLibrary.spawn(memorial, "template-floor-big", Vector3(0, 0, 0))
-	CityKitLibrary.spawn(memorial, "commercial", "building-d", Vector3(0, 0, 8), PI)
+	## En hel byggnad — inte rad av template-wall-bitar.
+	CityKitLibrary.spawn(memorial, "commercial", "building-d", Vector3(0, 0, 0), 0.0)
+	CityKitLibrary.spawn(memorial, "commercial", "building-a", Vector3(0, 0, 14), PI)
 
 	_add_zone_marker(memorial, Vector3(0, 0, 0), DcZoneCatalog.classify_cell(Vector2i(-6, 0)), true)
 
@@ -498,7 +675,6 @@ static func _build_white_house(parent: Node3D, pos: Vector3) -> void:
 	parent.add_child(executive)
 
 	CityKitLibrary.spawn(executive, "suburban", "building-type-e", Vector3(0, 0, 0))
-	SpaceKitLibrary.spawn(executive, "gate-door-window", Vector3(0, 0, 6))
 	_add_zone_marker(executive, Vector3(0, 0, 0), DcZoneCatalog.classify_cell(Vector2i(-2, 3)), true)
 
 

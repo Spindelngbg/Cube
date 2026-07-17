@@ -75,15 +75,17 @@ static func _spawn_children(
 		var world_pos := park_center + offset
 		world_pos.y = city_origin_y(park_center)
 
+		var child_name: String = str(CHILD_NAMES[i % CHILD_NAMES.size()])
 		var entry := {
 			"id": "playground_child_%d" % i,
-			"name": CHILD_NAMES[i % CHILD_NAMES.size()],
+			"name": child_name,
 			"scale": rng.randf_range(0.52, 0.68),
 			"speed": rng.randf_range(1.6, 2.6),
 			"wander": true,
 			"wander_radius": rng.randf_range(4.0, 9.0),
 			"playground_child": true,
 			"tint": Color.from_hsv(rng.randf(), rng.randf_range(0.55, 0.9), rng.randf_range(0.75, 1.0)),
+			"prompt": "Prata med %s [E]" % child_name,
 		}
 		_spawn_npc(root, entry, world_pos, hash("%s_child_%d" % [spawn_id, i]), owdb_bridge, "child")
 
@@ -121,9 +123,10 @@ static func _spawn_guards(
 		world_pos.y = city_origin_y(park_center)
 		var facing := atan2(park_center.x - world_pos.x, park_center.z - world_pos.z)
 
+		var guard_name: String = str(GUARD_NAMES[i % GUARD_NAMES.size()])
 		var entry := {
 			"id": "playground_guard_%d" % i,
-			"name": GUARD_NAMES[i % GUARD_NAMES.size()],
+			"name": guard_name,
 			"scale": 1.05,
 			"speed": speed,
 			"wander": wander,
@@ -131,6 +134,7 @@ static func _spawn_guards(
 			"rotation_y": facing,
 			"playground_guard": true,
 			"tint": Color(0.12, 0.28, 0.55),
+			"prompt": "Prata med %s [E]" % guard_name,
 		}
 		_spawn_npc(root, entry, world_pos, hash("%s_guard_%d" % [spawn_id, i]), owdb_bridge, "guard")
 

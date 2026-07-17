@@ -5,6 +5,7 @@ const ZnoodPoiMarkerScript = preload("res://scripts/znood/znood_poi_marker.gd")
 const WeaponShopScript = preload("res://scripts/shops/weapon_shop.gd")
 const WeaponShopOwnerScript = preload("res://scripts/shops/weapon_shop_owner.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
+const ShopDoorBuilderScript = preload("res://scripts/shops/shop_door_builder.gd")
 
 const STEEL := Color(0.62, 0.66, 0.72)
 const ACCENT := Color(0.9, 0.35, 0.22)
@@ -22,19 +23,27 @@ static func build_kiosk(parent: Node3D, pos: Vector3, poi_id: String = "weapon_s
 	shop.position = pos
 	parent.add_child(shop)
 
-	# Liten bås-kropp (~3.4 × 2.6 × 2.8 m).
-	var shell := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(3.4, 2.55, 2.8)
-	shell.mesh = mesh
-	shell.position = Vector3(0.0, 1.28, 0.0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = STEEL.darkened(0.08)
-	mat.metallic = 0.62
-	mat.roughness = 0.4
-	shell.material_override = mat
-	shop.add_child(shell)
-	WorldCollisionBuilderScript.attach_box(shop, Vector3(3.4, 2.55, 2.8), Vector3(0.0, 1.28, 0.0))
+	# Liten bås med öppen framsida och dörr (~3.4 × 2.6 × 2.8 m).
+	var floor := _box_mesh(Vector3(3.4, 0.16, 2.8), STEEL.darkened(0.2))
+	floor.position = Vector3(0.0, 0.08, 0.0)
+	shop.add_child(floor)
+	var back := _box_mesh(Vector3(3.4, 2.5, 0.22), STEEL.darkened(0.1))
+	back.position = Vector3(0.0, 1.3, -1.3)
+	shop.add_child(back)
+	for side in [-1.0, 1.0]:
+		var wall := _box_mesh(Vector3(0.22, 2.5, 2.8), STEEL.darkened(0.08))
+		wall.position = Vector3(1.59 * side, 1.3, 0.0)
+		shop.add_child(wall)
+	var roof := _box_mesh(Vector3(3.6, 0.14, 3.0), STEEL)
+	roof.position = Vector3(0.0, 2.55, 0.0)
+	shop.add_child(roof)
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(3.4, 2.5, 0.28), Vector3(0.0, 1.3, -1.3))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.28, 2.5, 2.8), Vector3(-1.59, 1.3, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.28, 2.5, 2.8), Vector3(1.59, 1.3, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(3.4, 0.2, 2.8), Vector3(0.0, 0.08, 0.0))
+	ShopDoorBuilderScript.add_entrance(
+		shop, 1.35, 1.7, 1.35, 2.15, 2.5, STEEL.darkened(0.15), WOOD, ACCENT, 28.0
+	)
 
 	var awning := MeshInstance3D.new()
 	var awning_mesh := BoxMesh.new()
@@ -106,18 +115,26 @@ static func build_large(parent: Node3D, pos: Vector3, poi_id: String = "weapon_s
 	shop.position = pos
 	parent.add_child(shop)
 
-	var shell := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(12.0, 4.5, 7.0)
-	shell.mesh = mesh
-	shell.position = Vector3(0.0, 2.25, 0.0)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = STEEL
-	mat.metallic = 0.55
-	mat.roughness = 0.42
-	shell.material_override = mat
-	shop.add_child(shell)
-	WorldCollisionBuilderScript.attach_box(shop, Vector3(12.0, 4.5, 7.0), Vector3(0.0, 2.25, 0.0))
+	var floor := _box_mesh(Vector3(12.0, 0.25, 7.0), STEEL.darkened(0.2))
+	floor.position = Vector3(0.0, 0.12, 0.0)
+	shop.add_child(floor)
+	var back := _box_mesh(Vector3(12.0, 4.4, 0.35), STEEL)
+	back.position = Vector3(0.0, 2.25, -3.35)
+	shop.add_child(back)
+	for side in [-1.0, 1.0]:
+		var wall := _box_mesh(Vector3(0.35, 4.4, 7.0), STEEL.lightened(0.04))
+		wall.position = Vector3(5.85 * side, 2.25, 0.0)
+		shop.add_child(wall)
+	var roof := _box_mesh(Vector3(12.4, 0.25, 7.4), STEEL.darkened(0.05))
+	roof.position = Vector3(0.0, 4.45, 0.0)
+	shop.add_child(roof)
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(12.0, 4.4, 0.4), Vector3(0.0, 2.25, -3.35))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.4, 4.4, 7.0), Vector3(-5.85, 2.25, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.4, 4.4, 7.0), Vector3(5.85, 2.25, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(12.0, 0.3, 7.0), Vector3(0.0, 0.12, 0.0))
+	ShopDoorBuilderScript.add_entrance(
+		shop, 3.45, 6.0, 2.2, 2.6, 4.4, STEEL.darkened(0.1), WOOD, ACCENT, 18.0
+	)
 
 	var sign := Label3D.new()
 	sign.text = "VAPENBUTIK"
@@ -157,6 +174,19 @@ static func build_large(parent: Node3D, pos: Vector3, poi_id: String = "weapon_s
 	shop.add_child(owner)
 
 	return shop
+
+
+static func _box_mesh(size: Vector3, color: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mi.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.metallic = 0.45
+	mat.roughness = 0.45
+	mi.material_override = mat
+	return mi
 
 
 static func _build_kiosk_counter(shop: Node3D) -> void:

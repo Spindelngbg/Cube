@@ -184,6 +184,12 @@ static func trigger_dialogue(npc_id: String) -> void:
 	var title: String = str(entry.get("dialogue_title", entry.get("name", "NPC")))
 	var body: String = str(entry.get("dialogue_body", "..."))
 	body = _append_quest_hint(npc_id, body)
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var game := tree.get_first_node_in_group("game_director")
+		if game != null and game.has_method("open_npc_dialog"):
+			game.open_npc_dialog(npc_id, title, body)
+			return
 	NpcDialogueBarkScript.play_for_id(npc_id, "greeting")
 	NpcDialogueBarkScript.play_for_id(npc_id, "miscellaneous")
 	QuestManager.story_toast.emit(title, body)

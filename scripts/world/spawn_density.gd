@@ -14,23 +14,28 @@ static func grid_distance(cell: Vector2i, spawn_cell: Vector2i = DC_SPAWN_CELL) 
 
 static func building_chance(cell: Vector2i, spawn_cell: Vector2i = DC_SPAWN_CELL) -> float:
 	var dist := grid_distance(cell, spawn_cell)
-	if dist < 1.25:
-		return 0.1
-	if dist < 2.5:
+	## Helt tomt närmast spawn, sedan glesare utåt.
+	if dist < 2.0:
+		return 0.0
+	if dist < 3.0:
+		return 0.12
+	if dist < 4.5:
 		return 0.32
-	if dist < 4.0:
-		return 0.58
 	if dist < 6.0:
-		return 0.82
-	return 1.0
+		return 0.55
+	if dist < 8.0:
+		return 0.75
+	return 0.92
 
 
 static func should_place_building(cell: Vector2i, spawn_cell: Vector2i = DC_SPAWN_CELL) -> bool:
 	if grid_distance(cell, spawn_cell) >= GlesPerformanceScript.max_building_grid_dist():
 		return false
 	var chance := building_chance(cell, spawn_cell)
+	if chance <= 0.0:
+		return false
 	# Lättare stad = färre byggnader (FPS).
-	chance *= 0.72 if GlesPerformanceScript.is_active() else 0.85
+	chance *= 0.65 if GlesPerformanceScript.is_active() else 0.78
 	var roll := _hash_roll(cell, spawn_cell, 41)
 	return roll < chance
 

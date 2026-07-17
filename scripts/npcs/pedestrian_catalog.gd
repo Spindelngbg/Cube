@@ -58,10 +58,11 @@ static func _pack_routes(spawn_id: String, routes: Array, speed_min: float, spee
 		rng.seed = seed
 		var start: Vector3 = route[0]
 		var wallet := rng.randi_range(10, 15000)
+		var display_name := PedestrianStyleScript.pick_display_name(seed)
 		out.append({
 			"id": "pedestrian_%s_%d" % [spawn_id, i],
 			"pedestrian": true,
-			"name": PedestrianStyleScript.pick_display_name(seed),
+			"name": display_name,
 			"scale": 1.0,
 			"style_seed": seed,
 			"local_pos": start,
@@ -70,5 +71,6 @@ static func _pack_routes(spawn_id: String, routes: Array, speed_min: float, spee
 			"speed": rng.randf_range(speed_min, speed_max),
 			"rotation_y": atan2(route[1].x - route[0].x, route[1].z - route[0].z),
 			"wander": false,
+			"prompt": "Prata med %s [E]" % display_name,
 		})
 	return out

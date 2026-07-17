@@ -23,6 +23,8 @@ static func enhance(
 	rotation_y: float,
 	scale_factor: float
 ) -> void:
+	## Stege/takdäck borttaget — såg ut som lösa bitar i luften.
+	## Behåll bara mild ljusboost på huset.
 	if building == null:
 		return
 
@@ -31,14 +33,11 @@ static func enhance(
 
 	CityKitLibrary.brighten_building(
 		building,
-		Color(1.42, 1.38, 1.28),
-		Color(0.55, 0.62, 0.78),
-		0.34
+		Color(1.08, 1.06, 1.04),
+		Color(0.45, 0.52, 0.68),
+		0.12
 	)
 	_add_facade_light(zone_root, center, rotation_y, scale_factor)
-	_add_exterior_ladder(zone_root, center, rotation_y, scale_factor)
-	_add_roof_deck(zone_root, center, rotation_y, scale_factor)
-	_add_roof_sign(zone_root, center, rotation_y, scale_factor)
 
 
 static func _facade_offset(rotation_y: float, scale_factor: float) -> Vector3:

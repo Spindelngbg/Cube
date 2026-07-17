@@ -24,6 +24,11 @@ func get_prompt() -> String:
 
 
 func trigger() -> void:
+	## Låt föräldra-NPC hantera dialog (alla world_npc m.m.).
+	var host := get_parent()
+	if host != null and host.has_method("on_player_talk"):
+		host.on_player_talk()
+		return
 	if interact_id == "":
 		return
 	QuestManager.on_interact(interact_id)

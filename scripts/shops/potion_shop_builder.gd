@@ -5,6 +5,7 @@ const ZnoodPoiMarkerScript = preload("res://scripts/znood/znood_poi_marker.gd")
 const PotionShopScript = preload("res://scripts/shops/potion_shop.gd")
 const PotionShopOwnerScript = preload("res://scripts/shops/potion_shop_owner.gd")
 const WorldCollisionBuilderScript = preload("res://scripts/world/world_collision_builder.gd")
+const ShopDoorBuilderScript = preload("res://scripts/shops/shop_door_builder.gd")
 
 const STONE := Color(0.28, 0.2, 0.38)
 const ACCENT := Color(0.72, 0.35, 0.95)
@@ -19,7 +20,13 @@ static func build(parent: Node3D, pos: Vector3, poi_id: String = "potion_shop") 
 	parent.add_child(shop)
 
 	_build_shell(shop)
-	WorldCollisionBuilderScript.attach_box(shop, Vector3(8.0, 4.0, 6.5), Vector3(0.0, 2.0, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(8.0, 4.0, 0.4), Vector3(0.0, 2.0, -3.1))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.4, 4.0, 6.5), Vector3(-3.85, 2.0, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(0.4, 4.0, 6.5), Vector3(3.85, 2.0, 0.0))
+	WorldCollisionBuilderScript.attach_box(shop, Vector3(8.0, 0.3, 6.5), Vector3(0.0, 0.11, 0.0))
+	ShopDoorBuilderScript.add_entrance(
+		shop, 3.2, 4.0, 2.0, 2.5, 3.9, STONE.darkened(0.05), WOOD, ACCENT, 24.0
+	)
 	_build_sign(shop)
 	_build_shelves(shop)
 
@@ -79,18 +86,20 @@ static func _build_shell(shop: Node3D) -> void:
 	roof.position = Vector3(0.0, 4.05, 0.0)
 	shop.add_child(roof)
 
-	var window := _box(Vector3(4.2, 1.7, 0.08), GLASS)
-	window.position = Vector3(0.0, 2.15, 3.2)
-	var glass_mat := StandardMaterial3D.new()
-	glass_mat.albedo_color = GLASS
-	glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glass_mat.roughness = 0.1
-	glass_mat.metallic = 0.15
-	glass_mat.emission_enabled = true
-	glass_mat.emission = ACCENT
-	glass_mat.emission_energy_multiplier = 0.2
-	window.material_override = glass_mat
-	shop.add_child(window)
+	## Sidofönster (mitten lämnas till dörrarna).
+	for side in [-1.0, 1.0]:
+		var window := _box(Vector3(1.6, 1.4, 0.08), GLASS)
+		window.position = Vector3(side * 2.5, 2.35, 3.2)
+		var glass_mat := StandardMaterial3D.new()
+		glass_mat.albedo_color = GLASS
+		glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		glass_mat.roughness = 0.1
+		glass_mat.metallic = 0.15
+		glass_mat.emission_enabled = true
+		glass_mat.emission = ACCENT
+		glass_mat.emission_energy_multiplier = 0.2
+		window.material_override = glass_mat
+		shop.add_child(window)
 
 
 static func _build_sign(shop: Node3D) -> void:

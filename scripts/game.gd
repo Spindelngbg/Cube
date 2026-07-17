@@ -50,6 +50,8 @@ const CriminalBossSpawnerScript = preload("res://scripts/npcs/criminal_boss_spaw
 const PlaygroundNpcSpawnerScript = preload("res://scripts/npcs/playground_npc_spawner.gd")
 const FactoryWorkerSpawnerScript = preload("res://scripts/npcs/factory_worker_spawner.gd")
 const FactoryDialogUIScript = preload("res://scripts/ui/factory_dialog_ui.gd")
+const NpcDialogUIScript = preload("res://scripts/ui/npc_dialog_ui.gd")
+const ColonySpawnLootScript = preload("res://scripts/items/colony_spawn_loot.gd")
 const GuiFontLibraryScript = preload("res://scripts/ui/gui_font_library.gd")
 const GreeneryVegetationBuilderScript = preload("res://scripts/city/greenery_vegetation_builder.gd")
 const ZezzlorDossierRuntimeScript = preload("res://scripts/monsters/zezzlor_dossier_runtime.gd")
@@ -100,6 +102,8 @@ var _mydrillium_trade_ui: MydrilliumTradeUI
 var _zone_purchase_dialog_ui: ZonePurchaseDialogUI
 var _zezzlor_dialog_ui: ZezzlorDialogUI
 var _factory_dialog_ui: FactoryDialogUI
+## Untyped: class_name NpcDialogUI kan saknas vid tidig parse i vissa headless-lägen.
+var _npc_dialog_ui
 var _zezzlor_dossier_ui: ZezzlorDossierUI
 var _near_zezzlor_hq: ZezzlorHq
 var _hud_clock: HudClockUI
@@ -321,6 +325,7 @@ func _populate_world_entities() -> void:
 		spawn_pos
 	)
 	_collect_monsters(monsters_root)
+	ColonySpawnLootScript.place_near_spawn(self, _active_spawn_id, spawn_pos)
 	await get_tree().process_frame
 	SuperZezzlorSpawnerScript.populate(self, _active_spawn_id, spawn_pos, _owdb_bridge)
 	ZezzlorPatrolSpawnerScript.populate(self, _active_spawn_id, _owdb_bridge)
@@ -379,15 +384,10 @@ func _configure_colony_rendering() -> void:
 
 	var fill := get_node_or_null("FillLight") as OmniLight3D
 	if fill and is_exposed_city:
-		fill.omni_range = 14.0
+		fill.omni_range = 28.0
 		fill.shadow_enabled = false
-		var PhysicalLightingScript = preload("res://scripts/rendering/physical_lighting.gd")
-		if PhysicalLightingScript.is_enabled():
-			PhysicalLightingScript.apply_omni_physical(fill, 180.0, 9000.0, 1.0)
-			PhysicalLightingScript.enable_distance_fade(fill, 22.0, 10.0)
-		else:
-			fill.light_color = Color(0.32, 0.42, 0.62)
-			fill.light_energy = 0.06
+		fill.light_color = Color(0.7, 0.78, 0.92)
+		fill.light_energy = 0.28
 
 
 func refresh_draw_distance() -> void:
@@ -722,6 +722,9 @@ func _setup_story_ui() -> void:
 	_factory_dialog_ui = FactoryDialogUIScript.new()
 	ui.add_child(_factory_dialog_ui)
 	_factory_dialog_ui.closed.connect(_on_factory_dialog_closed)
+	_npc_dialog_ui = NpcDialogUIScript.new()
+	ui.add_child(_npc_dialog_ui)
+	_npc_dialog_ui.closed.connect(_on_npc_dialog_closed)
 	_zezzlor_dossier_ui = ZezzlorDossierUIScript.new()
 	ui.add_child(_zezzlor_dossier_ui)
 	_zezzlor_dossier_ui.closed.connect(_on_zezzlor_dossier_closed)
@@ -845,6 +848,10 @@ func _compute_mouse_capture_allowed() -> bool:
 	if _tutorial_ui and _tutorial_ui.has_method("is_open") and _tutorial_ui.is_open():
 		return false
 	if _zezzlor_dialog_ui and _zezzlor_dialog_ui.is_open():
+		return false
+	if _factory_dialog_ui and _factory_dialog_ui.is_open():
+		return false
+	if _npc_dialog_ui and _npc_dialog_ui.is_open():
 		return false
 	if _help_dialog_ui and _help_dialog_ui.is_open():
 		return false
@@ -1052,12 +1059,32 @@ func _has_weapon_in_inventory() -> bool:
 func open_factory_worker_dialog(npc_id: String) -> void:
 	if _factory_dialog_ui == null:
 		return
+	if _npc_dialog_ui and _npc_dialog_ui.is_open():
+		_npc_dialog_ui.close_panel()
 	if _factory_dialog_ui.is_open():
 		_factory_dialog_ui.close_panel()
 	_factory_dialog_ui.open_for_worker(npc_id)
 
 
+func open_npc_dialog(npc_id: String, title: String, body: String) -> void:
+	if _npc_dialog_ui == null:
+		return
+	if _factory_dialog_ui and _factory_dialog_ui.is_open():
+		_factory_dialog_ui.close_panel()
+	if _help_dialog_ui and _help_dialog_ui.is_open():
+		_help_dialog_ui.close_panel()
+	if _zezzlor_dialog_ui and _zezzlor_dialog_ui.is_open():
+		_zezzlor_dialog_ui.close_panel()
+	if _npc_dialog_ui.is_open():
+		_npc_dialog_ui.close_panel()
+	_npc_dialog_ui.open(npc_id, title, body)
+
+
 func _on_factory_dialog_closed() -> void:
+	restore_gameplay_mouse()
+
+
+func _on_npc_dialog_closed() -> void:
 	restore_gameplay_mouse()
 
 
@@ -1070,6 +1097,9 @@ func _try_interact() -> void:
 		return
 	if _factory_dialog_ui and _factory_dialog_ui.is_open():
 		_factory_dialog_ui.close_panel()
+		return
+	if _npc_dialog_ui and _npc_dialog_ui.is_open():
+		_npc_dialog_ui.close_panel()
 		return
 	if _help_dialog_ui and _help_dialog_ui.is_open():
 		_help_dialog_ui.close_panel()
